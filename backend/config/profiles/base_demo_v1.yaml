@@ -139,3 +139,29 @@ validation:
   senderReference:
     maxLength: 16
     uppercase: true
+
+# Configured FIN interface values. Every value below is supplied by whoever configures
+# this profile, so the studio classifies them as PROFILE_CONFIGURED. Session and sequence
+# numbers are ordinarily allocated by the messaging interface; the values here are
+# configured test-interface values. Trailer fields are intentionally empty: MAC, CHK, PDE
+# and authentication trailers are interface or network generated and are never invented.
+finEnvelope:
+  senderLogicalTerminal: DEMOGB2LAXXX
+  receiverAddress: DEMOUS33XXXX
+  applicationId: F
+  serviceId: "01"
+  sessionNumber: "0001"
+  sequenceNumber: "000001"
+  priority: "N"
+  includeMessageUserReference: true
+  trailerFields: {}
+
+# Configured ISO 20022 header and transport values. `wrapperElement` is the element that
+# carries the AppHdr and the Document together. It is a client or market convention rather
+# than part of ISO 20022, which is why it is configured here rather than assumed.
+mxEnvelope:
+  fromBic: DEMOGB2LXXX
+  toBic: DEMOUS33XXX
+  businessService: swift.demo.subset
+  priority: NORM
+  wrapperElement: BusinessMessage

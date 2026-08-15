@@ -1,0 +1,399 @@
+# ---------------------------------------------------------------------------------------
+# sese.024 — Securities Settlement Transaction Status Advice
+#
+# REPOSITORY-CONFIGURED SUBSET. See sese.023.001.11.yaml for the full honesty note: this
+# file is not verified against an authoritative ISO 20022 message-definition report and
+# `authoritativeCompletenessKnown` is false.
+# ---------------------------------------------------------------------------------------
+messageType: sese.024
+version: sese.024.001.13
+name: Securities Settlement Transaction Status Advice
+shortDescription: >-
+  Advises the status of a securities settlement instruction — processing, matching or
+  settlement — including the reason when it is pending or rejected.
+businessArea: SECURITIES_SETTLEMENT
+namespace: "urn:iso:std:iso:20022:tech:xsd:sese.024.001.13"
+messageRoot: SctiesSttlmTxStsAdvc
+documentElement: Document
+standardsRelease: ISO20022_CONFIGURED_SUBSET_V1
+authoritativeCompletenessKnown: false
+source:
+  sourceType: CONFIGURED_SUBSET_REQUIRES_VERIFICATION
+  sourceReference: ISO20022-SESE024-CONFIGURED-SUBSET-2026-08-16
+  reviewedAt: "2026-08-16"
+  reviewedBy: REPOSITORY_CONFIGURATION
+limitations:
+  - Only the processing, matching and settlement status branches listed below are configured.
+  - Inferred matching status, repair status and modification status are not configured.
+  - Reason code lists are the configured subset, not the complete ISO 20022 external code sets.
+
+structure:
+  - name: TxIdDtls
+    displayName: Transaction Identification Details
+    presence: MANDATORY
+    businessMeaning: Identifies the settlement instruction this status refers to.
+    technicalMeaning: SettlementTypeAndIdentification container.
+    whyUsed: Without it the account owner cannot correlate the status to its instruction.
+    businessQuestion: Which instruction does this status relate to?
+    searchTerms: [TxIdDtls, transaction identification]
+    children:
+      - name: SctiesMvmntTp
+        displayName: Securities Movement Type
+        presence: MANDATORY
+        dataType: Code
+        codes: [RECE, DELI]
+        businessPath: direction
+        businessMeaning: The direction of the instruction being reported on.
+        technicalMeaning: ReceiveDelivery1Code.
+        whyUsed: Confirms which side of the movement the status covers.
+        businessQuestion: Was the original instruction a receipt or a delivery?
+        examples:
+          - value: RECE
+            explanation: The original instruction was a receipt.
+        searchTerms: [SctiesMvmntTp, RECE, DELI, direction]
+
+      - name: Pmt
+        displayName: Payment
+        presence: MANDATORY
+        dataType: Code
+        codes: [APMT, FREE]
+        businessPath: paymentType
+        businessMeaning: Whether the reported instruction settles against payment.
+        technicalMeaning: DeliveryReceiptType2Code.
+        whyUsed: Confirms the payment characteristic of the original instruction.
+        businessQuestion: Was the original instruction against payment?
+        examples:
+          - value: APMT
+            explanation: The original instruction settles against payment.
+        searchTerms: [Pmt, APMT, FREE]
+
+      - name: AcctOwnrTxId
+        displayName: Account Owner Transaction Identification
+        presence: MANDATORY
+        dataType: Max35Text
+        businessPath: relatedReference
+        businessMeaning: The account owner's reference for the instruction being reported on.
+        technicalMeaning: Max35Text.
+        whyUsed: >-
+          This is the value the account owner sent as TxId on the sese.023, and it is how
+          the status is matched back to the instruction.
+        businessQuestion: What was the transaction identification of the original instruction?
+        examples:
+          - value: TEST001
+            explanation: The TxId of the related sese.023 instruction.
+        commonMistakes:
+          - Supplying a new reference instead of the original instruction reference.
+        searchTerms: [AcctOwnrTxId, related reference, PREV, original instruction]
+
+      - name: AcctSvcrTxId
+        displayName: Account Servicer Transaction Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessMeaning: The account servicer's own reference for the transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: Lets the servicer quote its internal reference in queries.
+        businessQuestion: Does the account servicer have its own reference?
+        examples:
+          - value: SVCR000000001
+            explanation: A synthetic account servicer reference.
+        searchTerms: [AcctSvcrTxId, servicer reference]
+
+  - name: PrcgSts
+    displayName: Processing Status
+    presence: CONDITIONAL
+    choice: true
+    conditionExplanation: >-
+      At least one of Processing Status, Matching Status or Settlement Status must be
+      present. Exactly one processing-status branch may be chosen.
+    businessMeaning: How far the instruction has progressed through the servicer's processing.
+    technicalMeaning: ProcessingStatus choice container.
+    whyUsed: Tells the account owner whether the instruction was accepted, is pending, or failed.
+    businessQuestion: What is the processing status of the instruction?
+    searchTerms: [PrcgSts, processing status]
+    children:
+      - name: AckdAccptd
+        displayName: Acknowledged and Accepted
+        presence: OPTIONAL
+        businessMeaning: The instruction passed validation and was accepted for processing.
+        technicalMeaning: AcknowledgedAcceptedStatus choice.
+        whyUsed: Confirms the instruction is in the settlement queue.
+        businessQuestion: Was the instruction accepted?
+        searchTerms: [AckdAccptd, accepted, acknowledged, ACCP]
+        children:
+          - name: NoSpcfdRsn
+            displayName: No Specified Reason
+            presence: MANDATORY
+            dataType: Code
+            codes: [NORE]
+            businessMeaning: Acceptance with no further reason to report.
+            technicalMeaning: NoReasonCode.
+            whyUsed: The standard way to state a plain acceptance.
+            businessQuestion: Is there any reason to report alongside the acceptance?
+            examples:
+              - value: NORE
+                explanation: No reason specified.
+            searchTerms: [NoSpcfdRsn, NORE, accepted]
+
+      - name: PdgPrcg
+        displayName: Pending Processing
+        presence: OPTIONAL
+        businessMeaning: The instruction is held and has not yet been processed.
+        technicalMeaning: PendingProcessingStatus choice.
+        whyUsed: Explains why an instruction has not moved forward.
+        businessQuestion: Why is the instruction pending?
+        searchTerms: [PdgPrcg, pending, PEND]
+        children:
+          - name: Rsn
+            displayName: Pending Reason
+            presence: MANDATORY
+            searchTerms: [Rsn, reason, pending]
+            children:
+              - name: Cd
+                displayName: Pending Reason Choice
+                presence: MANDATORY
+                searchTerms: [Cd, reason code]
+                children:
+                  - name: Cd
+                    displayName: Pending Processing Reason Code
+                    presence: MANDATORY
+                    dataType: Code
+                    codes: [AWMO, AWSH, BATC, CAIS, CYCL, DOCC, DOCY, FUTU, LACK, LATE, NEXT, OTHR]
+                    businessPath: status.reasonCode
+                    businessMeaning: The configured reason the instruction is pending.
+                    technicalMeaning: PendingProcessingReason code.
+                    whyUsed: Lets the account owner act on the blockage.
+                    businessQuestion: What is holding the instruction up?
+                    examples:
+                      - value: LACK
+                        explanation: Lack of securities to complete the movement.
+                    searchTerms: [Cd, pending reason, LACK, AWMO, CYCL]
+
+          - name: AddtlRsnInf
+            displayName: Additional Reason Information
+            presence: OPTIONAL
+            dataType: Max350Text
+            businessMeaning: Free-text narrative accompanying the pending reason.
+            technicalMeaning: Additional reason information text.
+            whyUsed: Carries operational detail that no code can express.
+            businessQuestion: Is there narrative to add to the reason?
+            searchTerms: [AddtlRsnInf, narrative, additional information]
+
+      - name: Rjctd
+        displayName: Rejected
+        presence: OPTIONAL
+        businessMeaning: The instruction was rejected and will not settle.
+        technicalMeaning: RejectionStatus choice.
+        whyUsed: Tells the account owner the instruction must be corrected and re-sent.
+        businessQuestion: Why was the instruction rejected?
+        searchTerms: [Rjctd, rejected, REJT]
+        children:
+          - name: Rsn
+            displayName: Rejection Reason
+            presence: MANDATORY
+            searchTerms: [Rsn, rejection reason]
+            children:
+              - name: Cd
+                displayName: Rejection Reason Choice
+                presence: MANDATORY
+                searchTerms: [Cd, rejection code]
+                children:
+                  - name: Cd
+                    displayName: Rejection Reason Code
+                    presence: MANDATORY
+                    dataType: Code
+                    codes: [CASH, DDAT, DQUA, DSEC, ICAG, ICUS, IEXE, INVB, NCRR, REFE, SAFE, SETS, OTHR]
+                    businessPath: status.reasonCode
+                    businessMeaning: The configured reason the instruction was rejected.
+                    technicalMeaning: RejectionReason code.
+                    whyUsed: Identifies exactly what must be corrected.
+                    businessQuestion: What was wrong with the instruction?
+                    examples:
+                      - value: DSEC
+                        explanation: The security identification was invalid.
+                    searchTerms: [Cd, rejection reason, DSEC, DQUA, SAFE]
+
+          - name: AddtlRsnInf
+            displayName: Additional Reason Information
+            presence: OPTIONAL
+            dataType: Max350Text
+            businessMeaning: Free-text narrative accompanying the rejection reason.
+            technicalMeaning: Additional reason information text.
+            whyUsed: Carries the operational detail the code cannot express.
+            businessQuestion: Is there narrative to add to the rejection?
+            examples:
+              - value: SYNTHETIC TEST REJECTION NARRATIVE
+                explanation: A synthetic narrative.
+            searchTerms: [AddtlRsnInf, narrative, rejection]
+
+      - name: Canc
+        displayName: Cancelled
+        presence: OPTIONAL
+        businessMeaning: The instruction was cancelled.
+        technicalMeaning: CancellationStatus choice.
+        whyUsed: Confirms the outcome of a cancellation request.
+        businessQuestion: Why was the instruction cancelled?
+        searchTerms: [Canc, cancelled, CANC]
+        children:
+          - name: Rsn
+            displayName: Cancellation Reason
+            presence: MANDATORY
+            searchTerms: [Rsn, cancellation reason]
+            children:
+              - name: Cd
+                displayName: Cancellation Reason Choice
+                presence: MANDATORY
+                searchTerms: [Cd, cancellation code]
+                children:
+                  - name: Cd
+                    displayName: Cancellation Reason Code
+                    presence: MANDATORY
+                    dataType: Code
+                    codes: [CANI, CANS, CSUB, CANT, CANZ, CORP, SCEX, OTHR]
+                    businessPath: status.reasonCode
+                    businessMeaning: The configured reason the instruction was cancelled.
+                    technicalMeaning: CancelledStatusReason code.
+                    whyUsed: Distinguishes an owner-requested cancellation from a system one.
+                    businessQuestion: Who or what cancelled the instruction?
+                    examples:
+                      - value: CANI
+                        explanation: Cancelled at the account owner's request.
+                    searchTerms: [Cd, cancellation reason, CANI, CANS]
+
+  - name: MtchgSts
+    displayName: Matching Status
+    presence: CONDITIONAL
+    choice: true
+    conditionExplanation: Present when the market infrastructure reports a matching outcome.
+    businessMeaning: Whether the instruction has matched with the counterparty's instruction.
+    technicalMeaning: MatchingStatus choice container.
+    whyUsed: Matching is a precondition of settlement in most markets.
+    businessQuestion: Has the instruction matched?
+    searchTerms: [MtchgSts, matching status, matched, unmatched]
+    children:
+      - name: Mtchd
+        displayName: Matched
+        presence: OPTIONAL
+        dataType: Code
+        codes: [MACH]
+        businessPath: status.matchingStatus
+        businessMeaning: The instruction matched the counterparty's instruction.
+        technicalMeaning: ProprietaryReason-free matched indicator.
+        whyUsed: Confirms both sides agree and settlement can proceed.
+        businessQuestion: Did the instruction match?
+        examples:
+          - value: MACH
+            explanation: The instruction is matched.
+        searchTerms: [Mtchd, MACH, matched]
+
+      - name: Umtchd
+        displayName: Unmatched
+        presence: OPTIONAL
+        businessMeaning: The instruction has not matched the counterparty's instruction.
+        technicalMeaning: UnmatchedStatus choice.
+        whyUsed: Identifies the field on which the two sides disagree.
+        businessQuestion: Why has the instruction not matched?
+        searchTerms: [Umtchd, unmatched, NMAT]
+        children:
+          - name: Rsn
+            displayName: Unmatched Reason
+            presence: MANDATORY
+            searchTerms: [Rsn, unmatched reason]
+            children:
+              - name: Cd
+                displayName: Unmatched Reason Choice
+                presence: MANDATORY
+                searchTerms: [Cd, unmatched code]
+                children:
+                  - name: Cd
+                    displayName: Unmatched Reason Code
+                    presence: MANDATORY
+                    dataType: Code
+                    codes: [CMIS, DDAT, DDEA, DELN, DEPT, DMON, DQUA, DSEC, DTRD, NMAS, SAFE, OTHR]
+                    businessPath: status.reasonCode
+                    businessMeaning: The configured field on which the two sides differ.
+                    technicalMeaning: UnmatchedReason code.
+                    whyUsed: Tells the account owner exactly what to amend.
+                    businessQuestion: Which field does not match?
+                    examples:
+                      - value: DDAT
+                        explanation: The settlement dates differ between the two sides.
+                    searchTerms: [Cd, unmatched reason, DDAT, DMON, DQUA]
+
+  - name: SttlmSts
+    displayName: Settlement Status
+    presence: CONDITIONAL
+    choice: true
+    conditionExplanation: Present when the market infrastructure reports a settlement outcome.
+    businessMeaning: Whether the transaction has settled, is pending settlement, or is failing.
+    technicalMeaning: SettlementStatus choice container.
+    whyUsed: This is the status that drives penalty and fail reporting.
+    businessQuestion: Has the transaction settled?
+    searchTerms: [SttlmSts, settlement status, failing, pending]
+    children:
+      - name: Pdg
+        displayName: Pending Settlement
+        presence: OPTIONAL
+        businessMeaning: Settlement has not yet occurred but the intended date has not passed.
+        technicalMeaning: PendingStatus choice.
+        whyUsed: Distinguishes a normal wait from a settlement failure.
+        businessQuestion: Why is settlement pending?
+        searchTerms: [Pdg, pending settlement]
+        children:
+          - name: Rsn
+            displayName: Pending Settlement Reason
+            presence: MANDATORY
+            searchTerms: [Rsn, pending reason]
+            children:
+              - name: Cd
+                displayName: Pending Settlement Reason Choice
+                presence: MANDATORY
+                searchTerms: [Cd, pending code]
+                children:
+                  - name: Cd
+                    displayName: Pending Settlement Reason Code
+                    presence: MANDATORY
+                    dataType: Code
+                    codes: [AWMO, AWSH, CAIS, CLAC, CMON, CYCL, LACK, LATE, MONY, PREA, OTHR]
+                    businessPath: status.reasonCode
+                    businessMeaning: The configured reason settlement has not occurred.
+                    technicalMeaning: PendingReason code.
+                    whyUsed: Identifies the blocking condition.
+                    businessQuestion: What is preventing settlement?
+                    examples:
+                      - value: LACK
+                        explanation: Insufficient securities to settle.
+                    searchTerms: [Cd, pending reason, LACK, MONY, CYCL]
+
+      - name: Flng
+        displayName: Failing Settlement
+        presence: OPTIONAL
+        businessMeaning: The intended settlement date has passed and the transaction has not settled.
+        technicalMeaning: FailingStatus choice.
+        whyUsed: A failing transaction is what triggers settlement-discipline penalties.
+        businessQuestion: Why is the transaction failing?
+        searchTerms: [Flng, failing, fail, penalty]
+        children:
+          - name: Rsn
+            displayName: Failing Reason
+            presence: MANDATORY
+            searchTerms: [Rsn, failing reason]
+            children:
+              - name: Cd
+                displayName: Failing Reason Choice
+                presence: MANDATORY
+                searchTerms: [Cd, failing code]
+                children:
+                  - name: Cd
+                    displayName: Failing Reason Code
+                    presence: MANDATORY
+                    dataType: Code
+                    codes: [AWMO, AWSH, CLAC, CMON, LACK, LATE, MONY, OTHR]
+                    businessPath: status.reasonCode
+                    businessMeaning: The configured reason the transaction is failing.
+                    technicalMeaning: FailingReason code.
+                    whyUsed: Feeds settlement-discipline and penalty reporting.
+                    businessQuestion: Why did the transaction fail to settle?
+                    examples:
+                      - value: LACK
+                        explanation: Insufficient securities at the intended settlement date.
+                    searchTerms: [Cd, failing reason, LACK, MONY]

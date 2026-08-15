@@ -140,3 +140,22 @@ validation:
   senderReference:
     maxLength: 12
     uppercase: true
+
+# See base_demo_v1.yaml for the classification rationale.
+finEnvelope:
+  senderLogicalTerminal: BFSXGB2LAXXX
+  receiverAddress: BFSXUS33XXXX
+  applicationId: F
+  serviceId: "01"
+  sessionNumber: "0002"
+  sequenceNumber: "000001"
+  priority: "N"
+  includeMessageUserReference: true
+  trailerFields: {}
+
+mxEnvelope:
+  fromBic: BFSXGB2LXXX
+  toBic: BFSXUS33XXX
+  businessService: swift.bfs.demo
+  priority: NORM
+  wrapperElement: BusinessMessage
