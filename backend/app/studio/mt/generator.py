@@ -461,17 +461,24 @@ class MtGenerator:
             compose_fields,
             client_profile_enabled=True,
         )
-        known = {issue.message for issue in errors}
+        # The composer restates problems the structured validator has already reported, in
+        # its own words and by row id. Surface only what is genuinely new, otherwise a form
+        # with twelve missing fields reports twenty-four errors.
+        reported_rows = {issue.location for issue in errors if issue.location}
+        reported_messages = {issue.message for issue in errors}
         for finding in composition.findings:
-            if finding not in known:
-                errors.append(
-                    _error(
-                        "MT_COMPOSITION_FINDING",
-                        finding,
-                        layer=ValidationLayer.STRUCTURE,
-                        suggestion="Correct the highlighted field and generate again.",
-                    )
+            if finding in reported_messages:
+                continue
+            if any(row_id and row_id in finding for row_id in reported_rows):
+                continue
+            errors.append(
+                _error(
+                    "MT_COMPOSITION_FINDING",
+                    finding,
+                    layer=ValidationLayer.STRUCTURE,
+                    suggestion="Correct the highlighted field and generate again.",
                 )
+            )
 
         fin_text: str | None = None
         envelope_fields: list[EnvelopeField] = []
