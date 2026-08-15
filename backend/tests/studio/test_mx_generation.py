@@ -173,7 +173,9 @@ def test_mt_style_date_is_rejected_with_a_helpful_suggestion(
 
 
 def test_mt_style_isin_prefix_is_rejected(sese023_elements: list[ElementInput]) -> None:
-    result = generate("sese.023", replace(sese023_elements, "/FinInstrmId/ISIN", "ISIN XS0000000001"))
+    result = generate(
+        "sese.023", replace(sese023_elements, "/FinInstrmId/ISIN", "ISIN XS0000000001")
+    )
 
     assert not result.valid
     assert any(item.rule_id == "MX_FORMAT_INVALID" for item in result.validation.errors)

@@ -90,13 +90,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Render or verify the message coverage report")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    path = Path(__file__).resolve().parents[3] / "MESSAGE_COVERAGE_REPORT.md"
+    path = (
+        Path(__file__).resolve().parents[3] / "docs" / "generated" / "message-coverage.md"
+    )
     expected = render_coverage_markdown()
     if args.check:
         if not path.exists() or path.read_text(encoding="utf-8") != expected:
-            print("MESSAGE_COVERAGE_REPORT.md is stale")
+            print("docs/generated/message-coverage.md is stale")
             return 1
-        print("MESSAGE_COVERAGE_REPORT.md is current")
+        print("docs/generated/message-coverage.md is current")
         return 0
     print(expected)
     return 0
