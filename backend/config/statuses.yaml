@@ -1,0 +1,28 @@
+# Controlled demonstration values. This is not an institution-certified rule pack.
+statuses:
+  PENDING:
+    code: PEND
+    reasons:
+      - AWAITING_CASH
+      - AWAITING_SECURITIES
+  REJECTED:
+    code: REJT
+    reasons:
+      - INVALID_REFERENCE
+      - UNSUPPORTED_SECURITY
+  MATCHED:
+    code: MACH
+    reasons:
+      - DETAILS_MATCHED
+  UNMATCHED:
+    code: NMAT
+    reasons:
+      - COUNTERPARTY_MISMATCH
+  CANCELLATION_ACCEPTED:
+    code: CAND
+    reasons:
+      - CANCELLATION_PROCESSED
+  CANCELLATION_REJECTED:
+    code: CANR
+    reasons:
+      - SETTLEMENT_ALREADY_FINAL

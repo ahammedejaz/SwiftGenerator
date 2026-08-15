@@ -1,0 +1,1 @@
+"""Message-specification contract tests."""

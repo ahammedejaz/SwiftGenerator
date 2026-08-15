@@ -1,0 +1,24 @@
+[project]
+name = "securities-message-studio-api"
+version = "0.1.0"
+description = "Deterministic hackathon securities settlement message studio API"
+requires-python = ">=3.12,<3.15"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q -m 'not live'"
+markers = ["live: requires OPENROUTER_API_KEY and performs real provider calls"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+strict = true
+exclude = ["tests"]

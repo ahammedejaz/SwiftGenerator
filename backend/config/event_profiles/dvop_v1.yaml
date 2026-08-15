@@ -1,0 +1,31 @@
+profileId: CA_DVOP_CONFIGURED_SUBSET_V1
+version: 1.0.0
+eventCode: DVOP
+name: Dividend With Options
+capability: PARTIAL
+standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+allowedMessageTypes: [MT564, MT565, MT566, MT567, MT568]
+allowedClassifications: [VOLU]
+allowedOptionCodes: [CASH, SECU]
+requiredRows:
+  MT564: [MT564-A-20C-CORP, MT564-A-20C-SEME, MT564-A-22F-CAEV]
+  MT565: [MT565-A-20C-CORP, MT565-A-20C-SEME, MT565-A1-20C-RELA]
+  MT566: [MT566-A-20C-CORP, MT566-A-20C-SEME, MT566-A1-20C-RELA]
+  MT567: [MT567-A-20C-CORP, MT567-A-20C-SEME, MT567-A1-20C-RELA]
+  MT568: [MT568-A-20C-CORP, MT568-A-20C-SEME, MT568-A1-20C-RELA]
+source:
+  sourceType: OFFICIAL_ISO_15022
+  sourceReference: ISO15022-CORPORATE-ACTIONS-CONFIGURED-DVOP-SUBSET-REVIEW-2026-08-05
+  standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+  verificationStatus: EXTERNAL_VALIDATION_REQUIRED
+  verifiedAt: 2026-08-05T00:00:00Z
+  verificationMethod: APPROVED_REPOSITORY_REVIEW
+catalogueOnlyEvents:
+  - {eventCode: DVCA, name: Cash Dividend}
+  - {eventCode: INTR, name: Interest Payment}
+  - {eventCode: REDM, name: Final Maturity or Redemption}
+  - {eventCode: TEND, name: Tender Offer}
+  - {eventCode: EXOF, name: Exchange Offer}
+  - {eventCode: RHTS, name: Rights Issue}
+  - {eventCode: DVSE, name: Stock Dividend}
+  - {eventCode: MRGR, name: Merger}

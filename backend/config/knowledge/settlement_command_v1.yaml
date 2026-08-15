@@ -1,0 +1,111 @@
+records:
+  - &command_reference
+    messageTypes: [MT530]
+    workflowModule: SETTLEMENT_COMMAND
+    sequencePath: A
+    fieldTag: 20C
+    qualifier: SEME
+    businessPath: senderReference
+    displayName: Command Message Reference
+    businessMeaning: Uniquely identifies the synthetic transaction-processing command.
+    technicalMeaning: Qualified sender message reference in MT530 general information.
+    whyUsed: Supports retrieval, uniqueness, and audit of the processing-change request.
+    businessQuestion: What unique synthetic reference identifies this command?
+    missingImpact: The MT530 command cannot be generated.
+    presence: MANDATORY
+    supportedOptions: [C]
+    allowedCodes: []
+    formatExplanation: Option C qualified reference with a maximum of 16 characters in this subset.
+    exampleValues: [{value: CMDSYNTH0001, synthetic: true, explanation: Synthetic command reference.}]
+    commonMistakes: [Reusing the original instruction reference as the new command reference]
+    dependsOn: []
+    requiredWith: [SAFE, PREV, PRIR]
+    conflictsWith: []
+    relatedFields: [PREV]
+    lifecycleImpact: Identifies the MT530 node related to the original instruction.
+    ruleLayer: BASE_STANDARD
+    standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+    knowledgeVersion: KB_2026_08_05_V1
+    source: &mt530_source
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-MT530-FORMAT-AND-USAGE-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    searchTerms: [MT530, SEME, command reference]
+
+  - <<: *command_reference
+    fieldTag: 23G
+    qualifier: null
+    businessPath: function
+    displayName: Command Message Function
+    businessMeaning: Identifies the supported operation of the MT530 command message.
+    technicalMeaning: Function field in sequence A; this subset emits NEWM only.
+    whyUsed: Establishes that this is a newly created processing command.
+    businessQuestion: Is this a new supported processing command?
+    missingImpact: The command operation is undefined.
+    supportedOptions: [G]
+    allowedCodes: [NEWM]
+    formatExplanation: Four-character NEWM function in the bounded subset.
+    exampleValues: [{value: NEWM, synthetic: true, explanation: Synthetic new command.}]
+    commonMistakes: [Using MT530 as a universal trade amendment]
+    requiredWith: [PREV, PRIR]
+    relatedFields: [PREV, PRIR]
+    searchTerms: [23G, NEWM, command function]
+
+  - <<: *command_reference
+    fieldTag: 97A
+    qualifier: SAFE
+    businessPath: account.safekeepingAccount
+    displayName: Safekeeping Account
+    businessMeaning: Identifies the synthetic account whose instruction processing is being changed.
+    technicalMeaning: Mandatory MT530 sequence A account field using qualifier SAFE and option A.
+    whyUsed: Places the processing command in the correct account-servicing context.
+    businessQuestion: Which synthetic safekeeping account owns the related instruction?
+    missingImpact: The account-servicing context is missing.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Option A SAFE account. Secure authoring accepts user-entered values; client format validation remains profile-specific.
+    exampleValues: [{value: SYNTHSAFE01, synthetic: true, explanation: Synthetic account only.}]
+    commonMistakes: [Using a cash account, Entering production account data]
+    requiredWith: [PREV]
+    relatedFields: [PREV]
+    searchTerms: [97A, SAFE, safekeeping account]
+
+  - <<: *command_reference
+    sequencePath: B
+    qualifier: PREV
+    businessPath: command.originalInstructionReference
+    displayName: Previous Instruction Reference
+    businessMeaning: Identifies the previously sent settlement instruction whose processing priority is changed.
+    technicalMeaning: MT530 request-details reference using qualifier PREV and option C.
+    whyUsed: Correlates the command to the immutable original instruction.
+    businessQuestion: Which original instruction reference should receive the processing change?
+    missingImpact: The command cannot be correlated to an instruction.
+    exampleValues: [{value: ORIGSYNTH001, synthetic: true, explanation: Synthetic original reference.}]
+    commonMistakes: [Referencing a status instead of the instruction]
+    requiredWith: [PRIR]
+    relatedFields: [SEME, SAFE, PRIR]
+    lifecycleImpact: Links MT530 to the original MT540–MT543 instruction.
+    searchTerms: [PREV, original instruction, MT530 linkage]
+
+  - <<: *command_reference
+    sequencePath: B
+    fieldTag: 22F
+    qualifier: PRIR
+    businessPath: command.priority
+    displayName: Priority Indicator
+    businessMeaning: Specifies the requested execution priority of the related settlement instruction.
+    technicalMeaning: MT530 option F indicator qualified by PRIR; without a data source scheme it is numeric from 0001 to 9999.
+    whyUsed: Requests a verified processing-data change without amending trade or event details.
+    businessQuestion: What execution priority from 1 to 9999 should be requested?
+    missingImpact: The supported MT530 request has no processing change to apply.
+    supportedOptions: [F]
+    allowedCodes: []
+    formatExplanation: Four digits from 0001 (highest priority) through 9999.
+    exampleValues: [{value: '0042', synthetic: true, explanation: Synthetic priority value.}]
+    commonMistakes: [Supplying zero, Supplying more than four digits, Treating priority as settlement date]
+    requiredWith: [PREV]
+    relatedFields: [PREV]
+    lifecycleImpact: Changes only processing priority; it does not change core trade details.
+    searchTerms: [22F, PRIR, priority, processing indicator]

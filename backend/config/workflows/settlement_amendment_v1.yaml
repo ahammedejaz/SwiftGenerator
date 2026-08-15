@@ -1,0 +1,44 @@
+policyId: SETTLEMENT_AMENDMENT_DEMO_V1
+version: 1.0.0
+standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+source:
+  sourceType: OFFICIAL_ISO_15022
+  sourceReference: ISO15022-UHB-MT530-SCOPE-USAGE-FIELD22F-REVIEWED-2026-08-05
+  reviewStatus: VERIFIED
+  reviewedAt: 2026-08-05
+  reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+fieldPolicies:
+  processing.priority:
+    classification: PROCESSING_DATA_MODIFICATION
+    method: MT530_PRIORITY
+    enabled: true
+    explanation: MT530 PRIR requests a processing-priority change; use must be pre-agreed with the account servicer.
+  processing.holdRelease:
+    classification: UNSUPPORTED_MODIFICATION
+    method: UNSUPPORTED
+    enabled: false
+    explanation: No approved institution rule pack enables a hold or release command in this profile.
+  processing.nonMatchingInformation:
+    classification: UNSUPPORTED_MODIFICATION
+    method: UNSUPPORTED
+    enabled: false
+    explanation: MT530 can support other non-matching information, but the required pre-agreed institution rules are not configured.
+  security.quantity: &core_change
+    classification: CORE_BUSINESS_DATA_CHANGE
+    method: CANCEL_REBOOK
+    enabled: true
+    explanation: The configured policy does not amend core trade data through MT530; cancel and rebook preserves the original instruction.
+  security.identifier: *core_change
+  settlement.amount: *core_change
+  trade.settlementDate: *core_change
+  account.safekeepingAccount: *core_change
+  settlement.parties:
+    classification: CORE_BUSINESS_DATA_CHANGE
+    method: CANCEL_REBOOK
+    enabled: false
+    explanation: Party changes are classified as core data, but this version requires a future structured party-change request model.
+  transaction.cancel:
+    classification: CANCELLATION_ONLY
+    method: CANCELLATION
+    enabled: true
+    explanation: Cancellation uses the original MT540–MT543 message family with the configured cancellation function and linkage.

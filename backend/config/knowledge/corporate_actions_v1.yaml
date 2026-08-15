@@ -1,0 +1,429 @@
+records:
+  - &base
+    messageTypes: [MT564, MT565, MT566, MT567, MT568]
+    workflowModule: CORPORATE_ACTIONS
+    sequencePath: A
+    fieldTag: 20C
+    qualifier: CORP
+    businessPath: eventReference
+    displayName: Corporate Action Reference
+    businessMeaning: Identifies the synthetic corporate-action event across its supported lifecycle.
+    technicalMeaning: Qualified option C CORP reference in general information.
+    whyUsed: Correlates notification, election, status, confirmation, and narrative messages.
+    businessQuestion: What synthetic reference identifies this corporate-action event?
+    missingImpact: The event lifecycle could not be correlated safely.
+    presence: MANDATORY
+    supportedOptions: [C]
+    allowedCodes: []
+    formatExplanation: Qualified reference of at most 16 characters in this subset.
+    exampleValues: [{value: SYNTHCA0001, synthetic: true, explanation: Synthetic event reference.}]
+    commonMistakes: [Using a production event reference]
+    dependsOn: []
+    requiredWith: []
+    conflictsWith: []
+    relatedFields: []
+    lifecycleImpact: Primary correlation key for the supported corporate-action lifecycle.
+    ruleLayer: BASE_STANDARD
+    standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+    knowledgeVersion: KB_2026_08_05_V2
+    source: &source
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-MT564-MT568-DVOP-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    searchTerms: [CORP, corporate action reference, event]
+
+  - <<: *base
+    qualifier: SEME
+    businessPath: messageReference
+    displayName: Sender Message Reference
+    businessMeaning: Uniquely identifies this synthetic corporate-action message.
+    technicalMeaning: Qualified option C SEME reference in general information.
+    whyUsed: Supports message identity, retrieval, and related-message linkage.
+    businessQuestion: What unique synthetic reference identifies this message?
+    missingImpact: The message could not be uniquely identified.
+    lifecycleImpact: Referenced by later messages through RELA.
+    searchTerms: [SEME, sender message reference]
+
+  - <<: *base
+    fieldTag: 23G
+    qualifier: null
+    businessPath: function
+    displayName: Message Function
+    businessMeaning: States whether the corporate-action message is new or a status operation.
+    technicalMeaning: Unqualified MT function field controlled by the deterministic workflow.
+    whyUsed: Establishes the processing purpose of the message.
+    businessQuestion: What lifecycle operation is being performed?
+    missingImpact: The receiver could not determine the message function.
+    supportedOptions: [G]
+    allowedCodes: [NEWM, INST, CAST]
+    formatExplanation: Four-character function code selected by the workflow composer.
+    lifecycleImpact: Separates notification and confirmation creation from instruction status handling.
+    searchTerms: [23G, function, NEWM, INST]
+
+  - <<: *base
+    fieldTag: 22F
+    qualifier: CAEV
+    businessPath: eventType
+    displayName: Corporate Action Event Indicator
+    businessMeaning: Identifies the supported dividend-with-options event.
+    technicalMeaning: CAEV indicator restricted to DVOP in this verified slice.
+    whyUsed: Selects event-specific structures and lifecycle rules.
+    businessQuestion: Which supported corporate-action event is this?
+    missingImpact: Event-specific validation could not be applied.
+    supportedOptions: [F]
+    allowedCodes: [DVOP]
+    formatExplanation: Qualified option F indicator with controlled code DVOP.
+    lifecycleImpact: Must remain DVOP across all correlated messages.
+    searchTerms: [CAEV, DVOP, dividend options]
+
+  - <<: *base
+    messageTypes: [MT565, MT566, MT567, MT568]
+    sequencePath: A1
+    qualifier: RELA
+    fieldTag: 20C
+    businessPath: relatedReference
+    displayName: Related Message Reference
+    businessMeaning: Links this message to the preceding corporate-action message.
+    technicalMeaning: RELA option C reference inside a LINK subsequence.
+    whyUsed: Makes the deterministic lifecycle relationship auditable.
+    businessQuestion: Which preceding synthetic message does this relate to?
+    missingImpact: Lifecycle linkage validation would fail.
+    supportedOptions: [C]
+    lifecycleImpact: Links election to notification, and status or confirmation to election.
+    searchTerms: [RELA, linkage, related message]
+
+  - &notification
+    <<: *base
+    messageTypes: [MT564]
+    fieldTag: 22F
+    qualifier: CAMV
+    businessPath: classification
+    displayName: Mandatory or Voluntary Indicator
+    businessMeaning: Marks this event as voluntary and therefore requiring an election.
+    technicalMeaning: CAMV indicator restricted to VOLU in the DVOP slice.
+    whyUsed: Activates election and deadline validation.
+    businessQuestion: Is this event voluntary?
+    missingImpact: Election requirements could not be determined.
+    supportedOptions: [F]
+    allowedCodes: [VOLU]
+    lifecycleImpact: Requires an MT565 election before confirmation.
+    searchTerms: [CAMV, VOLU, voluntary]
+
+  - <<: *notification
+    fieldTag: 25D
+    qualifier: PROC
+    businessPath: processingStatus
+    displayName: Event Processing Status
+    businessMeaning: Indicates that the notification details are complete for this subset.
+    technicalMeaning: PROC status field restricted to COMP.
+    whyUsed: Signals that the bounded notification data is complete.
+    businessQuestion: Are the event details complete?
+    missingImpact: Notification completeness would be unknown.
+    supportedOptions: [D]
+    allowedCodes: [COMP]
+    lifecycleImpact: Allows election processing to begin.
+    searchTerms: [PROC, COMP, complete]
+
+  - &security
+    <<: *notification
+    messageTypes: [MT564, MT565, MT566]
+    sequencePath: B
+    fieldTag: 35B
+    qualifier: null
+    businessPath: securityIdentifier
+    displayName: Underlying Security
+    businessMeaning: Identifies the synthetic security to which the event applies.
+    technicalMeaning: Financial-instrument identification restricted to an ISIN-shaped value.
+    whyUsed: Correlates eligibility, election, and confirmation to one security.
+    businessQuestion: Which synthetic ISIN is affected by this event?
+    missingImpact: Security-level correlation would fail.
+    supportedOptions: [B]
+    allowedCodes: []
+    formatExplanation: ISIN followed by a 12-character synthetic identifier.
+    lifecycleImpact: Must remain unchanged throughout the lifecycle.
+    searchTerms: [35B, ISIN, security]
+
+  - &account
+    <<: *notification
+    messageTypes: [MT564, MT565]
+    sequencePath: B1
+    fieldTag: 97A
+    qualifier: SAFE
+    businessPath: safekeepingAccount
+    displayName: Safekeeping Account
+    businessMeaning: Identifies the synthetic account whose holding is eligible or instructed.
+    technicalMeaning: Option A SAFE account in the account-information subsequence.
+    whyUsed: Applies the event and election to the configured account.
+    businessQuestion: Which synthetic safekeeping account is involved?
+    missingImpact: Account-level correlation would fail.
+    supportedOptions: [A]
+    formatExplanation: Configured account identifier. Secure authoring accepts user-entered values; client format validation remains profile-specific.
+    lifecycleImpact: Must match across notification, instruction, and confirmation.
+    searchTerms: [97A, SAFE, account]
+
+  - <<: *account
+    messageTypes: [MT566]
+    sequencePath: B
+
+  - &eligible
+    <<: *notification
+    messageTypes: [MT564, MT566]
+    sequencePath: B
+    fieldTag: 93B
+    qualifier: ELIG
+    businessPath: eligibleQuantity
+    displayName: Eligible Balance
+    businessMeaning: States the quantity eligible for the supported corporate action.
+    technicalMeaning: ELIG balance using UNIT quantity type in this subset.
+    whyUsed: Provides the maximum quantity against which an election can be validated.
+    businessQuestion: How many units are eligible?
+    missingImpact: Quantity eligibility validation could not run.
+    supportedOptions: [B]
+    formatExplanation: UNIT followed by a positive SWIFT decimal quantity.
+    lifecycleImpact: Bounds election and confirmation quantities.
+    searchTerms: [93B, ELIG, eligible balance]
+
+  - <<: *notification
+    sequencePath: C
+    fieldTag: 98A
+    qualifier: PAYD
+    businessPath: paymentDate
+    displayName: Payment Date
+    businessMeaning: States the expected payment date for the event.
+    technicalMeaning: Option A PAYD date in corporate-action details.
+    whyUsed: Communicates when the resulting movement is expected.
+    businessQuestion: What is the payment date?
+    missingImpact: Expected movement timing would be missing.
+    supportedOptions: [A]
+    formatExplanation: Valid YYYYMMDD date.
+    lifecycleImpact: Used to validate a later cash confirmation date.
+    searchTerms: [98A, PAYD, payment date]
+
+  - &option_number
+    <<: *notification
+    sequencePath: E
+    fieldTag: 13A
+    qualifier: CAON
+    businessPath: options.optionNumber
+    displayName: Corporate Action Option Number
+    businessMeaning: Identifies one offered election option.
+    technicalMeaning: Mandatory CAON number from 001 through 999.
+    whyUsed: Correlates the selected and confirmed option to the notification.
+    businessQuestion: Which offered option number applies?
+    missingImpact: The election could not identify an offered option.
+    supportedOptions: [A]
+    formatExplanation: Three-digit option number from 001 through 999.
+    lifecycleImpact: Must match in MT565 and MT566.
+    searchTerms: [13A, CAON, option number]
+
+  - <<: *option_number
+    messageTypes: [MT565]
+    sequencePath: D
+    businessPath: optionNumber
+
+  - <<: *option_number
+    messageTypes: [MT566]
+    sequencePath: D
+    businessPath: optionNumber
+
+  - &option_code
+    <<: *notification
+    sequencePath: E
+    fieldTag: 22F
+    qualifier: CAOP
+    businessPath: options.optionCode
+    displayName: Corporate Action Option Code
+    businessMeaning: Distinguishes cash from securities options offered by the event.
+    technicalMeaning: CAOP indicator restricted to CASH or SECU in this subset.
+    whyUsed: Determines the movement and confirmation data that may follow.
+    businessQuestion: Is this a cash or securities option?
+    missingImpact: Option-specific validation could not be applied.
+    supportedOptions: [F]
+    allowedCodes: [CASH, SECU]
+    formatExplanation: Qualified controlled option indicator.
+    lifecycleImpact: Must match the selected option throughout the lifecycle.
+    searchTerms: [22F, CAOP, cash, securities]
+
+  - <<: *option_code
+    messageTypes: [MT565]
+    sequencePath: D
+    businessPath: optionCode
+
+  - <<: *option_code
+    messageTypes: [MT566]
+    sequencePath: D
+    fieldTag: 22H
+    businessPath: optionCode
+    supportedOptions: [H]
+
+  - <<: *notification
+    sequencePath: E
+    fieldTag: 17B
+    qualifier: DFLT
+    businessPath: options.defaultOption
+    displayName: Default Option Flag
+    businessMeaning: Identifies the option applied if no valid election is received.
+    technicalMeaning: DFLT flag with Y or N for each offered option.
+    whyUsed: Makes default behaviour explicit without asking the LLM to infer it.
+    businessQuestion: Is this the default option?
+    missingImpact: Default-option handling would be ambiguous.
+    supportedOptions: [B]
+    allowedCodes: ['Y', 'N']
+    formatExplanation: Single controlled Y or N flag.
+    lifecycleImpact: Used if no valid election is available by the deadline.
+    searchTerms: [17B, DFLT, default option]
+
+  - <<: *notification
+    sequencePath: E
+    fieldTag: 98A
+    qualifier: RDDT
+    businessPath: electionDeadline
+    displayName: Response Deadline
+    businessMeaning: States the deadline for submitting the election.
+    technicalMeaning: Option A RDDT response deadline in each offered option.
+    whyUsed: Prevents late elections from being accepted silently.
+    businessQuestion: By what date must the election be submitted?
+    missingImpact: Deadline validation could not be performed.
+    supportedOptions: [A]
+    formatExplanation: Valid YYYYMMDD date.
+    lifecycleImpact: MT565 generation is blocked after this date.
+    searchTerms: [98A, RDDT, response deadline]
+
+  - <<: *notification
+    messageTypes: [MT565]
+    sequencePath: D
+    fieldTag: 36B
+    qualifier: QINS
+    businessPath: instructedQuantity
+    displayName: Instructed Quantity
+    businessMeaning: States the eligible units for which the selected option is instructed.
+    technicalMeaning: QINS quantity using UNIT in the supported instruction subset.
+    whyUsed: Defines the quantity subject to the election.
+    businessQuestion: How many eligible units are you instructing?
+    missingImpact: The election quantity would be missing.
+    supportedOptions: [B]
+    formatExplanation: UNIT followed by a positive SWIFT decimal quantity.
+    lifecycleImpact: Bounds the later confirmation quantity.
+    searchTerms: [36B, QINS, instructed quantity]
+
+  - &status
+    <<: *notification
+    messageTypes: [MT567]
+    sequencePath: C
+    fieldTag: 25D
+    qualifier: IPRC
+    businessPath: status
+    displayName: Instruction Processing Status
+    businessMeaning: Reports whether the election is acknowledged, pending, or rejected.
+    technicalMeaning: IPRC processing status restricted to PACK, PEND, or REJT.
+    whyUsed: Gives a controlled outcome for the submitted MT565.
+    businessQuestion: What is the instruction processing status?
+    missingImpact: The election outcome would be unknown.
+    supportedOptions: [D]
+    allowedCodes: [PACK, PEND, REJT]
+    formatExplanation: Qualified controlled status code.
+    lifecycleImpact: Provides an auditable processing state between election and confirmation.
+    searchTerms: [25D, IPRC, PACK, PEND, REJT]
+
+  - <<: *status
+    qualifier: CPRC
+    displayName: Cancellation Processing Status
+    businessMeaning: Reports whether a supported election-cancellation request was accepted or rejected.
+    technicalMeaning: CPRC processing status restricted to PACK or REJT.
+    allowedCodes: [PACK, REJT]
+    searchTerms: [25D, CPRC, cancellation status]
+
+  - &reason
+    <<: *status
+    sequencePath: C1
+    fieldTag: 24B
+    qualifier: IPRC
+    businessPath: reasonCode
+    displayName: Instruction Status Reason
+    businessMeaning: Supplies a controlled reason for the instruction processing outcome.
+    technicalMeaning: IPRC status-reason field validated as a four-character configured value.
+    whyUsed: Explains a rejection without free-form invented codes.
+    businessQuestion: Which configured reason explains this outcome?
+    missingImpact: A rejected instruction would lack the required controlled reason.
+    supportedOptions: [B]
+    allowedCodes: []
+    formatExplanation: Four-character reason from the active rule pack.
+    lifecycleImpact: Explains but does not override the deterministic status.
+    searchTerms: [24B, IPRC, reason]
+
+  - <<: *reason
+    qualifier: CPRC
+    displayName: Cancellation Status Reason
+    technicalMeaning: CPRC cancellation status-reason field.
+    searchTerms: [24B, CPRC, cancellation reason]
+
+  - &cash
+    <<: *notification
+    messageTypes: [MT566]
+    sequencePath: D2
+    fieldTag: 22H
+    qualifier: CRDB
+    businessPath: cashDirection
+    displayName: Credit or Debit Indicator
+    businessMeaning: States whether the confirmed cash movement credits or debits the account.
+    technicalMeaning: Mandatory CRDB indicator in the CASHMOVE subsequence.
+    whyUsed: Gives the cash amount an unambiguous direction.
+    businessQuestion: Is the cash movement a credit or debit?
+    missingImpact: The cash movement direction would be unknown.
+    supportedOptions: [H]
+    allowedCodes: [CRED]
+    formatExplanation: Controlled CRED code in the supported dividend cash confirmation.
+    lifecycleImpact: Applies to the confirmed cash posting.
+    searchTerms: [22H, CRDB, credit]
+
+  - <<: *cash
+    fieldTag: 19B
+    qualifier: PSTA
+    businessPath: cashAmount
+    displayName: Posting Amount
+    businessMeaning: States the explicit cash amount posted for the confirmed option.
+    technicalMeaning: Mandatory PSTA currency and amount in CASHMOVE.
+    whyUsed: Records the supplied confirmed cash posting; the platform does not calculate it.
+    businessQuestion: What explicit cash amount was posted?
+    missingImpact: A cash confirmation could not be generated.
+    supportedOptions: [B]
+    allowedCodes: []
+    formatExplanation: Three-letter profile currency followed by a positive SWIFT decimal.
+    lifecycleImpact: Records the cash result of the election.
+    searchTerms: [19B, PSTA, posting amount]
+
+  - <<: *cash
+    fieldTag: 98A
+    qualifier: POST
+    businessPath: paymentDate
+    displayName: Posting Date
+    businessMeaning: States the date on which the cash movement was posted.
+    technicalMeaning: Mandatory POST date in the CASHMOVE subsequence.
+    whyUsed: Dates the confirmed cash movement.
+    businessQuestion: On what date was the cash posted?
+    missingImpact: The cash confirmation would lack its required posting date.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Valid YYYYMMDD posting date.
+    lifecycleImpact: Completes the cash movement record.
+    searchTerms: [98A, POST, posting date]
+
+  - <<: *notification
+    messageTypes: [MT568]
+    sequencePath: C
+    fieldTag: 70E
+    qualifier: ADTX
+    businessPath: narrative
+    displayName: Additional Text
+    businessMeaning: Provides sanitised additional event text that does not replace structured fields.
+    technicalMeaning: ADTX narrative in the mandatory additional-information sequence.
+    whyUsed: Communicates bounded supplementary information for the related event.
+    businessQuestion: What supplementary synthetic text should accompany this event?
+    missingImpact: The narrative message would contain no additional information.
+    supportedOptions: [E]
+    allowedCodes: []
+    formatExplanation: At most 350 supported characters; raw-message fragments and controls are rejected.
+    lifecycleImpact: Associates supplementary text with the event without changing structured data.
+    searchTerms: [70E, ADTX, narrative, additional text]

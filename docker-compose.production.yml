@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: swift_platform
+      POSTGRES_USER: swift_platform
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?load POSTGRES_PASSWORD from a secret store}
+    volumes:
+      - platform-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swift_platform -d swift_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    environment:
+      APP_ENV: production
+      APP_NAME: Intelligent SWIFT Message Engineering Platform
+      DATABASE_URL: postgresql+psycopg://swift_platform:${POSTGRES_PASSWORD}@postgres:5432/swift_platform
+      REAL_DATA_MODE_ENABLED: "true"
+      AUTH_MODE: ${AUTH_MODE:?set AUTH_MODE to oidc or saml}
+      SESSION_SECURE_COOKIES: "true"
+      SESSION_HMAC_SECRET: ${SESSION_HMAC_SECRET:?load from a secret store}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?load a base64 32-byte key from a secret store}
+      DATA_ENCRYPTION_KEY_ID: ${DATA_ENCRYPTION_KEY_ID:?set the active key identifier}
+      AI_CACHE_HMAC_SECRET: ${AI_CACHE_HMAC_SECRET:?load from a secret store}
+      SUBMISSION_MODE: ${SUBMISSION_MODE:-disabled}
+      PRODUCTION_SUBMISSION_ENABLED: ${PRODUCTION_SUBMISSION_ENABLED:-false}
+      MOCK_UAT_CONNECTOR_ENABLED: "false"
+      EXTERNAL_VALIDATION_REQUIRED_FOR_SUBMISSION: "true"
+      RJE_EXPORT_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  platform-postgres:

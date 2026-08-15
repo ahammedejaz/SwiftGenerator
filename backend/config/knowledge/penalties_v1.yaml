@@ -1,0 +1,379 @@
+records:
+  - &base
+    messageTypes: [MT537]
+    workflowModule: PENALTIES
+    sequencePath: A
+    fieldTag: 28E
+    qualifier: null
+    businessPath: pagination
+    displayName: Page Number
+    businessMeaning: Identifies the page and continuation state of the penalty statement.
+    technicalMeaning: MT537 sequence A page number and continuation indicator.
+    whyUsed: Makes a statement page unambiguous; this subset creates one page only.
+    businessQuestion: Is this the single demonstration statement page?
+    missingImpact: The mandatory statement pagination information would be missing.
+    presence: MANDATORY
+    supportedOptions: [E]
+    allowedCodes: [ONLY]
+    formatExplanation: This subset emits page 1 with continuation code ONLY.
+    exampleValues: [{value: 1/ONLY, synthetic: true, explanation: One synthetic statement page.}]
+    commonMistakes: [Treating pagination as a penalty reference]
+    dependsOn: []
+    requiredWith: [SEME, STST, SAFE, ACTI]
+    conflictsWith: []
+    relatedFields: [SEME]
+    lifecycleImpact: Identifies the bounded page of the statement.
+    ruleLayer: BASE_STANDARD
+    standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+    knowledgeVersion: KB_2026_08_05_V1
+    source: &source
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-MT537-PENALTIES-FORMAT-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    searchTerms: [MT537, page, penalty statement]
+
+  - <<: *base
+    fieldTag: 20C
+    qualifier: SEME
+    businessPath: statementReference
+    displayName: Statement Reference
+    businessMeaning: Uniquely identifies the synthetic MT537 penalty statement.
+    technicalMeaning: Sender message reference in MT537 general information.
+    whyUsed: Supports statement retrieval, uniqueness, and audit.
+    businessQuestion: What unique synthetic reference identifies this statement?
+    missingImpact: The statement cannot be generated or audited.
+    supportedOptions: [C]
+    allowedCodes: []
+    formatExplanation: Qualified option C reference, at most 16 characters in this subset.
+    exampleValues: [{value: PENASTMT0001, synthetic: true, explanation: Synthetic statement reference.}]
+    searchTerms: [SEME, statement reference]
+
+  - <<: *base
+    fieldTag: 23G
+    businessPath: function
+    displayName: Penalty Function
+    businessMeaning: Identifies this MT537 as a penalty statement operation.
+    technicalMeaning: Function field set to PENA for the penalty structure.
+    whyUsed: Activates the penalty-specific statement structure in this subset.
+    businessQuestion: Is this a new penalty statement?
+    missingImpact: The penalty structure would not be identified.
+    supportedOptions: [G]
+    allowedCodes: [PENA]
+    formatExplanation: Four-character PENA function code.
+    exampleValues: [{value: PENA, synthetic: true, explanation: Penalty statement function.}]
+    searchTerms: [23G, PENA, function]
+
+  - <<: *base
+    fieldTag: 98A
+    qualifier: STAT
+    businessPath: statementDate
+    displayName: Statement Date
+    businessMeaning: States the date on which the penalty statement is based.
+    technicalMeaning: Option A date field with qualifier STAT in sequence A.
+    whyUsed: Establishes the reporting date for the statement.
+    businessQuestion: What is the statement date?
+    missingImpact: The reporting date would be unknown.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: YYYYMMDD statement date.
+    exampleValues: [{value: '20260805', synthetic: true, explanation: Synthetic statement date.}]
+    searchTerms: [98A, STAT, statement date]
+
+  - <<: *base
+    fieldTag: 22H
+    qualifier: STST
+    businessPath: statementStructure
+    displayName: Statement Structure
+    businessMeaning: Declares that this statement contains penalty information.
+    technicalMeaning: Statement structure type indicator STST with code PENA.
+    whyUsed: Deterministically requires the MT537 penalties sequence rather than transaction/status sequences.
+    businessQuestion: Does this statement report penalties?
+    missingImpact: The penalties sequence would conflict with the selected structure.
+    supportedOptions: [H]
+    allowedCodes: [PENA]
+    formatExplanation: Qualified option H indicator with PENA.
+    exampleValues: [{value: PENA, synthetic: true, explanation: Penalty structure code.}]
+    searchTerms: [22H, STST, PENA, structure]
+
+  - <<: *base
+    fieldTag: 97A
+    qualifier: SAFE
+    businessPath: safekeepingAccount
+    displayName: Safekeeping Account
+    businessMeaning: Identifies the synthetic account covered by the statement.
+    technicalMeaning: Mandatory MT537 general-information safekeeping account.
+    whyUsed: Scopes reported penalties to the configured account relationship.
+    businessQuestion: Which synthetic safekeeping account does this statement cover?
+    missingImpact: The statement account scope would be missing.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Option A SAFE account. Secure authoring accepts user-entered values; client format validation remains profile-specific.
+    exampleValues: [{value: SYNTHSAFE01, synthetic: true, explanation: Synthetic account.}]
+    commonMistakes: [Entering production account data]
+    searchTerms: [97A, SAFE, account]
+
+  - <<: *base
+    fieldTag: 17B
+    qualifier: ACTI
+    businessPath: activity
+    displayName: Activity Flag
+    businessMeaning: Indicates that penalty details are present in this statement.
+    technicalMeaning: Mandatory ACTI flag set to Y when sequence D is populated.
+    whyUsed: Controls whether penalty information may be reported.
+    businessQuestion: Are there penalties to report?
+    missingImpact: The presence of penalty details would not be declared.
+    supportedOptions: [B]
+    allowedCodes: ['Y']
+    formatExplanation: Single Y value for the non-empty subset.
+    exampleValues: [{value: 'Y', synthetic: true, explanation: Penalties are present.}]
+    searchTerms: [17B, ACTI, activity]
+
+  - &code
+    <<: *base
+    sequencePath: D
+    fieldTag: 22F
+    qualifier: CODE
+    businessPath: listType
+    displayName: Penalty List Type
+    businessMeaning: Distinguishes current, new-only, and updated-or-removed penalty lists.
+    technicalMeaning: MT537 penalty list type indicator in sequence D.
+    whyUsed: Makes action semantics for the contained penalty list explicit.
+    businessQuestion: Does the list contain current, new, or amended penalties?
+    missingImpact: New versus changed penalty semantics would be ambiguous.
+    supportedOptions: [F]
+    allowedCodes: [CURR, FWIS, FWAM]
+    formatExplanation: CODE indicator using one controlled ISO code.
+    exampleValues: [{value: FWIS, synthetic: true, explanation: New penalties only.}]
+    searchTerms: [22F, CODE, CURR, FWIS, FWAM]
+
+  - <<: *code
+    sequencePath: D1
+    fieldTag: 11A
+    qualifier: PECU
+    businessPath: penalties.currency
+    displayName: Penalty Currency
+    businessMeaning: Identifies the currency used for the grouped penalties.
+    technicalMeaning: Currency field PECU in penalties-per-currency sequence D1.
+    whyUsed: Establishes the currency for grouped penalty amounts.
+    businessQuestion: In which currency are the penalties reported?
+    missingImpact: Amount currency would be unclear.
+    supportedOptions: [A]
+    allowedCodes: [USD, EUR, GBP]
+    formatExplanation: Three-letter profile-allowed ISO currency.
+    exampleValues: [{value: EUR, synthetic: true, explanation: Synthetic penalty currency.}]
+    searchTerms: [11A, PECU, penalty currency]
+
+  - <<: *code
+    sequencePath: D1
+    fieldTag: 98A
+    qualifier: DACO
+    businessPath: penalties.detectionDate
+    displayName: Penalty Detection Date
+    businessMeaning: Identifies the business day for which the penalty was computed.
+    technicalMeaning: Option A DACO date in penalties-per-currency sequence D1.
+    whyUsed: Anchors the fail or matching day associated with the supplied penalty.
+    businessQuestion: On which date was this penalty detected?
+    missingImpact: The penalty reporting day would be missing.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Valid YYYYMMDD date.
+    exampleValues: [{value: '20260804', synthetic: true, explanation: Synthetic detection date.}]
+    searchTerms: [98A, DACO, detection date]
+
+  - &asdp
+    <<: *code
+    sequencePath: D1
+    fieldTag: 95R
+    qualifier: ASDP
+    businessPath: accountServicer
+    displayName: Account Servicer
+    businessMeaning: Identifies the synthetic party servicing the statement account.
+    technicalMeaning: Proprietary option R ASDP party identifier in this subset.
+    whyUsed: Establishes the account-servicing party for the penalty group.
+    businessQuestion: Which synthetic party services this account?
+    missingImpact: The servicing-party context would be absent.
+    supportedOptions: [R]
+    allowedCodes: []
+    formatExplanation: Fixed demonstration data-source scheme plus a synthetic proprietary identifier.
+    exampleValues: [{value: BFSDEMO1/SYNTHSERVICER, synthetic: true, explanation: Synthetic party.}]
+    commonMistakes: [Entering a production BIC]
+    searchTerms: [95R, ASDP, account servicer]
+
+  - &trca
+    <<: *code
+    sequencePath: D1
+    fieldTag: 22F
+    qualifier: TRCA
+    businessPath: accountServicerCapacity
+    displayName: Party Capacity
+    businessMeaning: Identifies the configured capacity of the reporting party.
+    technicalMeaning: TRCA party-capacity indicator using the controlled CSDP code.
+    whyUsed: Qualifies the party role within the penalty group.
+    businessQuestion: What configured capacity applies to this party?
+    missingImpact: The party role would be incomplete.
+    supportedOptions: [F]
+    allowedCodes: [CSDP]
+    formatExplanation: Controlled CSD Participant code in this bounded profile.
+    exampleValues: [{value: CSDP, synthetic: true, explanation: Demonstration capacity.}]
+    searchTerms: [22F, TRCA, capacity]
+
+  - <<: *asdp
+    sequencePath: D1a
+    qualifier: REPA
+    businessPath: relatedParty
+    displayName: Related Penalty Party
+    businessMeaning: Identifies the synthetic party imposed with or credited by the penalties.
+    technicalMeaning: Mandatory D1a party represented by REPA option R in this subset.
+    whyUsed: Correlates the penalty entries to the relevant synthetic party.
+    businessQuestion: Which synthetic party is related to these penalties?
+    searchTerms: [95R, REPA, related party]
+
+  - <<: *trca
+    sequencePath: D1a
+    businessPath: relatedPartyCapacity
+    displayName: Related Party Capacity
+
+  - <<: *code
+    sequencePath: D1a
+    fieldTag: 19A
+    qualifier: AGNT
+    businessPath: netAmount
+    displayName: Bilateral Net Amount
+    businessMeaning: Sums the supplied receivable amounts less supplied payable amounts.
+    technicalMeaning: Mandatory AGNT amount in penalties-per-counterparty sequence D1a.
+    whyUsed: Reports the deterministic net of supplied amounts; it does not calculate penalties.
+    businessQuestion: What is the net of the supplied penalty amounts?
+    missingImpact: The counterparty penalty group would be incomplete.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Currency amount; N marks a net payable amount.
+    exampleValues: [{value: 'NEUR25,00', synthetic: true, explanation: Synthetic net payable amount.}]
+    searchTerms: [19A, AGNT, bilateral net]
+
+  - &pref
+    <<: *code
+    sequencePath: D1a1
+    fieldTag: 20C
+    qualifier: PREF
+    businessPath: penalties.penaltyReference
+    displayName: Penalty Reference
+    businessMeaning: Identifies an individual synthetic penalty entry.
+    technicalMeaning: Penalty reference PREF in penalty-details subsequence D1a1.
+    whyUsed: Supports penalty identity, update, removal, and audit.
+    businessQuestion: What is the penalty reference?
+    missingImpact: The penalty detail cannot be identified.
+    supportedOptions: [C]
+    allowedCodes: []
+    formatExplanation: Supported option C reference of at most 16 characters.
+    exampleValues: [{value: PENALTY0001, synthetic: true, explanation: Synthetic penalty reference.}]
+    searchTerms: [20C, PREF, penalty reference]
+
+  - <<: *pref
+    qualifier: PCOM
+    businessPath: penalties.commonReference
+    displayName: Penalty Common Reference
+    businessMeaning: Carries the optional common reference assigned to the penalty.
+    technicalMeaning: Optional PCOM reference in penalty details.
+    whyUsed: Correlates both sides where a common penalty identity is supplied.
+    businessQuestion: Is there a common penalty reference?
+    missingImpact: No impact when the source does not provide one.
+    presence: OPTIONAL
+    exampleValues: [{value: COMMON0001, synthetic: true, explanation: Synthetic common reference.}]
+    searchTerms: [20C, PCOM, common reference]
+
+  - <<: *pref
+    qualifier: PPRF
+    businessPath: penalties.previousPenaltyReference
+    displayName: Previous Penalty Reference
+    businessMeaning: Identifies a previous penalty when the applicable source relationship exists.
+    technicalMeaning: Optional PPRF reference in penalty details.
+    whyUsed: Preserves source-provided reallocation or prior-penalty lineage.
+    businessQuestion: Is a previous penalty reference applicable?
+    missingImpact: No impact when no applicable previous penalty exists.
+    presence: OPTIONAL
+    exampleValues: [{value: PREVPENA0001, synthetic: true, explanation: Synthetic prior reference.}]
+    searchTerms: [20C, PPRF, previous penalty]
+
+  - <<: *code
+    sequencePath: D1a1
+    fieldTag: 22H
+    qualifier: PNTP
+    businessPath: penalties.penaltyType
+    displayName: Penalty Type
+    businessMeaning: Distinguishes settlement-fail and late-matching-fail penalties.
+    technicalMeaning: Mandatory PNTP indicator with SEFP or LMFP.
+    whyUsed: States the source-backed penalty category without calculating its amount.
+    businessQuestion: Is this a settlement fail or late matching fail penalty?
+    missingImpact: The penalty category would be unknown.
+    supportedOptions: [H]
+    allowedCodes: [SEFP, LMFP]
+    formatExplanation: Controlled four-character penalty type.
+    exampleValues: [{value: SEFP, synthetic: true, explanation: Settlement fail penalty.}]
+    searchTerms: [22H, PNTP, SEFP, LMFP]
+
+  - <<: *code
+    sequencePath: D1a1
+    fieldTag: 25D
+    qualifier: PNST
+    businessPath: penalties.status
+    displayName: Penalty Status
+    businessMeaning: Reports whether a penalty is active, not computed, or removed.
+    technicalMeaning: Penalty status PNST with controlled ACTV, NCOM, or REMO code.
+    whyUsed: Makes the current penalty state explicit.
+    businessQuestion: What is the current penalty status?
+    missingImpact: The supported subset cannot state the penalty state.
+    supportedOptions: [D]
+    allowedCodes: [ACTV, NCOM, REMO]
+    formatExplanation: Controlled penalty status code.
+    exampleValues: [{value: ACTV, synthetic: true, explanation: Active penalty.}]
+    searchTerms: [25D, PNST, ACTV, NCOM, REMO]
+
+  - <<: *code
+    sequencePath: D1a1
+    fieldTag: 19A
+    qualifier: AMCO
+    businessPath: penalties.amount
+    displayName: Amount Computed
+    businessMeaning: Reports the penalty amount supplied by the user or approved upstream source.
+    technicalMeaning: Mandatory AMCO currency amount; positive is receivable and N is payable.
+    whyUsed: Reports a supplied penalty amount without asking the LLM or application to calculate it.
+    businessQuestion: What penalty amount was supplied, and is it payable or receivable?
+    missingImpact: The penalty cannot be reported; the application never guesses it.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Currency and decimal amount with N sign for payable.
+    exampleValues: [{value: 'EUR25,00', synthetic: true, explanation: Synthetic receivable amount.}]
+    searchTerms: [19A, AMCO, computed amount]
+
+  - <<: *code
+    sequencePath: D1a1
+    fieldTag: 99A
+    qualifier: DAAC
+    businessPath: penalties.numberOfDays
+    displayName: Number of Days
+    businessMeaning: Reports the supplied number of days associated with the penalty.
+    technicalMeaning: Mandatory DAAC number field in penalty details.
+    whyUsed: Preserves the supplied day count used by the upstream calculation source.
+    businessQuestion: How many days were supplied for this penalty?
+    missingImpact: The penalty detail would be incomplete.
+    supportedOptions: [A]
+    allowedCodes: []
+    formatExplanation: Non-negative integer from 0 to 999 in this subset.
+    exampleValues: [{value: '1', synthetic: true, explanation: One supplied day.}]
+    searchTerms: [99A, DAAC, days]
+
+  - <<: *pref
+    sequencePath: D1a1B
+    qualifier: RELA
+    businessPath: penalties.relatedInstructionReference
+    displayName: Related Instruction Reference
+    businessMeaning: Links a penalty to a supplied settlement instruction reference.
+    technicalMeaning: Optional related-message reference in RELTRAN.
+    whyUsed: Enables correlation to a persisted settlement instruction where available.
+    businessQuestion: Which settlement instruction is related to this penalty?
+    missingImpact: Penalty reporting works, but settlement correlation is unavailable.
+    presence: OPTIONAL
+    exampleValues: [{value: ORIGSETTLE001, synthetic: true, explanation: Synthetic settlement reference.}]
+    searchTerms: [20C, RELA, related settlement]

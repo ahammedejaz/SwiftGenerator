@@ -1,0 +1,103 @@
+registryVersion: ISO15022_CONFIGURED_SUBSET_V1
+standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+authoritativeCompletenessKnown: false
+source:
+  sourceType: OFFICIAL_ISO_15022
+  sourceReference: ISO15022-UHB-CATEGORY5-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+  standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+  verificationStatus: EXTERNAL_VALIDATION_REQUIRED
+  verifiedAt: 2026-08-05T00:00:00Z
+  verificationMethod: APPROVED_REPOSITORY_REVIEW
+messages:
+  - messageType: MT530
+    name: Transaction Processing Command
+    scope: Priority-only configured processing-command subset.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: B, code: REQD, order: 2, minOccurs: 1, maxOccurs: 1 }
+  - messageType: MT537
+    name: Statement of Pending Transactions
+    scope: Configured penalties Sequence D subset; normal pending-transaction structures are not imported.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: D, code: PENA, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: D1, code: PENACUR, parentPath: D, order: 3, minOccurs: 1, maxOccurs: 100 }
+      - { path: D1a, code: PENACOUNT, parentPath: D1, order: 4, minOccurs: 1, maxOccurs: 100 }
+      - { path: D1a1, code: PENDET, parentPath: D1a, order: 5, minOccurs: 1, maxOccurs: 1000 }
+      - { path: D1a1B, code: RELTRAN, parentPath: D1a1, order: 6, minOccurs: 0, maxOccurs: 1 }
+  - messageType: MT540
+    name: Receive Free
+    scope: Configured settlement-instruction subset.
+    sequences: &instructionSequences
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: B, code: TRADDET, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: C, code: FIAC, order: 3, minOccurs: 1, maxOccurs: 1 }
+      - { path: E, code: SETDET, order: 4, minOccurs: 1, maxOccurs: 1 }
+  - { messageType: MT541, name: Receive Against Payment, scope: Configured settlement-instruction subset., sequences: *instructionSequences }
+  - { messageType: MT542, name: Deliver Free, scope: Configured settlement-instruction subset., sequences: *instructionSequences }
+  - { messageType: MT543, name: Deliver Against Payment, scope: Configured settlement-instruction subset., sequences: *instructionSequences }
+  - messageType: MT544
+    name: Receive Free Confirmation
+    scope: Configured settlement-confirmation subset.
+    sequences: &confirmationSequences
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: B, code: CONFDET, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: C, code: FIAC, order: 3, minOccurs: 1, maxOccurs: 1 }
+      - { path: E, code: SETDET, order: 4, minOccurs: 1, maxOccurs: 1 }
+  - { messageType: MT545, name: Receive Against Payment Confirmation, scope: Configured settlement-confirmation subset., sequences: *confirmationSequences }
+  - { messageType: MT546, name: Deliver Free Confirmation, scope: Configured settlement-confirmation subset., sequences: *confirmationSequences }
+  - { messageType: MT547, name: Deliver Against Payment Confirmation, scope: Configured settlement-confirmation subset., sequences: *confirmationSequences }
+  - messageType: MT548
+    name: Settlement Status and Processing Advice
+    scope: Configured status and cancellation-processing subset.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: A1, code: LINK, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: D, code: STAT, order: 3, minOccurs: 1, maxOccurs: 1 }
+  - messageType: MT564
+    name: Corporate Action Notification
+    scope: Configured voluntary Dividend With Options notification subset.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: B, code: USECU, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: B1, code: ACCTINFO, parentPath: B, order: 3, minOccurs: 1, maxOccurs: 100, insertAfterTag: 35B }
+      - { path: C, code: CADETL, order: 4, minOccurs: 1, maxOccurs: 1 }
+      - { path: E, code: CAOPTN, order: 5, minOccurs: 1, maxOccurs: 100 }
+  - messageType: MT565
+    name: Corporate Action Instruction
+    scope: Configured DVOP election subset; cancellation construction is not imported.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: A1, code: LINK, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: B, code: USECU, order: 3, minOccurs: 1, maxOccurs: 1 }
+      - { path: B1, code: ACCTINFO, parentPath: B, order: 4, minOccurs: 1, maxOccurs: 100, insertAfterTag: 35B }
+      - { path: D, code: CAINST, order: 5, minOccurs: 1, maxOccurs: 100 }
+  - messageType: MT566
+    name: Corporate Action Confirmation
+    scope: Configured DVOP cash-confirmation subset.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: A1, code: LINK, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: B, code: USECU, order: 3, minOccurs: 1, maxOccurs: 1 }
+      - { path: D, code: CACONF, order: 4, minOccurs: 1, maxOccurs: 100 }
+      - { path: D2, code: CASHMOVE, parentPath: D, order: 5, minOccurs: 1, maxOccurs: 100 }
+  - messageType: MT567
+    name: Corporate Action Status and Processing Advice
+    scope: Configured DVOP instruction-processing status subset.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: A1, code: LINK, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: C, code: STAT, order: 3, minOccurs: 1, maxOccurs: 1 }
+      - { path: C1, code: REAS, parentPath: C, order: 4, minOccurs: 0, maxOccurs: 100 }
+  - messageType: MT568
+    name: Corporate Action Narrative
+    scope: Configured supplementary DVOP narrative subset.
+    sequences:
+      - { path: A, code: GENL, order: 1, minOccurs: 1, maxOccurs: 1 }
+      - { path: A1, code: LINK, order: 2, minOccurs: 1, maxOccurs: 1 }
+      - { path: C, code: ADDINFO, order: 3, minOccurs: 1, maxOccurs: 100 }
+catalogueOnly:
+  - { messageType: MT535, name: Statement of Holdings, sourceReference: SWIFT-CATEGORY5-SECURITIES-SETTLEMENT-TRAINING }
+  - { messageType: MT536, name: Statement of Transactions, sourceReference: SWIFT-CATEGORY5-MRG-VOLUME2-2023 }
+  - { messageType: MT538, name: Statement of Intra-Position Advices, sourceReference: SWIFT-CATEGORY5-MRG-VOLUME2-2023 }
+  - { messageType: MT578, name: Settlement Allegement, sourceReference: SWIFT-SECURITIES-SETTLEMENT-TRAINING }

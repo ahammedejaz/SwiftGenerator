@@ -1,0 +1,16 @@
+overlays:
+  - profileId: BFS_CLIENT_DEMO_V1
+    profileVersion: 1.0.0
+    knowledgeId: MT541-E-95R-PSET
+    presence: MANDATORY
+    allowedOptions: [R]
+    clientExplanation: The BFS Client Demo Profile supplies a synthetic default place of settlement and requires the effective field.
+    businessQuestion: Confirm the BFS synthetic place of settlement for this Receive Against Payment instruction.
+    commonMistakes:
+      - Assuming the BFS synthetic PSET is valid for another institution or market
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: BFS-CLIENT-DEMO-PROFILE-V1-PSET-OVERLAY
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE

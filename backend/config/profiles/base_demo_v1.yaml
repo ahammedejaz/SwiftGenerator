@@ -1,0 +1,141 @@
+profileId: BASE_DEMO_V1
+name: Base Demo Profile
+version: 1.0.0
+standardsRelease: DEMO_SR2026
+status: DEMO
+supportedMessageTypes:
+  - MT530
+  - MT537
+  - MT540
+  - MT541
+  - MT542
+  - MT543
+  - MT544
+  - MT545
+  - MT546
+  - MT547
+  - MT548
+  - MT564
+  - MT565
+  - MT566
+  - MT567
+  - MT568
+defaults:
+  function: NEWM
+  security.quantity_type: UNIT
+allowedCurrencies:
+  - USD
+  - EUR
+  - GBP
+requiredFields:
+  MT530:
+    - sender_reference
+    - account.safekeeping_account
+    - command.command_type
+    - command.original_instruction_reference
+    - command.priority
+  MT537: []
+  MT540: &fop_instruction
+    - direction
+    - payment_type
+    - sender_reference
+    - trade.transaction_type
+    - trade.trade_date
+    - trade.settlement_date
+    - security.identifier
+    - security.quantity
+    - account.safekeeping_account
+    - settlement.place_of_settlement
+    - settlement.delivering_agent
+    - settlement.receiving_agent
+  MT541: &dvp_instruction
+    - direction
+    - payment_type
+    - sender_reference
+    - trade.transaction_type
+    - trade.trade_date
+    - trade.settlement_date
+    - security.identifier
+    - security.quantity
+    - account.safekeeping_account
+    - settlement.currency
+    - settlement.amount
+    - settlement.place_of_settlement
+    - settlement.delivering_agent
+    - settlement.receiving_agent
+  MT542: *fop_instruction
+  MT543: *dvp_instruction
+  MT544: &fop_confirmation
+    - direction
+    - payment_type
+    - sender_reference
+    - related_reference
+    - security.identifier
+    - account.safekeeping_account
+    - settlement.place_of_settlement
+    - settlement.delivering_agent
+    - settlement.receiving_agent
+    - confirmation.actual_settlement_date
+    - confirmation.settled_quantity
+    - confirmation.settlement_result
+  MT545: &dvp_confirmation
+    - direction
+    - payment_type
+    - sender_reference
+    - related_reference
+    - security.identifier
+    - account.safekeeping_account
+    - settlement.currency
+    - settlement.place_of_settlement
+    - settlement.delivering_agent
+    - settlement.receiving_agent
+    - confirmation.actual_settlement_date
+    - confirmation.settled_quantity
+    - confirmation.settled_amount
+    - confirmation.settlement_result
+  MT546: *fop_confirmation
+  MT547: *dvp_confirmation
+  MT548:
+    - sender_reference
+    - related_reference
+    - status.category
+    - status.code
+    - status.reason_code
+    - status.related_instruction_message_type
+  MT564: []
+  MT565: []
+  MT566: []
+  MT567: []
+  MT568: []
+clientRequiredFields:
+  MT530: []
+  MT537: []
+  MT540: []
+  MT541: []
+  MT542: []
+  MT543: []
+  MT544: []
+  MT545: []
+  MT546: []
+  MT547: []
+  MT548: []
+  MT564: []
+  MT565: []
+  MT566: []
+  MT567: []
+  MT568: []
+enabledNegativeMutations:
+  - MISSING_SETTLEMENT_AMOUNT
+  - SETTLEMENT_DATE_BEFORE_TRADE_DATE
+  - SENDER_REFERENCE_TOO_LONG
+  - MISSING_PLACE_OF_SETTLEMENT
+  - UNSUPPORTED_CURRENCY
+  - MISSING_PREVIOUS_REFERENCE_FOR_CANCELLATION
+  - CONFIRMATION_QUANTITY_EXCEEDS_INSTRUCTION
+  - CONFIRMATION_MESSAGE_TYPE_MISMATCH
+  - MT548_MISSING_RELATED_REFERENCE
+  - INVALID_STATUS_REASON_COMBINATION
+validation:
+  senderReference:
+    maxLength: 16
+    uppercase: true

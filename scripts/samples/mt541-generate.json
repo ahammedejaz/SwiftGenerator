@@ -1,0 +1,38 @@
+{
+  "scenario": {
+    "scenarioId": "API-DEMO-MT541",
+    "profileId": "BASE_DEMO_V1",
+    "lifecycle": "INSTRUCTION",
+    "direction": "RECEIVE",
+    "paymentType": "AGAINST_PAYMENT",
+    "function": "NEWM",
+    "senderReference": "SYNTHAPI541001",
+    "trade": {
+      "transactionType": "BUY",
+      "tradeDate": "2026-08-03",
+      "settlementDate": "2026-08-06"
+    },
+    "security": {
+      "identifierType": "ISIN",
+      "identifier": "XS0000000001",
+      "quantityType": "UNIT",
+      "quantity": "1000"
+    },
+    "account": {
+      "safekeepingAccount": "SYNTHSAFE01"
+    },
+    "settlement": {
+      "currency": "USD",
+      "amount": "25000.00",
+      "placeOfSettlement": "SYNTHPSET01",
+      "deliveringAgent": "SYNTHDEAG01",
+      "receivingAgent": "SYNTHREAG01"
+    },
+    "confirmation": {},
+    "status": {},
+    "testConfiguration": {
+      "mode": "VALID"
+    },
+    "syntheticData": true
+  }
+}
