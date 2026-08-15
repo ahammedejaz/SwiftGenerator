@@ -27,6 +27,11 @@ limitations:
   - Inferred matching status, repair status and modification status are not configured.
   - Reason code lists are the configured subset, not the complete ISO 20022 external code sets.
 
+# A status advice that reports no status at all carries no information, so at least one of
+# the three status blocks must be present.
+requireOneOf:
+  - [PrcgSts, MtchgSts, SttlmSts]
+
 structure:
   - name: TxIdDtls
     displayName: Transaction Identification Details

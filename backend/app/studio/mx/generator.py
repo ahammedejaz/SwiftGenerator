@@ -43,6 +43,7 @@ LEI_PATTERN = re.compile(r"^[A-Z0-9]{18}[0-9]{2}$")
 EXACT4_PATTERN = re.compile(r"^[A-Z0-9]{4}$")
 CURRENCY_PATTERN = re.compile(r"^[A-Z]{3}$")
 DECIMAL_PATTERN = re.compile(r"^-?\d{1,14}(\.\d{1,5})?$")
+ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 TEXT_LIMITS: dict[MxDataType, int] = {
     MxDataType.MAX16_TEXT: 16,
@@ -162,7 +163,11 @@ def validate_value(flat: FlatElement, value: str) -> tuple[str | None, Validatio
             return None, bad("A 20-character LEI", "Enter a valid Legal Entity Identifier.")
         return None, None
     if data_type is MxDataType.ISO_DATE:
+        # ISODate is the extended form only. date.fromisoformat also accepts the compact
+        # YYYYMMDD form, which is exactly the MT habit this check exists to catch.
         try:
+            if not ISO_DATE_PATTERN.fullmatch(value):
+                raise ValueError(value)
             date.fromisoformat(value)
         except ValueError:
             return None, bad(
@@ -416,7 +421,15 @@ class MxGenerator:
                             suggestion="Remove all but one option.",
                         )
                     )
-            if element.max_occurs == 1:
+            # An element that may appear once can still appear once per occurrence of a
+            # repeatable ancestor, so only flag it when nothing above it repeats either.
+            repeatable_ancestor = any(
+                (ancestor := by_path.get("/".join(flat.path.split("/")[: depth + 1])))
+                is not None
+                and ancestor.element.max_occurs > 1
+                for depth in range(3, len(flat.path.split("/")))
+            )
+            if element.max_occurs == 1 and not repeatable_ancestor:
                 repeated = [item for item in resolved if item.flat.path == flat.path]
                 if len(repeated) > 1:
                     issues.append(
@@ -428,7 +441,7 @@ class MxGenerator:
                             field_name=element.display_name,
                             location=flat.path,
                             expected="1 occurrence",
-                            suggestion="Remove the extra occurrences.",
+                            suggestion="Remove the extra occurrences, or set Occurrence to 1.",
                         )
                     )
         issues.extend(self._business_rules(spec, resolved))
@@ -508,6 +521,39 @@ class MxGenerator:
                 )
             )
 
+        for group in spec.require_one_of:
+            paths = [f"{root}/{name}" for name in group]
+            if any(
+                candidate == path or candidate.startswith(path + "/")
+                for path in paths
+                for candidate in by_path
+            ):
+                continue
+            labels = [
+                mx_registry.by_path(spec.message_type)[path].element.display_name
+                for path in paths
+                if path in mx_registry.by_path(spec.message_type)
+            ]
+            first_leaf = next(
+                (
+                    item.path
+                    for item in mx_registry.leaves(spec.message_type)
+                    if item.path.startswith(paths[0] + "/")
+                ),
+                paths[0],
+            )
+            issues.append(
+                _issue(
+                    "MX_REQUIRED_GROUP_MISSING",
+                    "At least one of " + ", ".join(labels) + " must be present.",
+                    layer=ValidationLayer.BUSINESS_RULES,
+                    field_name=labels[0] if labels else group[0],
+                    location=paths[0],
+                    expected=first_leaf,
+                    suggestion=f"Supply a value under {first_leaf}.",
+                )
+            )
+
         movement_element = by_business.get("direction")
         movement = movement_element.value if movement_element else None
         if movement and spec.message_type == "sese.023":
@@ -582,7 +628,18 @@ class MxGenerator:
     def compose_document(
         self, spec: MxMessageSpec, resolved: list[ResolvedElement], *, pretty: bool = True
     ) -> str:
-        """Build the Document, writing children strictly in specification order."""
+        text, _ = self.compose_document_with_paths(spec, resolved, pretty=pretty)
+        return text
+
+    def compose_document_with_paths(
+        self, spec: MxMessageSpec, resolved: list[ResolvedElement], *, pretty: bool = True
+    ) -> tuple[str, dict[int, str]]:
+        """Build the Document, writing children strictly in specification order.
+
+        Also returns a line-number -> element-path map. Recording the path while rendering
+        avoids having to guess it afterwards from the tag name, which is ambiguous: ISO
+        20022 reuses short names such as ``Dt`` and ``Cd`` at many places in a message.
+        """
         values: dict[tuple[str, int], ResolvedElement] = {
             (item.flat.path, item.occurrence): item for item in resolved
         }
@@ -595,23 +652,36 @@ class MxGenerator:
             )
 
         lines: list[str] = []
+        line_paths: dict[int, str] = {}
         indent = "  " if pretty else ""
         newline = "\n" if pretty else ""
 
-        def write(elements, parent_path: str, depth: int) -> None:  # type: ignore[no-untyped-def]
+        def occurrences_of(path: str) -> list[int]:
+            return sorted(
+                {
+                    occurrence
+                    for candidate, occurrence in values
+                    if candidate == path or candidate.startswith(path + "/")
+                }
+            ) or [1]
+
+        def write(  # type: ignore[no-untyped-def]
+            elements, parent_path: str, depth: int, inherited_occurrence: int
+        ) -> None:
+            """Render children in specification order.
+
+            ``inherited_occurrence`` threads the enclosing repeatable block's occurrence
+            down through its non-repeatable descendants, so the second occurrence of a
+            repeated block renders the second occurrence's values rather than repeating
+            the first.
+            """
             for element in elements:
                 path = f"{parent_path}/{element.name}"
                 if not used(path):
                     continue
-                occurrences = sorted(
-                    {
-                        occurrence
-                        for candidate, occurrence in values
-                        if candidate == path or candidate.startswith(path + "/")
-                    }
-                ) or [1]
-                if element.max_occurs == 1:
-                    occurrences = [occurrences[0]]
+                occurrences = (
+                    occurrences_of(path) if element.max_occurs > 1 else [inherited_occurrence]
+                )
                 for occurrence in occurrences:
                     pad = indent * depth
                     if element.is_leaf:
@@ -628,18 +698,28 @@ class MxGenerator:
                             f"{pad}<{element.name}{attributes}>{escape(text)}"
                             f"</{element.name}>"
                         )
-                    else:
-                        lines.append(f"{pad}<{element.name}>")
-                        write(element.children, path, depth + 1)
-                        lines.append(f"{pad}</{element.name}>")
+                        line_paths[len(lines)] = path
+                        continue
+                    has_content = any(
+                        (candidate == path or candidate.startswith(path + "/"))
+                        and candidate_occurrence == occurrence
+                        for candidate, candidate_occurrence in values
+                    )
+                    if not has_content:
+                        continue
+                    lines.append(f"{pad}<{element.name}>")
+                    write(element.children, path, depth + 1, occurrence)
+                    lines.append(f"{pad}</{element.name}>")
 
         root = f"/{spec.document_element}/{spec.message_root}"
         lines.append(f'<{spec.document_element} xmlns="{spec.namespace}">')
         lines.append(f"{indent}<{spec.message_root}>")
-        write(spec.structure, root, 2)
+        write(spec.structure, root, 2, 1)
         lines.append(f"{indent}</{spec.message_root}>")
         lines.append(f"</{spec.document_element}>")
-        return newline.join(lines) if pretty else "".join(lines)
+        # Line numbers here are 1-based positions inside the Document fragment; callers that
+        # wrap the document shift them by the number of preceding lines.
+        return (newline.join(lines) if pretty else "".join(lines)), line_paths
 
     def compose_app_hdr(
         self,
@@ -829,7 +909,7 @@ class MxGenerator:
         ]
         warnings: list[ValidationIssue] = []
 
-        document = self.compose_document(spec, resolved)
+        document, document_line_paths = self.compose_document_with_paths(spec, resolved)
         app_hdr: str | None = None
         envelope_fields: list[EnvelopeField] = []
         if include_app_hdr:
@@ -845,7 +925,7 @@ class MxGenerator:
         if wrapper_warning:
             warnings.append(wrapper_warning)
 
-        rendered_lines = self._rendered_lines(spec, xml, resolved)
+        rendered_lines = self._rendered_lines(xml, document, document_line_paths, resolved)
         return MxBuildResult(
             specification=spec,
             document=document,
@@ -888,17 +968,28 @@ class MxGenerator:
 
     @staticmethod
     def _rendered_lines(
-        spec: MxMessageSpec, xml: str, resolved: list[ResolvedElement]
+        xml: str,
+        document: str,
+        document_line_paths: dict[int, str],
+        resolved: list[ResolvedElement],
     ) -> list[RenderedLine]:
-        by_name: dict[str, ResolvedElement] = {}
-        for resolved_item in resolved:
-            by_name.setdefault(resolved_item.flat.element.name, resolved_item)
+        by_path = {item.flat.path: item for item in resolved}
+        document_lines = document.splitlines()
+        xml_lines = xml.splitlines()
+        # Locate where the document fragment starts inside the wrapped output so the path
+        # map lines up, whatever indentation or wrapper the profile applied.
+        offset = 0
+        if document_lines:
+            first = document_lines[0].strip()
+            for index, line in enumerate(xml_lines):
+                if line.strip() == first:
+                    offset = index
+                    break
         lines: list[RenderedLine] = []
-        for number, text in enumerate(xml.splitlines(), start=1):
-            stripped = text.strip()
-            match = re.match(r"<([A-Za-z0-9]+)[ >]", stripped)
-            item: ResolvedElement | None = by_name.get(match.group(1)) if match else None
-            if item is not None and stripped.endswith(f"</{item.flat.element.name}>"):
+        for number, text in enumerate(xml_lines, start=1):
+            path = document_line_paths.get(number - offset)
+            item = by_path.get(path or "")
+            if item is not None:
                 lines.append(
                     RenderedLine(
                         line_number=number,

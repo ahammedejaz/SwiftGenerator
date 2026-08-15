@@ -151,6 +151,9 @@ class MxMessageSpec(BaseModel):
     authoritative_completeness_known: bool = Field(alias="authoritativeCompletenessKnown")
     source: MxSource
     limitations: list[str] = Field(default_factory=list)
+    #: Groups of sibling blocks where at least one must be present. Expressed as element
+    #: names relative to the message root, e.g. [["PrcgSts", "MtchgSts", "SttlmSts"]].
+    require_one_of: list[list[str]] = Field(default_factory=list, alias="requireOneOf")
     structure: list[MxElement] = Field(min_length=1)
 
     @model_validator(mode="after")

@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,6 +14,7 @@ from app.api.errors import (
     ai_service_error_handler,
     domain_validation_handler,
     error_response,
+    http_exception_handler,
     key_error_handler,
     value_error_handler,
 )
@@ -27,6 +28,7 @@ from app.persistence.database import create_schema
 from app.security.http import SlidingWindowRateLimiter
 from app.security.logging import configure_safe_logging
 from app.services.generation import DomainValidationError
+from app.studio.routes import router as studio_router
 
 settings = get_settings()
 configure_safe_logging()
@@ -71,6 +73,7 @@ app.add_middleware(
         "Content-Type",
         "X-Request-ID",
         "X-Demo-Reset-Key",
+        "X-API-Key",
         settings.csrf_header_name,
     ],
 )
@@ -167,6 +170,11 @@ async def handle_request_validation(request: Request, exc: RequestValidationErro
     )
 
 
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException):  # type: ignore[no-untyped-def]
+    return await http_exception_handler(request, exc)
+
+
 @app.exception_handler(AiServiceError)
 async def handle_ai_service_error(request: Request, exc: AiServiceError):  # type: ignore[no-untyped-def]
     return await ai_service_error_handler(request, exc)
@@ -174,3 +182,4 @@ async def handle_ai_service_error(request: Request, exc: AiServiceError):  # typ
 
 app.include_router(router)
 app.include_router(authoring_router)
+app.include_router(studio_router)
