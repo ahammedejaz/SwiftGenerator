@@ -61,7 +61,7 @@ the same data; `GET /api/v1/sources` reports which authoritative artifacts are p
 **Verification status (all passing):**
 
 ```
-757 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
+766 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
  61 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean
@@ -475,33 +475,44 @@ Defects found and fixed while building this. These are the ones likely to recur:
     the app. `ensure_database_directory` in `app/config.py` is now called from both.
     `tests/unit/test_setup_from_a_clean_clone.py` fails if `env.py` stops calling it.
 
+16. **A cached `lxml` `XMLSchema` is shared mutable state.** `validate()` writes its
+    findings onto the schema object — `error_log` is instance state, and libxml2 keeps a
+    validation context there too — while `_compiled` hands one object to every caller and
+    FastAPI runs sync endpoints in a threadpool. Two concurrent validations interleave, so a
+    verdict or an error list can be attributed to the wrong document. Found by CI: a
+    lifecycle test failed about one run in three with "No matching global declaration
+    available for the validation root" against a document whose root the schema declares.
+    Validation is now behind `_VALIDATION_LOCK`, held across the verdict *and* the error-log
+    read, because releasing between them would let another thread overwrite the findings.
+    Compilation stays cached; validating a settlement message takes microseconds.
+
 **Middleware and HTTP**
 
-16. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
+17. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
     registered first and therefore ended up innermost, so every short-circuit response from
     the request-context middleware — 400, 413, 429 — reached the browser with no
     `Access-Control-Allow-Origin`. `fetch()` rejects such a response with a bare network
     error, so a throttled tester was told the backend was down. Keep the CORS registration
     last, and keep `tests/security/test_cors_and_throttling.py`.
-17. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
+18. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
     chose to send; throttling it fails the real request with an unexplainable CORS error and
     defends nothing, because a non-browser client never sends one.
 
 **Environment**
 
-18. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
+19. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
     is missing.** `node_modules/next/dist/server/lib/generate-agent-files.js` walks up to the
     project root when it cannot find its file, and it **replaces** rather than merges — this
     document was reduced to nine lines of Next boilerplate once. Keep `frontend/AGENTS.md`
     committed; it is Next's target and it is what protects this file.
-19. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
+20. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
     backend you started by hand — which has a *different environment*. `playwright.config.ts`
     passes `DATA_ENCRYPTION_KEY` and `SESSION_HMAC_SECRET`; a hand-started server reads
     `.env` instead, and the encrypted-draft and guided specs then fail for reasons that have
     nothing to do with the change under test. It will also happily reuse a **stale** backend
     started before your change. Stop your own servers before `make e2e`.
 
-20. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
+21. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
     first.** The backend binds `127.0.0.1`, so a browser `fetch()` to `http://localhost:8000`
     occasionally died with `ECONNREFUSED ::1:8000` — which reaches `fetch()` as a bare
     network error and reads as "the backend is down". It surfaced as an unrelated e2e test
@@ -511,43 +522,43 @@ Defects found and fixed while building this. These are the ones likely to recur:
 
 **Tests**
 
-21. **The demonstration rate limit is per process, and each suite shares one.** Whether a
+22. **The demonstration rate limit is per process, and each suite shares one.** Whether a
     run passed depended on how many requests it happened to make; growing either suite
     eventually tipped it over and produced 429s in files with nothing to do with throttling.
     `tests/conftest.py` and `playwright.config.ts` both raise the ambient limit. The
     throttle is still tested — `tests/security/test_cors_and_throttling.py` installs its own
     limiter, which is the only place the limit is the subject rather than the scenery.
-22. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** An assertion
+23. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** An assertion
     meant to check a generated message matches the page title instead, and only trips strict
     mode once the real heading also renders — so it passes or fails on timing. This has now
     happened twice: MT537 on `penalties`, then MT530 on `settlement-processing`, which passed
     on every laptop and failed on the **first CI run**, because a shared runner renders more
     slowly and both headings were present. Use `exact: true, level: 2` whenever a page and
     its result share a word — a generated message's code is always an `<h2>`.
-23. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
+24. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
     nothing.** Derive counts from the registries.
 
 **Comparing two messages**
 
-24. **An expected difference presented as a fault trains the tester to ignore all of them.**
+25. **An expected difference presented as a fault trains the tester to ignore all of them.**
     A regenerated message almost always differs from the pasted one, and almost always
     harmlessly. Every difference therefore carries a reason, and only `UNEXPLAINED` and
     `IMPORT_DROPPED` are counted as worth acting on. A Block 5 trailer or an MX `Sgntr` is
     `NOT_REPRODUCED` and is never an application error.
-25. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
+26. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
     exists for exactly the case the comparison is there to surface; a comfortable-sounding
     default would hide it.
-26. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
+27. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
     ISO 20022 document changes nothing about the message, but in FIN the line structure *is*
     the message. Normalising MT before comparing would hide a real defect.
 
 **Coverage reporting**
 
-27. **A declared coverage figure reports the flag, not the truth.** The Excel reference
+28. **A declared coverage figure reports the flag, not the truth.** The Excel reference
     sheet was once hardcoded to three MX messages while the registry held seven, and a
     `composer_supported`-style flag would have said 100%. Every figure in
     `app/studio/coverage.py` is measured by asking the component what it produced.
-28. **The coverage document is gated by `make check`, so it must be deterministic.** Render
+29. **The coverage document is gated by `make check`, so it must be deterministic.** Render
     counts, never values: sample dates move with the clock and would fail the build on an
     unrelated commit. A test renders it twice and compares.
 

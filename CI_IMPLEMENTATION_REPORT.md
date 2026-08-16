@@ -29,7 +29,7 @@ Seven findings shaped the design:
 | 6 | `make install` calls `python3.13` by name | Pin behind a variable rather than assume |
 | 7 | Bare `git diff --check` compares worktree to index | Always clean on a runner: a no-op dressed as a check |
 
-### Two genuine defects CI exposed
+### Three genuine defects CI exposed
 
 **`lxml 6.0.2` carried PYSEC-2026-87** (two entries), fixed in 6.1.0. `make audit` failed the
 moment it was wired up. Bumped to `6.1.1`. The only thing lxml does here is compile and run
@@ -46,8 +46,39 @@ shared runner**, which renders more slowly.
 This is the second occurrence — the identical defect was fixed in `penalties.spec.ts` for
 MT537, and the gotcha written then said to use `exact` and `level`. `corporate-actions.spec.ts`
 has the same fragile pattern for five message codes; no collision on that page today, pinned
-so a reworded heading cannot quietly create one. `AGENTS.md` gotcha 22 now records that it
+so a reworded heading cannot quietly create one. `AGENTS.md` gotcha 23 now records that it
 happened twice and that CI is what caught it.
+
+**A cached `lxml` `XMLSchema` is shared mutable state.** A third run — whose only change was
+to a markdown file — failed a lifecycle test with:
+
+```
+Element '{urn:iso:std:iso:20022:tech:xsd:sese.020.001.08}Document':
+No matching global declaration available for the validation root.
+```
+
+against a document whose root that schema plainly declares. The failure artifact, downloaded
+from the run, showed the message had generated correctly with a full 32-line proof sheet: the
+error belonged to a *different* document.
+
+`XMLSchema.validate()` writes its findings onto the schema object — `error_log` is instance
+state and libxml2 keeps a validation context there too — while `_compiled` is an `lru_cache`
+handing one object to every caller, and FastAPI runs sync endpoints in a threadpool. Two
+concurrent validations interleave on one object, so a verdict or an error list can be
+attributed to the wrong message. For a tool whose job is telling a tester what is wrong with
+*their* message, that is a correctness defect, not a flake.
+
+Validation now runs under `_VALIDATION_LOCK`, held across the verdict **and** the error-log
+read, because releasing between them would let another thread overwrite the findings.
+Compilation stays cached, which is the expensive part; validating a settlement message takes
+microseconds.
+
+**Honest limit on this one:** it does not reproduce on macOS, whose lxml wheel bundles a
+different libxml2 — eight threads across all seven messages with a cold cache produced no
+failures. The mechanism is real and does not depend on the platform to be wrong, and the
+observed error is exactly what it would produce, but the fix is reasoned rather than
+locally reproduced. `tests/unit/test_xsd_concurrency.py` guards the invariant rather than
+claiming to reproduce the race, and says so.
 
 ## 2 · Workflow design
 

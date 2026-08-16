@@ -17,6 +17,7 @@ If ``lxml`` is unavailable the layer reports ``SKIPPED`` rather than silently pa
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import lru_cache
@@ -167,6 +168,26 @@ def _compiled(version: str, source: str, schema_text: str):  # type: ignore[no-u
     return etree.XMLSchema(etree.fromstring(schema_text.encode()))
 
 
+#: Serialises validation against the cached schemas.
+#:
+#: `XMLSchema.validate()` writes its findings onto the schema object — `schema.error_log` is
+#: instance state, and libxml2 keeps a validation context there too. Those objects are shared
+#: by every caller through the cache above, and FastAPI runs sync endpoints in a threadpool,
+#: so two requests validating at the same time interleave on one object: a verdict, or a list
+#: of errors, can be attributed to the wrong document. For a tool whose whole job is telling a
+#: tester what is wrong with *their* message, that is worse than being slow.
+#:
+#: Caught by CI, where a lifecycle test failed about one run in three with
+#: "No matching global declaration available for the validation root" — an error belonging to
+#: some other document's schema. It did not reproduce on macOS, whose lxml wheel bundles a
+#: different libxml2; the mechanism is the same either way and does not depend on the
+#: platform to be wrong.
+#:
+#: Compilation stays cached, which is the expensive part. Validating a settlement message
+#: takes microseconds, so serialising it costs nothing measurable.
+_VALIDATION_LOCK = threading.Lock()
+
+
 def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
     """Validate a standalone ``Document`` against the best schema available."""
     try:
@@ -223,7 +244,13 @@ def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
             ),
         )
 
-    if schema.validate(tree):
+    # The verdict and the error log are one atomic read: `validate()` writes the log onto
+    # the shared schema object, so releasing the lock between them would let another thread
+    # overwrite the findings before they are copied out.
+    with _VALIDATION_LOCK:
+        valid = schema.validate(tree)
+        entries = [] if valid else list(schema.error_log)
+    if valid:
         return XsdOutcome(
             performed=True, passed=True, schema_source=source, detail=detail_prefix
         )
@@ -236,7 +263,7 @@ def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
             message=entry.message,
             suggestion="Correct the element highlighted by the schema error.",
         )
-        for entry in schema.error_log
+        for entry in entries
     )
     return XsdOutcome(
         performed=True,
