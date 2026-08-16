@@ -1,0 +1,392 @@
+/**
+ * Mirrors the `/api/v1` contract in `backend/app/studio/models.py`.
+ *
+ * The UI has no private endpoints: every type here describes a payload an automation
+ * tester can obtain with the same call.
+ */
+
+export type MessageFormat = "MT" | "MX";
+export type Presence = "MANDATORY" | "CONDITIONAL" | "OPTIONAL";
+export type IssueSeverity = "ERROR" | "WARNING" | "INFO";
+export type SampleVariant = "MINIMAL" | "TYPICAL" | "FULL";
+
+export type OutputMode =
+  | "BLOCK4"
+  | "FIN"
+  | "TXT"
+  | "CANONICAL_JSON"
+  | "XML"
+  | "APPHDR"
+  | "DOCUMENT";
+
+export type FieldOrigin =
+  | "USER_ENTERED"
+  | "PROFILE_CONFIGURED"
+  | "APPLICATION_GENERATED"
+  | "INTERFACE_GENERATED"
+  | "NETWORK_GENERATED";
+
+export type ValidationLayer =
+  | "CANONICAL"
+  | "STRUCTURE"
+  | "FORMAT"
+  | "BUSINESS_RULES"
+  | "CLIENT_PROFILE"
+  | "FIN_ENVELOPE"
+  | "XML_WELL_FORMED"
+  | "XSD"
+  | "APPHDR_CONSISTENCY";
+
+export type LayerState = "PASSED" | "FAILED" | "NOT_APPLICABLE" | "SKIPPED";
+
+export type BusinessArea =
+  | "SECURITIES_SETTLEMENT"
+  | "SETTLEMENT_COMMANDS"
+  | "PENALTIES"
+  | "CORPORATE_ACTIONS";
+
+export interface CatalogueEntry {
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  name: string;
+  shortDescription: string;
+  businessArea: BusinessArea;
+  businessAreaLabel: string;
+  generatable: boolean;
+  outputModes: OutputMode[];
+  fieldCount: number;
+  mandatoryFieldCount: number;
+  sampleVariants: SampleVariant[];
+  authoritativeCompletenessKnown: boolean;
+  sourceReference: string;
+  limitations: string[];
+}
+
+export interface CatalogueBusinessArea {
+  id: BusinessArea;
+  label: string;
+  messageCount: number;
+}
+
+export interface CatalogueFormat {
+  id: MessageFormat;
+  label: string;
+  description: string;
+  businessAreas: CatalogueBusinessArea[];
+  messageCount: number;
+}
+
+export interface StudioCatalogue {
+  formats: CatalogueFormat[];
+  messages: CatalogueEntry[];
+  profiles: string[];
+  defaultProfileId: string;
+}
+
+export interface FieldExample {
+  value: string;
+  explanation: string;
+}
+
+export interface SpecField {
+  id: string;
+  format: MessageFormat;
+  groupId: string;
+  groupLabel: string;
+  groupOrder: number;
+  order: number;
+  presence: Presence;
+  repeatable: boolean;
+  maxOccurs: number;
+  displayName: string;
+  businessMeaning: string;
+  technicalMeaning: string;
+  whyUsed: string;
+  businessQuestion: string;
+  missingImpact: string | null;
+  formatExplanation: string;
+  allowedCodes: string[];
+  examples: FieldExample[];
+  commonMistakes: string[];
+  dependsOn: string[];
+  conditionExplanation: string | null;
+  businessPath: string | null;
+  sequence: string | null;
+  sequenceCode: string | null;
+  tag: string | null;
+  qualifier: string | null;
+  option: string | null;
+  xpath: string | null;
+  dataType: string | null;
+  choiceGroup: string | null;
+  sourceReference: string;
+  standardsRelease: string;
+}
+
+export interface SpecGroup {
+  id: string;
+  label: string;
+  description: string;
+  order: number;
+  repeatable: boolean;
+  maxOccurs: number;
+  parentId: string | null;
+}
+
+export interface MessageSpec {
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  name: string;
+  businessArea: BusinessArea;
+  scope: string;
+  namespace: string | null;
+  groups: SpecGroup[];
+  fields: SpecField[];
+  outputModes: OutputMode[];
+  authoritativeCompletenessKnown: boolean;
+  sourceReference: string;
+  standardsRelease: string;
+  limitations: string[];
+}
+
+export interface FieldInput {
+  id?: string | null;
+  sequence?: string | null;
+  occurrence?: number;
+  tag?: string | null;
+  qualifier?: string | null;
+  option?: string | null;
+  value: string;
+}
+
+export interface ElementInput {
+  path: string;
+  occurrence?: number;
+  value: string;
+}
+
+export interface EnvelopeOverride {
+  sender?: string | null;
+  receiver?: string | null;
+  sessionNumber?: string | null;
+  sequenceNumber?: string | null;
+  priority?: string | null;
+  messageUserReference?: string | null;
+  businessMessageIdentifier?: string | null;
+  creationDate?: string | null;
+}
+
+export interface GenerateRequest {
+  format: MessageFormat;
+  messageType: string;
+  profileId?: string;
+  scenarioId?: string | null;
+  fields?: FieldInput[];
+  elements?: ElementInput[];
+  outputModes?: OutputMode[] | null;
+  envelope?: EnvelopeOverride | null;
+  persist?: boolean;
+}
+
+export interface ValidationIssue {
+  ruleId: string;
+  severity: IssueSeverity;
+  layer: ValidationLayer;
+  field: string | null;
+  location: string | null;
+  message: string;
+  expected: string | null;
+  currentValue: string | null;
+  suggestion: string | null;
+}
+
+export interface LayerResult {
+  layer: ValidationLayer;
+  state: LayerState;
+  detail: string | null;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  summary: string;
+  layers: LayerResult[];
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+}
+
+export interface EnvelopeField {
+  block: string;
+  name: string;
+  value: string | null;
+  origin: FieldOrigin;
+  explanation: string;
+}
+
+export interface MessageOutputs {
+  block4: string | null;
+  fin: string | null;
+  txt: string | null;
+  appHdr: string | null;
+  document: string | null;
+  xml: string | null;
+  canonicalJson: Record<string, unknown> | null;
+}
+
+export interface RenderedLine {
+  lineNumber: number;
+  text: string;
+  fieldId: string | null;
+  displayName: string | null;
+  origin: FieldOrigin;
+}
+
+export interface GenerateResult {
+  messageId: string | null;
+  correlationId: string;
+  scenarioId: string | null;
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  profileId: string;
+  profileVersion: string;
+  valid: boolean;
+  validation: ValidationResult;
+  outputs: MessageOutputs;
+  envelopeFields: EnvelopeField[];
+  renderedLines: RenderedLine[];
+  checksum: string;
+  availableOutputModes: OutputMode[];
+  generatedAt: string;
+  disclaimer: string;
+}
+
+export interface SampleMessage {
+  sampleId: string;
+  format: MessageFormat;
+  messageType: string;
+  variant: SampleVariant;
+  title: string;
+  description: string;
+  fieldCount: number;
+  inputs: FieldInput[];
+  elements: ElementInput[];
+}
+
+export interface ExcelScenarioResult {
+  scenarioId: string;
+  rowNumbers: number[];
+  format: MessageFormat | null;
+  messageType: string | null;
+  status: string;
+  valid: boolean;
+  validation: ValidationResult | null;
+  outputs: MessageOutputs | null;
+  messageId: string | null;
+  checksum: string | null;
+}
+
+export interface ExcelGenerateResponse {
+  requestId: string;
+  format: MessageFormat;
+  totalScenarios: number;
+  generated: number;
+  failed: number;
+  results: ExcelScenarioResult[];
+  disclaimer: string;
+}
+
+export interface RecentMessage {
+  messageId: string;
+  correlationId: string;
+  scenarioId: string | null;
+  format: MessageFormat;
+  messageType: string;
+  profileId: string;
+  valid: boolean;
+  errorCount: number;
+  warningCount: number;
+  checksum: string;
+  source: string;
+  createdAt: string;
+}
+
+export interface IntelligenceHit {
+  id: string;
+  format: MessageFormat;
+  messageTypes: string[];
+  label: string;
+  address: string;
+  presence: Presence;
+  summary: string;
+  score: number;
+}
+
+export interface IntelligenceSearchResponse {
+  query: string;
+  total: number;
+  results: IntelligenceHit[];
+  deterministic: boolean;
+  llmUsed: boolean;
+}
+
+export interface IntelligenceDetail {
+  id: string;
+  format: MessageFormat;
+  label: string;
+  address: string;
+  messageTypes: string[];
+  presence: Presence;
+  businessMeaning: string;
+  technicalMeaning: string;
+  whyUsed: string;
+  formatExplanation: string;
+  allowedCodes: string[];
+  examples: FieldExample[];
+  commonMistakes: string[];
+  dependsOn: string[];
+  conditionExplanation: string | null;
+  dataType: string | null;
+  cardinality: string | null;
+  parent: string | null;
+  sourceReference: string;
+  standardsRelease: string;
+  sampleLines: string[];
+}
+
+export const PRESENCE_LABEL: Record<Presence, string> = {
+  MANDATORY: "Required",
+  CONDITIONAL: "Conditional",
+  OPTIONAL: "Optional",
+};
+
+export const OUTPUT_LABEL: Record<OutputMode, string> = {
+  BLOCK4: "Block 4 only",
+  FIN: "FIN message",
+  TXT: "Plain text",
+  CANONICAL_JSON: "Canonical JSON",
+  XML: "AppHdr + Document",
+  APPHDR: "AppHdr only",
+  DOCUMENT: "Document only",
+};
+
+export const LAYER_LABEL: Record<ValidationLayer, string> = {
+  CANONICAL: "Input is addressable",
+  STRUCTURE: "Message structure",
+  FORMAT: "Field formats",
+  BUSINESS_RULES: "Business rules",
+  CLIENT_PROFILE: "Client profile",
+  FIN_ENVELOPE: "FIN envelope",
+  XML_WELL_FORMED: "XML is well formed",
+  XSD: "Schema validation",
+  APPHDR_CONSISTENCY: "Header matches document",
+};
+
+export const ORIGIN_LABEL: Record<FieldOrigin, string> = {
+  USER_ENTERED: "You entered this",
+  PROFILE_CONFIGURED: "From the client profile",
+  APPLICATION_GENERATED: "Built by the platform",
+  INTERFACE_GENERATED: "Your messaging interface adds this",
+  NETWORK_GENERATED: "The network adds this",
+};

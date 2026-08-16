@@ -81,6 +81,22 @@ class Settings(BaseSettings):
     external_validation_required_for_submission: bool = True
     fin_export_enabled: bool = True
     rje_export_enabled: bool = False
+    # Comma-separated service keys for the automation API. Empty leaves /api/v1 open in
+    # development and closed everywhere else. Never commit a value here.
+    automation_api_keys: SecretStr | None = None
+    max_excel_scenarios: int = 200
+
+    @field_validator("automation_api_keys")
+    @classmethod
+    def validate_automation_keys(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        keys = [item.strip() for item in value.get_secret_value().split(",") if item.strip()]
+        if any(len(key) < 24 for key in keys):
+            raise ValueError("Each automation API key must contain at least 24 characters")
+        if any(any(ord(character) < 32 for character in key) for key in keys):
+            raise ValueError("AUTOMATION_API_KEYS contains invalid control characters")
+        return value
 
     @field_validator("ai_provider")
     @classmethod

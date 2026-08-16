@@ -1,0 +1,950 @@
+"use client";
+
+/**
+ * Create Message — the front door.
+ *
+ * A linear wizard: format, business area, message, how you want to enter data, the data
+ * itself, then the result. One decision at a time, each with enough plain-English context
+ * that a tester who has never seen ISO 15022 can make it.
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/studio/Icon";
+import {
+  FieldEditor,
+  type FieldValues,
+  fieldAddress,
+  parseSlot,
+  slotKey,
+} from "@/components/studio/FieldEditor";
+import { EnvelopeTable, ProofSheet } from "@/components/studio/ProofSheet";
+import { ValidationPanel } from "@/components/studio/ValidationPanel";
+import {
+  Badge,
+  Button,
+  ErrorNotice,
+  FormatBadge,
+  Labelled,
+  Panel,
+  Select,
+  Skeleton,
+  TextInput,
+  cx,
+} from "@/components/studio/ui";
+import { StudioError, studioApi } from "@/lib/studio-api";
+import type {
+  BusinessArea,
+  CatalogueEntry,
+  ElementInput,
+  FieldInput,
+  GenerateRequest,
+  GenerateResult,
+  MessageFormat,
+  MessageSpec,
+  SampleMessage,
+  SpecField,
+  StudioCatalogue,
+} from "@/lib/studio-types";
+
+type InputMode = "GUIDED" | "EXPERT" | "SAMPLE";
+
+const STEPS = [
+  { id: 1, label: "Format" },
+  { id: 2, label: "Business area" },
+  { id: 3, label: "Message" },
+  { id: 4, label: "How to enter data" },
+  { id: 5, label: "Enter data" },
+  { id: 6, label: "Generate" },
+] as const;
+
+export function CreateMessage() {
+  const [catalogue, setCatalogue] = useState<StudioCatalogue | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+
+  const [format, setFormat] = useState<MessageFormat | null>(null);
+  const [area, setArea] = useState<BusinessArea | null>(null);
+  const [messageType, setMessageType] = useState<string | null>(null);
+  const [mode, setMode] = useState<InputMode>("GUIDED");
+  const [profileId, setProfileId] = useState("BASE_DEMO_V1");
+  const [scenarioId, setScenarioId] = useState("");
+
+  const [spec, setSpec] = useState<MessageSpec | null>(null);
+  const [samples, setSamples] = useState<SampleMessage[]>([]);
+  const [specLoading, setSpecLoading] = useState(false);
+
+  const [values, setValues] = useState<FieldValues>({});
+  const [occurrences, setOccurrences] = useState<Record<string, number>>({});
+  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+
+  const [result, setResult] = useState<GenerateResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [focusedLocation, setFocusedLocation] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  /* ------------------------------------------------------------ catalogue */
+
+  // A token rather than a callback, so the effect owns the fetch and "Try again" is just
+  // a state change rather than a second code path.
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    studioApi
+      .catalogue()
+      .then((data) => {
+        setCatalogue(data);
+        setProfileId(data.defaultProfileId);
+        setLoadError(null);
+      })
+      .catch((error: unknown) =>
+        setLoadError(
+          error instanceof StudioError ? error.message : "The catalogue could not be loaded.",
+        ),
+      );
+  }, [reloadToken]);
+
+  /* --------------------------------------------------- specification load */
+
+  useEffect(() => {
+    if (!format || !messageType) return;
+    let cancelled = false;
+    void (async () => {
+      setSpecLoading(true);
+      setSpec(null);
+      try {
+        const [loadedSpec, loadedSamples] = await Promise.all([
+          studioApi.spec(format, messageType),
+          studioApi.samples(format, messageType),
+        ]);
+        if (cancelled) return;
+        setSpec(loadedSpec);
+        setSamples(loadedSamples);
+        // Start with a clean sheet: previous values belong to a different message.
+        setValues({});
+        setRevealed(new Set());
+        setOccurrences({});
+        setResult(null);
+      } catch (error) {
+        if (cancelled) return;
+        setActionError(
+          error instanceof StudioError
+            ? error.message
+            : "The message specification could not be loaded.",
+        );
+      } finally {
+        if (!cancelled) setSpecLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [format, messageType]);
+
+  /* ----------------------------------------------------------- derivation */
+
+  const entries = useMemo(() => catalogue?.messages ?? [], [catalogue]);
+  const areasForFormat = useMemo(
+    () => catalogue?.formats.find((item) => item.id === format)?.businessAreas ?? [],
+    [catalogue, format],
+  );
+  const messagesForArea = useMemo(
+    () => entries.filter((item) => item.format === format && item.businessArea === area),
+    [entries, format, area],
+  );
+  const selected = useMemo(
+    () => entries.find((item) => item.format === format && item.messageType === messageType),
+    [entries, format, messageType],
+  );
+
+  /** Expert mode shows everything; guided mode shows required plus what you asked for. */
+  const visibleSpec = useMemo(() => {
+    if (!spec) return null;
+    if (mode !== "EXPERT") return spec;
+    return spec;
+  }, [spec, mode]);
+
+  const filledKeys = useMemo(
+    () =>
+      new Set(
+        Object.entries(values)
+          .filter(([, value]) => value.trim())
+          .map(([key]) => parseSlot(key).fieldId),
+      ),
+    [values],
+  );
+  const requiredFields = useMemo(
+    () => spec?.fields.filter((field) => field.presence === "MANDATORY") ?? [],
+    [spec],
+  );
+  const requiredFilled = requiredFields.filter((field) => filledKeys.has(field.id)).length;
+  const anyFilled = filledKeys.size > 0;
+
+  const invalidLocations = useMemo(() => {
+    const set = new Set<string>();
+    for (const issue of result?.validation.errors ?? []) {
+      if (issue.location) set.add(issue.location);
+    }
+    return set;
+  }, [result]);
+
+  /* -------------------------------------------------------------- actions */
+
+  function selectFormat(next: MessageFormat) {
+    setFormat(next);
+    setArea(null);
+    setMessageType(null);
+    setSpec(null);
+    setResult(null);
+    setStep(2);
+  }
+
+  function selectArea(next: BusinessArea) {
+    setArea(next);
+    setMessageType(null);
+    setSpec(null);
+    setResult(null);
+    setStep(3);
+  }
+
+  function selectMessage(next: string) {
+    setMessageType(next);
+    setScenarioId((current) => current || `TC-${next.replace(/\./g, "")}-001`);
+    setStep(4);
+  }
+
+  function chooseMode(next: InputMode) {
+    setMode(next);
+    if (next === "EXPERT" && spec) {
+      // Expert mode reveals every optional field at once.
+      setRevealed(new Set(spec.fields.map((field) => field.id)));
+    }
+    if (next === "GUIDED") {
+      setRevealed((current) => {
+        const kept = new Set<string>();
+        for (const key of current) if (key.startsWith("info:")) kept.add(key);
+        return kept;
+      });
+    }
+    setStep(5);
+  }
+
+  function applySample(sample: SampleMessage) {
+    if (!spec) return;
+    const next: FieldValues = {};
+    const revealedNext = new Set<string>();
+    const byAddress = new Map<string, SpecField>();
+    for (const field of spec.fields) {
+      byAddress.set(field.id, field);
+      if (field.tag) {
+        byAddress.set(`${field.sequenceCode}|${field.tag}|${field.qualifier ?? ""}`, field);
+      }
+    }
+    const assign = (fieldId: string | undefined, occurrence: number, value: string) => {
+      if (!fieldId) return;
+      next[slotKey(fieldId, occurrence)] = value;
+      revealedNext.add(fieldId);
+    };
+    for (const input of sample.inputs) {
+      const field =
+        (input.id && byAddress.get(input.id)) ||
+        byAddress.get(`${input.sequence}|${input.tag}|${input.qualifier ?? ""}`);
+      assign(field?.id, input.occurrence ?? 1, input.value);
+    }
+    for (const element of sample.elements) {
+      assign(byAddress.get(element.path)?.id, element.occurrence ?? 1, element.value);
+    }
+    setValues(next);
+    setRevealed((current) => {
+      const merged = new Set(revealedNext);
+      for (const key of current) if (key.startsWith("info:")) merged.add(key);
+      return merged;
+    });
+    setMode("GUIDED");
+    setResult(null);
+    setStep(5);
+  }
+
+  function buildRequest(persist: boolean): GenerateRequest | null {
+    if (!spec || !format || !messageType) return null;
+    const byId = new Map(spec.fields.map((field) => [field.id, field]));
+    const fields: FieldInput[] = [];
+    const elements: ElementInput[] = [];
+    for (const [key, raw] of Object.entries(values)) {
+      const value = raw.trim();
+      if (!value) continue;
+      const { fieldId, occurrence } = parseSlot(key);
+      const field = byId.get(fieldId);
+      if (!field) continue;
+      if (format === "MT") {
+        fields.push({
+          id: field.id,
+          sequence: field.sequenceCode,
+          occurrence,
+          tag: field.tag,
+          qualifier: field.qualifier,
+          option: field.option,
+          value,
+        });
+      } else {
+        elements.push({ path: field.xpath ?? field.id, occurrence, value });
+      }
+    }
+    return {
+      format,
+      messageType,
+      profileId,
+      scenarioId: scenarioId.trim() || null,
+      fields,
+      elements,
+      persist,
+    };
+  }
+
+  async function run(persist: boolean) {
+    const request = buildRequest(persist);
+    if (!request) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      const response = persist
+        ? await studioApi.generate(request)
+        : await studioApi.validate(request);
+      setResult(response);
+      if (persist && response.valid) {
+        setStep(6);
+        requestAnimationFrame(() =>
+          resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        );
+      }
+    } catch (error) {
+      setActionError(
+        error instanceof StudioError ? error.message : "The message could not be generated.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function focusField(location: string) {
+    setFocusedLocation(location);
+    const element = document.getElementById(`row-${location.replace(/[^A-Za-z0-9]/g, "-")}`);
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => setFocusedLocation(null), 2200);
+  }
+
+  function startOver() {
+    setResult(null);
+    setValues({});
+    setRevealed(new Set());
+    setOccurrences({});
+    setStep(1);
+    setFormat(null);
+    setArea(null);
+    setMessageType(null);
+    setSpec(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ----------------------------------------------------------------- view */
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-[1200px] px-4 py-10 sm:px-6">
+        <ErrorNotice
+          title="The studio could not start"
+          message={loadError}
+          onRetry={() => setReloadToken((token) => token + 1)}
+        />
+      </div>
+    );
+  }
+
+
+  return (
+    <div className="mx-auto max-w-[1400px] px-4 pb-20 pt-8 sm:px-6">
+      <div className="pb-6">
+        <h1 className="text-[2rem] font-semibold leading-[1.15] tracking-[-0.02em]">
+          Create a message
+        </h1>
+        <p className="mt-2 max-w-[72ch] text-[0.9375rem] leading-7 text-ink-2">
+          Pick a message, enter the business data, and download a complete SWIFT MT or ISO
+          20022 message ready for your test system. No SWIFT knowledge required — every
+          field explains itself.
+        </p>
+      </div>
+
+      <StepRail current={step} onJump={setStep} reached={reachedStep(format, area, messageType, spec)} />
+
+      <div className="mt-6 space-y-6">
+        {step === 1 && catalogue && (
+          <StepFormat catalogue={catalogue} onSelect={selectFormat} />
+        )}
+
+        {step === 2 && format && (
+          <StepArea
+            format={format}
+            areas={areasForFormat}
+            entries={entries}
+            onSelect={selectArea}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {step === 3 && area && (
+          <StepMessage
+            messages={messagesForArea}
+            onSelect={selectMessage}
+            onBack={() => setStep(2)}
+          />
+        )}
+
+        {step === 4 && selected && (
+          <StepMode
+            entry={selected}
+            samples={samples}
+            onChoose={chooseMode}
+            onSample={applySample}
+            onBack={() => setStep(3)}
+          />
+        )}
+
+        {step >= 5 && selected && (
+          <>
+            <SelectionBar
+              entry={selected}
+              mode={mode}
+              profileId={profileId}
+              profiles={catalogue?.profiles ?? []}
+              scenarioId={scenarioId}
+              onProfileChange={setProfileId}
+              onScenarioChange={setScenarioId}
+              onChange={() => setStep(1)}
+            />
+
+            {specLoading && <SpecSkeleton />}
+
+            {visibleSpec && !specLoading && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-ink-2">
+                    <span className="font-medium text-ink tnum">{requiredFilled}</span> of{" "}
+                    <span className="tnum">{requiredFields.length}</span> required fields
+                    filled
+                    {mode === "EXPERT" && " · showing every field"}
+                  </p>
+                  {samples.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[0.8125rem] text-ink-3">Load a sample:</span>
+                      {samples.map((sample) => (
+                        <Button
+                          key={sample.variant}
+                          size="sm"
+                          variant="quiet"
+                          onClick={() => applySample(sample)}
+                        >
+                          {sample.title}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <FieldEditor
+                  spec={visibleSpec}
+                  values={values}
+                  onChange={(key, value) =>
+                    setValues((current) => ({ ...current, [key]: value }))
+                  }
+                  occurrences={occurrences}
+                  onAddOccurrence={(groupId) =>
+                    setOccurrences((current) => ({
+                      ...current,
+                      [groupId]: (current[groupId] ?? 1) + 1,
+                    }))
+                  }
+                  onRemoveOccurrence={(groupId) =>
+                    setOccurrences((current) => ({
+                      ...current,
+                      [groupId]: Math.max(1, (current[groupId] ?? 1) - 1),
+                    }))
+                  }
+                  revealed={revealed}
+                  onReveal={(id) => setRevealed((current) => new Set(current).add(id))}
+                  onHide={(id) =>
+                    setRevealed((current) => {
+                      const next = new Set(current);
+                      next.delete(id);
+                      return next;
+                    })
+                  }
+                  invalidLocations={invalidLocations}
+                  focusedLocation={focusedLocation}
+                />
+
+                {actionError && <ErrorNotice message={actionError} />}
+
+                <div className="sticky bottom-0 z-20 -mx-4 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Button variant="quiet" icon="arrow-left" onClick={() => setStep(4)}>
+                        Back
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        icon="check-shield"
+                        loading={busy}
+                        onClick={() => void run(false)}
+                      >
+                        Validate
+                      </Button>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      iconAfter="arrow-right"
+                      loading={busy}
+                      disabled={!anyFilled}
+                      onClick={() => void run(true)}
+                    >
+                      Generate message
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {result && (
+          <div ref={resultRef} className="space-y-4 scroll-mt-24">
+            <ValidationPanel validation={result.validation} onFocusField={focusField} />
+            {(result.outputs.fin ||
+              result.outputs.xml ||
+              result.outputs.block4 ||
+              result.outputs.document) && (
+              <>
+                <ProofSheet result={result} onGenerateAnother={startOver} />
+                <EnvelopeTable result={result} />
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- steps */
+
+function reachedStep(
+  format: MessageFormat | null,
+  area: BusinessArea | null,
+  messageType: string | null,
+  spec: MessageSpec | null,
+): number {
+  if (spec) return 5;
+  if (messageType) return 4;
+  if (area) return 3;
+  if (format) return 2;
+  return 1;
+}
+
+function StepRail({
+  current,
+  reached,
+  onJump,
+}: {
+  current: number;
+  reached: number;
+  onJump: (step: number) => void;
+}) {
+  return (
+    <ol className="scroll-slim flex items-center gap-1 overflow-x-auto rounded-md border border-line bg-panel px-2 py-2 shadow-[var(--shadow-1)]">
+      {STEPS.map((step, index) => {
+        const state =
+          step.id < current ? "done" : step.id === current ? "current" : "upcoming";
+        const reachable = step.id <= Math.max(reached, current);
+        return (
+          <li key={step.id} className="flex shrink-0 items-center">
+            <button
+              type="button"
+              disabled={!reachable}
+              onClick={() => reachable && onJump(step.id)}
+              className={cx(
+                "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150",
+                state === "current" && "bg-accent-sk text-accent-2",
+                state === "done" && "text-ink-2 hover:bg-rail",
+                state === "upcoming" && "text-ink-3",
+                !reachable && "cursor-default",
+              )}
+            >
+              <span
+                className={cx(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] tnum",
+                  state === "current" && "bg-accent text-white",
+                  state === "done" && "bg-ok text-white",
+                  state === "upcoming" && "border border-line-2 text-ink-3",
+                )}
+              >
+                {state === "done" ? <Icon name="check" className="h-3 w-3" strokeWidth={2.5} /> : step.id}
+              </span>
+              {step.label}
+            </button>
+            {index < STEPS.length - 1 && (
+              <Icon name="chevron-right" className="h-4 w-4 shrink-0 text-line-2" />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function StepFormat({
+  catalogue,
+  onSelect,
+}: {
+  catalogue: StudioCatalogue;
+  onSelect: (format: MessageFormat) => void;
+}) {
+  return (
+    <Panel
+      title="Which message standard do you need?"
+      description="If your ticket says MT541 or MT548, choose MT. If it names something like sese.023, choose MX."
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        {catalogue.formats.map((format) => (
+          <button
+            key={format.id}
+            type="button"
+            onClick={() => onSelect(format.id)}
+            className="group flex flex-col items-start gap-3 rounded-lg border border-line-2 bg-panel p-5 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[var(--shadow-2)]"
+          >
+            <div className="flex w-full items-center justify-between gap-3">
+              <span className="font-mono text-[1.375rem] font-semibold tracking-[-0.015em] text-accent">
+                {format.id}
+              </span>
+              <span className="text-xs text-ink-3 tnum">
+                {format.messageCount} messages
+              </span>
+            </div>
+            <span className="text-[0.9375rem] font-semibold">{format.label}</span>
+            <span className="text-sm leading-6 text-ink-2">{format.description}</span>
+            <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-[0.8125rem] font-medium text-accent">
+              Choose {format.id}
+              <Icon
+                name="arrow-right"
+                className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5"
+              />
+            </span>
+          </button>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function StepArea({
+  format,
+  areas,
+  entries,
+  onSelect,
+  onBack,
+}: {
+  format: MessageFormat;
+  areas: Array<{ id: BusinessArea; label: string; messageCount: number }>;
+  entries: CatalogueEntry[];
+  onSelect: (area: BusinessArea) => void;
+  onBack: () => void;
+}) {
+  return (
+    <Panel
+      title="What kind of business event?"
+      description="Only areas with messages you can actually generate are shown."
+      action={
+        <Button variant="quiet" icon="arrow-left" onClick={onBack}>
+          Change format
+        </Button>
+      }
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        {areas.map((item) => {
+          const examples = entries
+            .filter((entry) => entry.format === format && entry.businessArea === item.id)
+            .slice(0, 4)
+            .map((entry) => entry.messageType);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
+              className="group flex items-start justify-between gap-4 rounded-md border border-line-2 bg-panel px-4 py-3.5 text-left transition-colors duration-150 hover:border-accent/40 hover:bg-accent-sk"
+            >
+              <span className="min-w-0">
+                <span className="block text-[0.9375rem] font-semibold">{item.label}</span>
+                <span className="mt-1 block truncate font-mono text-xs text-ink-3">
+                  {examples.join(" · ")}
+                  {item.messageCount > 4 && ` +${item.messageCount - 4}`}
+                </span>
+              </span>
+              <Icon
+                name="chevron-right"
+                className="mt-1 h-4 w-4 shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-accent"
+              />
+            </button>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+function StepMessage({
+  messages,
+  onSelect,
+  onBack,
+}: {
+  messages: CatalogueEntry[];
+  onSelect: (messageType: string) => void;
+  onBack: () => void;
+}) {
+  return (
+    <Panel
+      title="Which message?"
+      description="Every message listed here can be generated end to end."
+      action={
+        <Button variant="quiet" icon="arrow-left" onClick={onBack}>
+          Change area
+        </Button>
+      }
+      bodyClassName="px-0 py-0"
+    >
+      <ul className="divide-y divide-line">
+        {messages.map((entry) => (
+          <li key={entry.messageType}>
+            <button
+              type="button"
+              onClick={() => onSelect(entry.messageType)}
+              className="group flex w-full items-start gap-4 px-5 py-4 text-left transition-colors duration-150 hover:bg-accent-sk"
+            >
+              <span className="w-[7.5rem] shrink-0">
+                <span className="block font-mono text-[0.9375rem] font-semibold text-accent">
+                  {entry.messageType}
+                </span>
+                {entry.version && (
+                  <span className="mt-0.5 block font-mono text-[0.6875rem] text-ink-3">
+                    {entry.version}
+                  </span>
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[0.9375rem] font-medium">{entry.name}</span>
+                <span className="mt-0.5 block text-sm leading-6 text-ink-2">
+                  {entry.shortDescription}
+                </span>
+              </span>
+              <span className="hidden shrink-0 items-center gap-2 sm:flex">
+                <Badge>
+                  <span className="tnum">{entry.mandatoryFieldCount}</span> required
+                </Badge>
+                <Icon
+                  name="chevron-right"
+                  className="h-4 w-4 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-accent"
+                />
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+function StepMode({
+  entry,
+  samples,
+  onChoose,
+  onSample,
+  onBack,
+}: {
+  entry: CatalogueEntry;
+  samples: SampleMessage[];
+  onChoose: (mode: InputMode) => void;
+  onSample: (sample: SampleMessage) => void;
+  onBack: () => void;
+}) {
+  const options: Array<{
+    id: InputMode;
+    title: string;
+    body: string;
+    recommended?: boolean;
+  }> = [
+    {
+      id: "GUIDED",
+      title: "Guided",
+      body: "Shows only the fields this message requires, in business language. Add optional fields when you need them.",
+      recommended: true,
+    },
+    {
+      id: "EXPERT",
+      title: "Expert",
+      body:
+        entry.format === "MT"
+          ? "Shows every tag and qualifier in the configured subset at once."
+          : "Shows every element path in the configured subset at once.",
+    },
+  ];
+
+  return (
+    <Panel
+      title={`How do you want to enter the data for ${entry.messageType}?`}
+      description="You can switch at any time; nothing you have typed is lost."
+      action={
+        <Button variant="quiet" icon="arrow-left" onClick={onBack}>
+          Change message
+        </Button>
+      }
+    >
+      <div className="grid gap-3 md:grid-cols-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChoose(option.id)}
+            className="group flex flex-col items-start gap-2 rounded-md border border-line-2 bg-panel p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[var(--shadow-2)]"
+          >
+            <span className="flex items-center gap-2">
+              <span className="text-[0.9375rem] font-semibold">{option.title}</span>
+              {option.recommended && <Badge tone="accent">Recommended</Badge>}
+            </span>
+            <span className="text-sm leading-6 text-ink-2">{option.body}</span>
+          </button>
+        ))}
+      </div>
+
+      {samples.length > 0 && (
+        <div className="mt-5 border-t border-line pt-5">
+          <h3 className="text-[0.9375rem] font-semibold">Or start from a sample</h3>
+          <p className="mt-1 text-sm leading-6 text-ink-2">
+            Samples are produced by the same composer as your message, so they always
+            validate. Load one and edit it.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {samples.map((sample) => (
+              <button
+                key={sample.variant}
+                type="button"
+                onClick={() => onSample(sample)}
+                className="group rounded-md border border-line-2 bg-sunken px-4 py-3 text-left transition-colors duration-150 hover:border-accent/40 hover:bg-accent-sk"
+              >
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[0.8125rem] font-semibold">{sample.title}</span>
+                  <span className="text-xs text-ink-3 tnum">{sample.fieldCount} fields</span>
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-ink-2">
+                  {sample.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function SelectionBar({
+  entry,
+  mode,
+  profileId,
+  profiles,
+  scenarioId,
+  onProfileChange,
+  onScenarioChange,
+  onChange,
+}: {
+  entry: CatalogueEntry;
+  mode: InputMode;
+  profileId: string;
+  profiles: string[];
+  scenarioId: string;
+  onProfileChange: (value: string) => void;
+  onScenarioChange: (value: string) => void;
+  onChange: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-line bg-panel px-5 py-4 shadow-[var(--shadow-1)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <FormatBadge format={entry.format} />
+            <span className="font-mono text-[1.0625rem] font-semibold">{entry.messageType}</span>
+            <span className="text-[0.9375rem] text-ink-2">{entry.name}</span>
+            <Badge tone={mode === "GUIDED" ? "accent" : "neutral"}>
+              {mode === "GUIDED" ? "Guided" : "Expert"}
+            </Badge>
+          </div>
+          <p className="mt-1 max-w-[74ch] text-sm leading-6 text-ink-2">
+            {entry.shortDescription}
+          </p>
+        </div>
+        <Button variant="quiet" icon="refresh" onClick={onChange}>
+          Start over
+        </Button>
+      </div>
+
+      <div className="mt-4 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Labelled label="Client profile" hint="Controls allowed currencies and reference rules.">
+          <Select value={profileId} onChange={(event) => onProfileChange(event.target.value)}>
+            {profiles.map((profile) => (
+              <option key={profile} value={profile}>
+                {profile}
+              </option>
+            ))}
+          </Select>
+        </Labelled>
+        <Labelled label="Scenario reference" hint="Your own label. Appears in Recent Messages.">
+          <TextInput
+            value={scenarioId}
+            onChange={(event) => onScenarioChange(event.target.value)}
+            placeholder="TC-001"
+          />
+        </Labelled>
+        {!entry.authoritativeCompletenessKnown && (
+          <div className="rounded-md border border-warn/25 bg-warn-sk px-3 py-2.5">
+            <p className="flex items-start gap-2 text-xs leading-5 text-ink-2">
+              <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
+              <span>
+                Coverage is a configured subset of the standard, not the complete
+                authoritative definition.
+              </span>
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SpecSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[0, 1].map((group) => (
+        <div key={group} className="rounded-lg border border-line bg-panel p-5">
+          <Skeleton className="h-5 w-44" />
+          <div className="mt-5 space-y-4">
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="flex gap-5">
+                <Skeleton className="h-9 w-[19rem]" />
+                <Skeleton className="h-9 flex-1" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export { fieldAddress };

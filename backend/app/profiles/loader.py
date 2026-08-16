@@ -20,6 +20,58 @@ class ProfileValidation(BaseModel):
     sender_reference: SenderReferenceRule = Field(alias="senderReference")
 
 
+class FinEnvelopeProfile(BaseModel):
+    """Configured FIN interface values for a client profile.
+
+    Every value here is supplied by a human configuring the profile, which is why the
+    studio classifies them as PROFILE_CONFIGURED rather than inventing them. Session and
+    sequence numbers are normally allocated by the messaging interface; a profile that
+    does not configure them cannot produce a complete FIN application message and the
+    studio fails closed instead of fabricating a value.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    sender_logical_terminal: str = Field(
+        alias="senderLogicalTerminal", min_length=12, max_length=12
+    )
+    receiver_address: str = Field(alias="receiverAddress", min_length=12, max_length=12)
+    application_id: str = Field(default="F", alias="applicationId", pattern=r"^[A-Z]$")
+    service_id: str = Field(default="01", alias="serviceId", pattern=r"^\d{2}$")
+    session_number: str | None = Field(default=None, alias="sessionNumber", pattern=r"^\d{4}$")
+    sequence_number: str | None = Field(default=None, alias="sequenceNumber", pattern=r"^\d{6}$")
+    priority: str = Field(default="N", alias="priority", pattern=r"^[NU]$")
+    include_message_user_reference: bool = Field(
+        default=True, alias="includeMessageUserReference"
+    )
+    trailer_fields: dict[str, str] = Field(default_factory=dict, alias="trailerFields")
+    notes: str = Field(
+        default=(
+            "Session and sequence numbers are configured test-interface values, not values "
+            "allocated by a live Swift interface."
+        ),
+        alias="notes",
+    )
+
+
+class MxEnvelopeProfile(BaseModel):
+    """Configured ISO 20022 Business Application Header and transport values.
+
+    The transport wrapper is profile-driven on purpose: the element that carries an AppHdr
+    and a Document together is a market or client convention, not part of ISO 20022. A
+    profile that configures no wrapper gets the AppHdr and the Document as separate
+    outputs rather than an invented envelope.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    from_bic: str = Field(alias="fromBic", min_length=8, max_length=11)
+    to_bic: str = Field(alias="toBic", min_length=8, max_length=11)
+    business_service: str | None = Field(default=None, alias="businessService", max_length=35)
+    priority: str | None = Field(default=None, alias="priority", max_length=4)
+    wrapper_element: str | None = Field(default=None, alias="wrapperElement", max_length=64)
+
+
 class ClientProfile(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     profile_id: str = Field(alias="profileId")
@@ -34,6 +86,8 @@ class ClientProfile(BaseModel):
     client_required_fields: dict[str, list[str]] = Field(alias="clientRequiredFields")
     enabled_negative_mutations: list[NegativeMutation] = Field(alias="enabledNegativeMutations")
     validation: ProfileValidation
+    fin_envelope: FinEnvelopeProfile | None = Field(default=None, alias="finEnvelope")
+    mx_envelope: MxEnvelopeProfile | None = Field(default=None, alias="mxEnvelope")
 
     def summary(self) -> ProfileSummary:
         return ProfileSummary(

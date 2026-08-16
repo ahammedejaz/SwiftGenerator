@@ -403,3 +403,31 @@ class PlatformAuditRecord(Base):
     resource_id: Mapped[str] = mapped_column(String(64), index=True)
     safe_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class StudioMessageRecord(Base):
+    """A message generated through the Financial Message Studio.
+
+    Kept deliberately simple and short-lived: it exists so a tester can find what they
+    generated a few minutes ago and download it again, not as a system of record.
+    """
+
+    __tablename__ = "studio_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    correlation_id: Mapped[str] = mapped_column(String(36))
+    scenario_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    format: Mapped[str] = mapped_column(String(8))
+    message_type: Mapped[str] = mapped_column(String(32))
+    version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    profile_id: Mapped[str] = mapped_column(String(64))
+    profile_version: Mapped[str] = mapped_column(String(32))
+    valid: Mapped[bool] = mapped_column(Boolean, default=False)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    warning_count: Mapped[int] = mapped_column(Integer, default=0)
+    checksum: Mapped[str] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(String(24), default="API")
+    outputs_json: Mapped[str] = mapped_column(Text)
+    inputs_json: Mapped[str] = mapped_column(Text)
+    validation_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

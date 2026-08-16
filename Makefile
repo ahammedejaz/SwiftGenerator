@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend test lint typecheck build e2e audit coverage benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
 
 install:
 	python3.13 -m venv backend/.venv
@@ -13,6 +13,9 @@ backend:
 
 frontend:
 	cd frontend && npm run dev
+
+dev:
+	./scripts/start-dev.sh
 
 test:
 	cd backend && .venv/bin/pytest
@@ -30,6 +33,14 @@ build:
 
 e2e:
 	cd frontend && npm run test:e2e
+
+# Everything that must pass before pushing.
+check: lint typecheck test coverage
+
+secret-scan:
+	@git ls-files -z | xargs -0 grep -nIE \
+		"sk-or-v1-[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----" \
+		&& { echo "Secret-shaped string found in a tracked file"; exit 1; } || echo "No secret-shaped strings in tracked files"
 
 audit:
 	cd backend && .venv/bin/pip-audit -r requirements-dev.txt

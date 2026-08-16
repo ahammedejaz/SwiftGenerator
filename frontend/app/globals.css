@@ -1,39 +1,182 @@
 @import "tailwindcss";
 
-:root {
-  --ink: #102a43;
-  --muted: #52667a;
-  --surface: #ffffff;
-  --canvas: #f1f5f9;
-  --brand: #006d77;
-  --brand-dark: #004f56;
-  --accent: #d89b22;
+/*
+ * Financial Message Studio — see DESIGN.md at the repository root.
+ *
+ * The world is "warm paper around a dark proof": human input sits on quiet warm paper,
+ * and the generated message appears on a dark monospaced proof surface. The two are
+ * visually distinct kinds of thing so a user never wonders which they are looking at.
+ */
+
+@theme {
+  --color-paper: #faf9f6;
+  --color-panel: #ffffff;
+  --color-rail: #f2f0ea;
+  --color-sunken: #f6f4ef;
+
+  --color-ink: #1a1815;
+  --color-ink-2: #5c574e;
+  --color-ink-3: #857f73;
+  --color-line: #e4e0d6;
+  --color-line-2: #d2ccbe;
+
+  --color-accent: #2c3e8c;
+  --color-accent-2: #1f2d68;
+  --color-accent-sk: #eaecf7;
+  --color-accent-lt: #8fa0e8;
+
+  --color-proof: #1b1a17;
+  --color-proof-ink: #edeae2;
+  --color-proof-dim: #928c7f;
+  --color-proof-line: #2c2a26;
+
+  --color-ok: #2c6a4a;
+  --color-ok-sk: #e8f1eb;
+  --color-bad: #9e2b2b;
+  --color-bad-sk: #f8eaea;
+  --color-warn: #8a6410;
+  --color-warn-sk: #f7f0de;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo,
+    Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-1: 0 1px 2px rgba(26, 24, 21, 0.06), 0 1px 1px rgba(26, 24, 21, 0.04);
+  --shadow-2: 0 4px 12px rgba(26, 24, 21, 0.08), 0 1px 3px rgba(26, 24, 21, 0.05);
+  --shadow-3: 0 12px 32px rgba(26, 24, 21, 0.12), 0 2px 8px rgba(26, 24, 21, 0.06);
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
-* {
-  box-sizing: border-box;
+/*
+ * Element resets live in @layer base. Unlayered rules beat everything in Tailwind's
+ * utilities layer regardless of specificity, so an unlayered `button { color: inherit }`
+ * would silently kill every text-colour utility on every button in the product.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern" 1, "liga" 1, "cv05" 1;
+    /* Long message lines scroll inside their own container; the page never does. */
+    overflow-x: hidden;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* One focus ring on every focusable element, including links and cards. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background: var(--color-accent-sk);
+    color: var(--color-accent-2);
+  }
+
+  .proof ::selection {
+    background: rgba(143, 160, 232, 0.28);
+    color: var(--color-proof-ink);
+  }
 }
 
-body {
-  margin: 0;
-  background: var(--canvas);
-  color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+/* Tabular figures wherever numbers are compared down a column. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/*
+ * The proof reveal — the one authored moment in the product. It fires once, on the thing
+ * the user was waiting for, and nothing else in the interface asks for attention this way.
+ */
+@keyframes proof-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+.animate-proof {
+  animation: proof-in 260ms var(--ease-out) both;
+}
+
+.animate-settle {
+  animation: settle 200ms var(--ease-out) both;
+}
+
+/* Quiet, unobtrusive scrollbars inside dense panes. */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+
+.proof .scroll-slim,
+.scroll-slim.on-proof {
+  scrollbar-color: var(--color-proof-line) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }

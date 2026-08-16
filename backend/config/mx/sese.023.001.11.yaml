@@ -1,0 +1,548 @@
+# ---------------------------------------------------------------------------------------
+# sese.023 — Securities Settlement Transaction Instruction
+#
+# SCOPE AND HONESTY NOTE
+# This file is a REPOSITORY-CONFIGURED SUBSET. It covers the elements needed to build a
+# complete, well-formed, business-meaningful settlement instruction. It is NOT the complete
+# ISO 20022 message definition, and it has NOT been verified against an authoritative
+# ISO 20022 message-definition report. `authoritativeCompletenessKnown` is false and the
+# platform reports that fact through the API and the UI.
+#
+# To move to authoritative coverage: import the ISO 20022 message-definition report for
+# sese.023.001.11 and place the official XSD in config/mx/xsd/official/. The validator
+# prefers an official schema whenever one is present.
+# ---------------------------------------------------------------------------------------
+messageType: sese.023
+version: sese.023.001.11
+name: Securities Settlement Transaction Instruction
+shortDescription: >-
+  Instructs the receipt or delivery of financial instruments, against payment or free of
+  payment, on a stated settlement date.
+businessArea: SECURITIES_SETTLEMENT
+namespace: "urn:iso:std:iso:20022:tech:xsd:sese.023.001.11"
+messageRoot: SctiesSttlmTxInstr
+documentElement: Document
+standardsRelease: ISO20022_CONFIGURED_SUBSET_V1
+authoritativeCompletenessKnown: false
+source:
+  sourceType: CONFIGURED_SUBSET_REQUIRES_VERIFICATION
+  sourceReference: ISO20022-SESE023-CONFIGURED-SUBSET-2026-08-16
+  reviewedAt: "2026-08-16"
+  reviewedBy: REPOSITORY_CONFIGURATION
+limitations:
+  - The configured subset omits optional blocks such as Lnkgs, FinInstrmAttrbts,
+    StgSttlmInstrDtls, CshPties, OthrAmts, OthrBizPties and SplmtryData.
+  - Element completeness against the authoritative message-definition report is unverified.
+  - Code lists are the configured subset, not the complete ISO 20022 external code sets.
+
+structure:
+  - name: TxId
+    displayName: Transaction Identification
+    presence: MANDATORY
+    dataType: Max35Text
+    businessPath: senderReference
+    businessMeaning: >-
+      Uniquely identifies this settlement instruction in the account owner's business flow.
+    technicalMeaning: Max35Text transaction identification at the root of the message.
+    whyUsed: >-
+      Every status advice, confirmation, cancellation and reconciliation report refers back
+      to this identification, so it must be unique for the sender.
+    businessQuestion: What unique reference identifies this instruction?
+    formatExplanation: Up to 35 characters. Keep it unique for the sending party.
+    examples:
+      - value: TESTREF001
+        explanation: A synthetic test reference.
+    commonMistakes:
+      - Reusing a reference from an earlier instruction.
+    searchTerms: [TxId, transaction identification, reference, SEME]
+
+  - name: SttlmTpAndAddtlParams
+    displayName: Settlement Type and Additional Parameters
+    presence: MANDATORY
+    businessMeaning: States what kind of settlement movement this instruction asks for.
+    technicalMeaning: SettlementTypeAndAdditionalParameters container.
+    whyUsed: Carries the two decisions that define the transaction — direction and payment.
+    businessQuestion: Is this a receipt or a delivery, and is it against payment?
+    searchTerms: [SttlmTpAndAddtlParams, settlement type]
+    children:
+      - name: SctiesMvmntTp
+        displayName: Securities Movement Type
+        presence: MANDATORY
+        dataType: Code
+        codes: [RECE, DELI]
+        businessPath: direction
+        businessMeaning: >-
+          Whether the account owner receives securities into the account or delivers them out.
+        technicalMeaning: ReceiveDelivery1Code.
+        whyUsed: Determines the direction of the securities movement.
+        businessQuestion: Are securities being received or delivered?
+        formatExplanation: "RECE to receive securities; DELI to deliver securities."
+        examples:
+          - value: RECE
+            explanation: Securities are received into the safekeeping account.
+        commonMistakes:
+          - Confusing the securities direction with the cash direction.
+        searchTerms: [SctiesMvmntTp, RECE, DELI, direction, movement]
+
+      - name: Pmt
+        displayName: Payment
+        presence: MANDATORY
+        dataType: Code
+        codes: [APMT, FREE]
+        businessPath: paymentType
+        businessMeaning: Whether the securities movement is settled against a cash payment.
+        technicalMeaning: DeliveryReceiptType2Code.
+        whyUsed: >-
+          Distinguishes a delivery-versus-payment instruction from a free-of-payment
+          instruction, and determines whether a settlement amount is required.
+        businessQuestion: Does cash move against the securities?
+        formatExplanation: "APMT for against payment; FREE for free of payment."
+        examples:
+          - value: APMT
+            explanation: The securities settle against a cash payment.
+        commonMistakes:
+          - Sending APMT without a settlement amount.
+        searchTerms: [Pmt, APMT, FREE, against payment, free of payment, DVP, FOP]
+
+      - name: CmonId
+        displayName: Common Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessPath: clientReference
+        businessMeaning: A reference shared by both sides of the trade.
+        technicalMeaning: Common identification, Max35Text.
+        whyUsed: Helps counterparties match the two sides of the same transaction.
+        businessQuestion: Is there a common reference agreed with the counterparty?
+        examples:
+          - value: COMMONREF001
+            explanation: A synthetic shared reference.
+        searchTerms: [CmonId, common identification, COMM]
+
+  - name: TradDtls
+    displayName: Trade Details
+    presence: MANDATORY
+    businessMeaning: The dates and trade context of the underlying transaction.
+    technicalMeaning: SecuritiesTradeDetails container.
+    whyUsed: Provides the chronology used for settlement processing and reconciliation.
+    businessQuestion: When was the trade executed and when should it settle?
+    searchTerms: [TradDtls, trade details]
+    children:
+      - name: TradDt
+        displayName: Trade Date
+        presence: OPTIONAL
+        businessMeaning: The date the underlying securities trade was executed.
+        technicalMeaning: TradeDate4Choice container.
+        whyUsed: Supports settlement chronology checks and the trade audit trail.
+        businessQuestion: What is the trade date?
+        searchTerms: [TradDt, trade date]
+        children:
+          - name: Dt
+            displayName: Trade Date Choice
+            presence: MANDATORY
+            searchTerms: [TradDt, trade date]
+            children:
+              - name: Dt
+                displayName: Trade Date
+                presence: MANDATORY
+                dataType: ISODate
+                businessPath: trade.tradeDate
+                businessMeaning: The calendar date on which the trade was executed.
+                technicalMeaning: ISODate inside DateAndDateTime2Choice.
+                whyUsed: Establishes the start of the settlement cycle.
+                businessQuestion: On what date was the trade executed?
+                examples:
+                  - value: "2026-08-14"
+                    explanation: A synthetic trade date.
+                commonMistakes:
+                  - Using the MT date format YYYYMMDD instead of the ISO format YYYY-MM-DD.
+                searchTerms: [TradDt, trade date, TRAD]
+
+      - name: SttlmDt
+        displayName: Settlement Date
+        presence: MANDATORY
+        businessMeaning: The date the transaction is intended to settle.
+        technicalMeaning: SettlementDate9Choice container.
+        whyUsed: Drives settlement processing, matching, and penalty calculation.
+        businessQuestion: On what date should this settle?
+        searchTerms: [SttlmDt, settlement date]
+        children:
+          - name: Dt
+            displayName: Settlement Date Choice
+            presence: MANDATORY
+            searchTerms: [SttlmDt, settlement date]
+            children:
+              - name: Dt
+                displayName: Intended Settlement Date
+                presence: MANDATORY
+                dataType: ISODate
+                businessPath: trade.settlementDate
+                businessMeaning: The calendar date on which settlement is intended to occur.
+                technicalMeaning: ISODate inside DateAndDateTime2Choice.
+                whyUsed: >-
+                  The market infrastructure uses this date to schedule settlement and to
+                  determine whether a transaction has failed.
+                businessQuestion: On what date is settlement intended?
+                examples:
+                  - value: "2026-08-18"
+                    explanation: A synthetic intended settlement date, two days after the trade.
+                commonMistakes:
+                  - Setting a settlement date earlier than the trade date.
+                searchTerms: [SttlmDt, settlement date, SETT, intended settlement date]
+
+  - name: FinInstrmId
+    displayName: Financial Instrument Identification
+    presence: MANDATORY
+    businessMeaning: Identifies the security being settled.
+    technicalMeaning: SecurityIdentification container.
+    whyUsed: Without an unambiguous instrument identification the movement cannot be settled.
+    businessQuestion: Which security is being settled?
+    searchTerms: [FinInstrmId, financial instrument, security]
+    children:
+      - name: ISIN
+        displayName: ISIN
+        presence: MANDATORY
+        dataType: ISINOct2015Identifier
+        businessPath: security.identifier
+        businessMeaning: The International Securities Identification Number of the instrument.
+        technicalMeaning: ISINOct2015Identifier.
+        whyUsed: The globally recognised identifier for the security being moved.
+        businessQuestion: What is the ISIN of the security?
+        examples:
+          - value: XS0000000001
+            explanation: A synthetic ISIN used for demonstration only.
+        commonMistakes:
+          - Including the literal prefix "ISIN " that the MT format uses in field 35B.
+        searchTerms: [ISIN, FinInstrmId, security identifier, 35B]
+
+      - name: Desc
+        displayName: Instrument Description
+        presence: OPTIONAL
+        dataType: Max140Text
+        businessPath: security.description
+        businessMeaning: A readable description of the instrument.
+        technicalMeaning: Max140Text description.
+        whyUsed: Aids human review; it is not used for matching.
+        businessQuestion: Do you want to add a readable instrument name?
+        examples:
+          - value: SYNTHETIC TEST BOND 2030
+            explanation: A synthetic description.
+        searchTerms: [Desc, description, instrument name]
+
+  - name: QtyAndAcctDtls
+    displayName: Quantity and Account Details
+    presence: MANDATORY
+    businessMeaning: How much is settling and which safekeeping account is involved.
+    technicalMeaning: QuantityAndAccount container.
+    whyUsed: Identifies the position that is debited or credited.
+    businessQuestion: How many units settle, and in which account?
+    searchTerms: [QtyAndAcctDtls, quantity, account]
+    children:
+      - name: SttlmQty
+        displayName: Settlement Quantity
+        presence: MANDATORY
+        businessMeaning: The quantity of the instrument to be settled.
+        technicalMeaning: Quantity6Choice container.
+        whyUsed: Defines the size of the movement.
+        businessQuestion: What quantity is settling?
+        searchTerms: [SttlmQty, settlement quantity]
+        children:
+          - name: Qty
+            displayName: Quantity Choice
+            presence: MANDATORY
+            searchTerms: [Qty, quantity]
+            children:
+              - name: Unit
+                displayName: Quantity of Units
+                presence: MANDATORY
+                dataType: DecimalNumber
+                businessPath: security.quantity
+                businessMeaning: The number of units of the instrument being settled.
+                technicalMeaning: DecimalNumber inside FinancialInstrumentQuantity1Choice.
+                whyUsed: Determines how much of the position moves.
+                businessQuestion: How many units are settling?
+                formatExplanation: >-
+                  A positive decimal using a full stop as the decimal separator, for
+                  example 1000 or 1000.5.
+                examples:
+                  - value: "1000"
+                    explanation: One thousand units.
+                commonMistakes:
+                  - Using a comma as the decimal separator, which is the MT convention.
+                searchTerms: [Unit, quantity, units, 36B]
+
+      - name: SfkpgAcct
+        displayName: Safekeeping Account
+        presence: MANDATORY
+        businessMeaning: The securities account that is debited or credited.
+        technicalMeaning: SecuritiesAccount container.
+        whyUsed: Identifies whose position moves.
+        businessQuestion: Which safekeeping account is used?
+        searchTerms: [SfkpgAcct, safekeeping account]
+        children:
+          - name: Id
+            displayName: Safekeeping Account Identification
+            presence: MANDATORY
+            dataType: Max35Text
+            businessPath: account.safekeepingAccount
+            businessMeaning: The identification of the safekeeping account.
+            technicalMeaning: Max35Text account identification.
+            whyUsed: The account servicer uses it to locate the position.
+            businessQuestion: What is the safekeeping account number?
+            examples:
+              - value: SAFE0000001
+                explanation: A synthetic safekeeping account.
+            searchTerms: [SfkpgAcct, safekeeping account, SAFE, 97A]
+
+  - name: SttlmParams
+    displayName: Settlement Parameters
+    presence: MANDATORY
+    businessMeaning: How the transaction should be processed at settlement.
+    technicalMeaning: SettlementDetails container.
+    whyUsed: Carries the transaction type and processing conditions.
+    businessQuestion: What kind of settlement transaction is this?
+    searchTerms: [SttlmParams, settlement parameters]
+    children:
+      - name: SctiesTxTp
+        displayName: Securities Transaction Type
+        presence: MANDATORY
+        businessMeaning: The nature of the underlying transaction.
+        technicalMeaning: SecuritiesTransactionType choice container.
+        whyUsed: Market infrastructures apply different processing by transaction type.
+        businessQuestion: What type of transaction is being settled?
+        searchTerms: [SctiesTxTp, transaction type]
+        children:
+          - name: Cd
+            displayName: Transaction Type Code
+            presence: MANDATORY
+            dataType: Code
+            codes: [TRAD, COLI, COLO, PLAC, PORT, REDM, SUBS, TURN, NETT, OWNE, OWNI]
+            businessPath: trade.transactionType
+            businessMeaning: The configured code describing the underlying transaction.
+            technicalMeaning: SecuritiesTransactionType code.
+            whyUsed: Determines how the settlement system processes the instruction.
+            businessQuestion: Which transaction type code applies?
+            formatExplanation: >-
+              A four-letter code from the configured subset. TRAD covers an ordinary
+              secondary-market trade.
+            examples:
+              - value: TRAD
+                explanation: An ordinary trade settlement.
+            commonMistakes:
+              - Using the MT direction codes RECE or DELI here; direction is carried by
+                SctiesMvmntTp.
+            searchTerms: [SctiesTxTp, TRAD, transaction type, SETR, 22F]
+
+      - name: SttlmTxCond
+        displayName: Settlement Transaction Condition
+        presence: OPTIONAL
+        maxOccurs: 10
+        businessMeaning: Conditions that apply to the settlement of this transaction.
+        technicalMeaning: SettlementTransactionCondition choice container, repeatable.
+        whyUsed: Expresses partial-settlement and special-handling conditions.
+        businessQuestion: Do any special settlement conditions apply?
+        searchTerms: [SttlmTxCond, settlement condition, partial]
+        children:
+          - name: Cd
+            displayName: Settlement Condition Code
+            presence: MANDATORY
+            dataType: Code
+            codes: [NOMC, PART, PARC, PARQ, ASGN, BLOC, CLEN, DIRT, DLWM, PHYS, SPDL]
+            businessMeaning: The configured settlement-condition code.
+            technicalMeaning: SettlementTransactionCondition code.
+            whyUsed: Controls whether partial settlement is permitted, among other conditions.
+            businessQuestion: Which settlement condition applies?
+            examples:
+              - value: NOMC
+                explanation: No automatic market claim; a common configured condition.
+            searchTerms: [SttlmTxCond, NOMC, PART, partial settlement]
+
+  - name: DlvrgSttlmPties
+    displayName: Delivering Settlement Parties
+    presence: CONDITIONAL
+    conditionExplanation: >-
+      Required when the account owner is receiving securities, because the chain that
+      delivers them must be identified.
+    businessMeaning: The chain of parties delivering the securities.
+    technicalMeaning: SettlementParties container.
+    whyUsed: Identifies where the securities come from so the two sides can match.
+    businessQuestion: Who is delivering the securities?
+    searchTerms: [DlvrgSttlmPties, delivering agent, DEAG]
+    children:
+      - name: Dpstry
+        displayName: Depository
+        presence: OPTIONAL
+        businessMeaning: The central securities depository where settlement takes place.
+        technicalMeaning: PartyIdentification container for the depository.
+        whyUsed: This is the MX equivalent of the MT place of settlement.
+        businessQuestion: At which depository does settlement take place?
+        searchTerms: [Dpstry, depository, PSET, place of settlement]
+        children:
+          - name: Id
+            displayName: Depository Identification
+            presence: MANDATORY
+            searchTerms: [Dpstry, depository, PSET]
+            children:
+              - name: AnyBIC
+                displayName: Depository BIC
+                presence: MANDATORY
+                dataType: AnyBICDec2014Identifier
+                businessPath: settlement.placeOfSettlement
+                businessMeaning: The BIC of the central securities depository.
+                technicalMeaning: AnyBICDec2014Identifier.
+                whyUsed: >-
+                  Identifies the place of settlement. This element carries what field
+                  95a PSET carries in the MT format.
+                businessQuestion: What is the depository BIC?
+                examples:
+                  - value: DEMOGB2LXXX
+                    explanation: A synthetic depository BIC.
+                commonMistakes:
+                  - Supplying a proprietary code where a BIC is required.
+                searchTerms: [Dpstry, AnyBIC, PSET, place of settlement, depository, 95P]
+
+      - name: Pty1
+        displayName: Delivering Party 1
+        presence: OPTIONAL
+        businessMeaning: The first party in the delivering chain, normally the delivering agent.
+        technicalMeaning: PartyIdentificationAndAccount container.
+        whyUsed: Identifies the counterparty side of the settlement chain.
+        businessQuestion: Which agent is delivering the securities?
+        searchTerms: [Pty1, delivering agent, DEAG]
+        children:
+          - name: Id
+            displayName: Delivering Party Identification
+            presence: MANDATORY
+            searchTerms: [Pty1, delivering agent, DEAG]
+            children:
+              - name: AnyBIC
+                displayName: Delivering Agent BIC
+                presence: MANDATORY
+                dataType: AnyBICDec2014Identifier
+                businessPath: settlement.deliveringAgent
+                businessMeaning: The BIC of the party delivering the securities.
+                technicalMeaning: AnyBICDec2014Identifier.
+                whyUsed: Allows the receiving side to match against the delivering side.
+                businessQuestion: What is the delivering agent BIC?
+                examples:
+                  - value: DEMODEAGXXX
+                    explanation: A synthetic delivering agent BIC.
+                searchTerms: [DEAG, delivering agent, AnyBIC, 95P]
+
+  - name: RcvgSttlmPties
+    displayName: Receiving Settlement Parties
+    presence: CONDITIONAL
+    conditionExplanation: >-
+      Required when the account owner is delivering securities, because the chain that
+      receives them must be identified.
+    businessMeaning: The chain of parties receiving the securities.
+    technicalMeaning: SettlementParties container.
+    whyUsed: Identifies where the securities go so the two sides can match.
+    businessQuestion: Who is receiving the securities?
+    searchTerms: [RcvgSttlmPties, receiving agent, REAG]
+    children:
+      - name: Dpstry
+        displayName: Depository
+        presence: OPTIONAL
+        businessMeaning: The central securities depository where settlement takes place.
+        technicalMeaning: PartyIdentification container for the depository.
+        whyUsed: This is the MX equivalent of the MT place of settlement.
+        businessQuestion: At which depository does settlement take place?
+        searchTerms: [Dpstry, depository, PSET, place of settlement]
+        children:
+          - name: Id
+            displayName: Depository Identification
+            presence: MANDATORY
+            searchTerms: [Dpstry, depository, PSET]
+            children:
+              - name: AnyBIC
+                displayName: Depository BIC
+                presence: MANDATORY
+                dataType: AnyBICDec2014Identifier
+                businessPath: settlement.placeOfSettlement
+                businessMeaning: The BIC of the central securities depository.
+                technicalMeaning: AnyBICDec2014Identifier.
+                whyUsed: Identifies the place of settlement on the receiving side.
+                businessQuestion: What is the depository BIC?
+                examples:
+                  - value: DEMOGB2LXXX
+                    explanation: A synthetic depository BIC.
+                searchTerms: [Dpstry, AnyBIC, PSET, place of settlement, depository]
+
+      - name: Pty1
+        displayName: Receiving Party 1
+        presence: OPTIONAL
+        businessMeaning: The first party in the receiving chain, normally the receiving agent.
+        technicalMeaning: PartyIdentificationAndAccount container.
+        whyUsed: Identifies the counterparty side of the settlement chain.
+        businessQuestion: Which agent is receiving the securities?
+        searchTerms: [Pty1, receiving agent, REAG]
+        children:
+          - name: Id
+            displayName: Receiving Party Identification
+            presence: MANDATORY
+            searchTerms: [Pty1, receiving agent, REAG]
+            children:
+              - name: AnyBIC
+                displayName: Receiving Agent BIC
+                presence: MANDATORY
+                dataType: AnyBICDec2014Identifier
+                businessPath: settlement.receivingAgent
+                businessMeaning: The BIC of the party receiving the securities.
+                technicalMeaning: AnyBICDec2014Identifier.
+                whyUsed: Allows the delivering side to match against the receiving side.
+                businessQuestion: What is the receiving agent BIC?
+                examples:
+                  - value: DEMOREAGXXX
+                    explanation: A synthetic receiving agent BIC.
+                searchTerms: [REAG, receiving agent, AnyBIC, 95P]
+
+  - name: SttlmAmt
+    displayName: Settlement Amount
+    presence: CONDITIONAL
+    conditionExplanation: Required when Payment is APMT; must be absent when Payment is FREE.
+    businessMeaning: The cash amount that moves against the securities.
+    technicalMeaning: AmountAndDirection container.
+    whyUsed: Defines the cash leg of a delivery-versus-payment settlement.
+    businessQuestion: How much cash settles against the securities?
+    searchTerms: [SttlmAmt, settlement amount, cash]
+    children:
+      - name: Amt
+        displayName: Amount
+        presence: MANDATORY
+        dataType: ActiveCurrencyAndAmount
+        currencyAttribute: true
+        businessPath: settlement.amount
+        businessMeaning: The settlement amount and its currency.
+        technicalMeaning: >-
+          ActiveCurrencyAndAmount. The currency is written as the Ccy attribute, the amount
+          as the element text.
+        whyUsed: States the cash consideration for the securities movement.
+        businessQuestion: What is the settlement amount and currency?
+        formatExplanation: >-
+          Enter as CURRENCY AMOUNT, for example "USD 25000.00". The composer writes
+          Ccy="USD" and the amount 25000.00.
+        examples:
+          - value: USD 25000.00
+            explanation: Twenty-five thousand US dollars.
+        commonMistakes:
+          - Using a comma as the decimal separator, which is the MT convention.
+          - Omitting the currency.
+        searchTerms: [SttlmAmt, Amt, amount, currency, Ccy, 19A]
+
+      - name: CdtDbtInd
+        displayName: Credit or Debit Indicator
+        presence: MANDATORY
+        dataType: Code
+        codes: [CRDT, DBIT]
+        businessPath: settlement.cashDirection
+        businessMeaning: Whether the cash is credited to or debited from the account owner.
+        technicalMeaning: CreditDebitCode.
+        whyUsed: >-
+          States the direction of the cash leg. Receiving securities against payment
+          normally debits cash; delivering securities against payment normally credits it.
+        businessQuestion: Is cash paid away or received?
+        formatExplanation: "CRDT when cash is received; DBIT when cash is paid away."
+        examples:
+          - value: DBIT
+            explanation: Cash is paid away to receive the securities.
+        searchTerms: [CdtDbtInd, CRDT, DBIT, credit, debit, cash direction]
