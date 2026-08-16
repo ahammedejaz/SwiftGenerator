@@ -61,12 +61,13 @@ the same data; `GET /api/v1/sources` reports which authoritative artifacts are p
 **Verification status (all passing):**
 
 ```
-752 backend tests (pytest)      ruff: clean      mypy --strict: clean (128 files)
+757 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
  61 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
 secret scan: clean in tree and in git history
-clean clone, no .env, no keys: make install -> make check -> make e2e, all green
+clean clone, no .env, no keys: install -> migrate -> check -> e2e, and docker, all green
+released as v0.1.0
 ```
 
 ---
@@ -132,6 +133,7 @@ backend/app/studio/
   intelligence.py   deterministic search index over MT tags and MX elements
   store.py          recent-messages persistence
   coverage.py       unified MT + MX coverage, measured; renders docs/generated/
+  demo_pack.py      builds demo/ from the production composer; gated by make check
   diff.py           original vs regenerated, with every difference attributed
   sources.py        authoritative-source readiness: drop points and what is present
   mt/fin.py         FIN envelope — the "nothing is invented" rules live here
@@ -190,6 +192,15 @@ frontend/lib/studio-api.ts     typed client — the ONLY place fetch() is called
 frontend/app/{,excel,intelligence,validate,automation,recent,advanced}/page.tsx
 ```
 
+### Demonstration and release
+
+```
+demo/                                  synthetic pack, generated — never hand-written
+CLIENT_DEMO_RUNBOOK.md                 the twenty-minute walkthrough
+AUTHORITATIVE_ARTIFACT_CHECKLIST.md    what a client must supply, and what it unlocks
+V0_1_0_RELEASE_READINESS_REPORT.md     what was verified for the v0.1.0 baseline
+```
+
 ### Tests
 
 ```
@@ -204,6 +215,8 @@ backend/tests/studio/test_mx_lifecycle.py     the four cancellation/modification
 backend/tests/studio/test_excel_api.py        templates, parsing, upload guards
 backend/tests/studio/test_studio_api.py       the /api/v1 contract
 backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay readable
+backend/tests/unit/test_database_concurrency.py    the in-memory engine under threads
+backend/tests/unit/test_setup_from_a_clean_clone.py  make migrate works on a new machine
 frontend/tests/e2e/studio-create.spec.ts      the manual journey
 frontend/tests/e2e/studio-import.spec.ts      import round trip + lifecycle in the browser
 frontend/tests/e2e/message-diff.spec.ts       the comparison a tester actually reads
@@ -330,6 +343,8 @@ make e2e          # Playwright (starts both servers itself)
 make secret-scan
 make coverage     # fail if docs/generated/message-coverage.md is stale
 make coverage-write   # regenerate it
+make demo-pack        # rebuild demo/ from the production composer
+make demo-pack-check  # fail if demo/ no longer matches what the composer produces
 docker compose up --build
 ```
 
@@ -413,33 +428,40 @@ Defects found and fixed while building this. These are the ones likely to recur:
     until the first returns it. `tests/unit/test_database_concurrency.py` fails if that is
     ever reverted.
 
+15. **Alembic builds its own engine and never imports `app.persistence.database`.** That
+    module was the only place creating the folder a file-backed SQLite database lives in, so
+    `make migrate` — the *second step of the documented setup* — failed on every clean clone
+    with "unable to open database file", and worked on every machine that had already run
+    the app. `ensure_database_directory` in `app/config.py` is now called from both.
+    `tests/unit/test_setup_from_a_clean_clone.py` fails if `env.py` stops calling it.
+
 **Middleware and HTTP**
 
-15. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
+16. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
     registered first and therefore ended up innermost, so every short-circuit response from
     the request-context middleware — 400, 413, 429 — reached the browser with no
     `Access-Control-Allow-Origin`. `fetch()` rejects such a response with a bare network
     error, so a throttled tester was told the backend was down. Keep the CORS registration
     last, and keep `tests/security/test_cors_and_throttling.py`.
-16. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
+17. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
     chose to send; throttling it fails the real request with an unexplainable CORS error and
     defends nothing, because a non-browser client never sends one.
 
 **Environment**
 
-17. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
+18. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
     is missing.** `node_modules/next/dist/server/lib/generate-agent-files.js` walks up to the
     project root when it cannot find its file, and it **replaces** rather than merges — this
     document was reduced to nine lines of Next boilerplate once. Keep `frontend/AGENTS.md`
     committed; it is Next's target and it is what protects this file.
-18. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
+19. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
     backend you started by hand — which has a *different environment*. `playwright.config.ts`
     passes `DATA_ENCRYPTION_KEY` and `SESSION_HMAC_SECRET`; a hand-started server reads
     `.env` instead, and the encrypted-draft and guided specs then fail for reasons that have
     nothing to do with the change under test. It will also happily reuse a **stale** backend
     started before your change. Stop your own servers before `make e2e`.
 
-19. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
+20. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
     first.** The backend binds `127.0.0.1`, so a browser `fetch()` to `http://localhost:8000`
     occasionally died with `ECONNREFUSED ::1:8000` — which reaches `fetch()` as a bare
     network error and reads as "the backend is down". It surfaced as an unrelated e2e test
@@ -449,40 +471,40 @@ Defects found and fixed while building this. These are the ones likely to recur:
 
 **Tests**
 
-20. **The demonstration rate limit is per process, and each suite shares one.** Whether a
+21. **The demonstration rate limit is per process, and each suite shares one.** Whether a
     run passed depended on how many requests it happened to make; growing either suite
     eventually tipped it over and produced 429s in files with nothing to do with throttling.
     `tests/conftest.py` and `playwright.config.ts` both raise the ambient limit. The
     throttle is still tested — `tests/security/test_cors_and_throttling.py` installs its own
     limiter, which is the only place the limit is the subject rather than the scenery.
-21. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** One e2e
+22. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** One e2e
     assertion meant to check a generated MT537 was matching the page title instead, and only
     failed strict mode once the real heading also rendered — so it passed or failed on
     timing. Use `exact` and `level` when a page and its result share a word.
-22. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
+23. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
     nothing.** Derive counts from the registries.
 
 **Comparing two messages**
 
-23. **An expected difference presented as a fault trains the tester to ignore all of them.**
+24. **An expected difference presented as a fault trains the tester to ignore all of them.**
     A regenerated message almost always differs from the pasted one, and almost always
     harmlessly. Every difference therefore carries a reason, and only `UNEXPLAINED` and
     `IMPORT_DROPPED` are counted as worth acting on. A Block 5 trailer or an MX `Sgntr` is
     `NOT_REPRODUCED` and is never an application error.
-24. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
+25. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
     exists for exactly the case the comparison is there to surface; a comfortable-sounding
     default would hide it.
-25. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
+26. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
     ISO 20022 document changes nothing about the message, but in FIN the line structure *is*
     the message. Normalising MT before comparing would hide a real defect.
 
 **Coverage reporting**
 
-26. **A declared coverage figure reports the flag, not the truth.** The Excel reference
+27. **A declared coverage figure reports the flag, not the truth.** The Excel reference
     sheet was once hardcoded to three MX messages while the registry held seven, and a
     `composer_supported`-style flag would have said 100%. Every figure in
     `app/studio/coverage.py` is measured by asking the component what it produced.
-27. **The coverage document is gated by `make check`, so it must be deterministic.** Render
+28. **The coverage document is gated by `make check`, so it must be deterministic.** Render
     counts, never values: sample dates move with the clock and would fail the build on an
     unrelated commit. A test renders it twice and compares.
 

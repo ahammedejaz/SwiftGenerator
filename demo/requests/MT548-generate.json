@@ -1,0 +1,107 @@
+{
+  "format": "MT",
+  "messageType": "MT548",
+  "profileId": "BASE_DEMO_V1",
+  "scenarioId": "DEMO-MT548",
+  "fields": [
+    {
+      "id": "MT548-A-20C-SEME",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "SEME",
+      "option": "C",
+      "value": "TESTREF001"
+    },
+    {
+      "id": "MT548-A-20C-RELA",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "RELA",
+      "option": "C",
+      "value": "TESTREF001"
+    },
+    {
+      "id": "MT548-A-23G-NONE",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "23G",
+      "option": "G",
+      "value": "NEWM"
+    },
+    {
+      "id": "MT548-A1-13A-LINK",
+      "sequence": "LINK",
+      "occurrence": 1,
+      "tag": "13A",
+      "qualifier": "LINK",
+      "option": "A",
+      "value": "541"
+    },
+    {
+      "id": "MT548-D-25D-SETT",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "25D",
+      "qualifier": "SETT",
+      "option": "D",
+      "value": "PEND"
+    },
+    {
+      "id": "MT548-D-24B-CAND",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "24B",
+      "qualifier": "CAND",
+      "option": "B",
+      "value": "CANCELLATION_PROCESSED"
+    },
+    {
+      "id": "MT548-D-24B-CANR",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "24B",
+      "qualifier": "CANR",
+      "option": "B",
+      "value": "SETTLEMENT_ALREADY_FINAL"
+    },
+    {
+      "id": "MT548-D-24B-MACH",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "24B",
+      "qualifier": "MACH",
+      "option": "B",
+      "value": "DETAILS_MATCHED"
+    },
+    {
+      "id": "MT548-D-24B-NMAT",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "24B",
+      "qualifier": "NMAT",
+      "option": "B",
+      "value": "COUNTERPARTY_MISMATCH"
+    },
+    {
+      "id": "MT548-D-24B-PEND",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "24B",
+      "qualifier": "PEND",
+      "option": "B",
+      "value": "AWAITING_CASH"
+    },
+    {
+      "id": "MT548-D-24B-REJT",
+      "sequence": "STAT",
+      "occurrence": 1,
+      "tag": "24B",
+      "qualifier": "REJT",
+      "option": "B",
+      "value": "INVALID_REFERENCE"
+    }
+  ],
+  "persist": false
+}

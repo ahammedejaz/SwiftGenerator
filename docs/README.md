@@ -15,6 +15,8 @@
 | Change the code | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Configure it for a client | [configuration.md](configuration.md) |
 | Import a licensed specification, schema or client guideline | [authoritative-sources.md](authoritative-sources.md) |
+| Demo the platform to a client | [../CLIENT_DEMO_RUNBOOK.md](../CLIENT_DEMO_RUNBOOK.md) |
+| Know what to ask a client for | [../AUTHORITATIVE_ARTIFACT_CHECKLIST.md](../AUTHORITATIVE_ARTIFACT_CHECKLIST.md) |
 | Know what is and is not supported | [limitations.md](limitations.md) |
 | Know what the AI does | [ai-assistance.md](ai-assistance.md) |
 | Review the security posture | [security.md](security.md) |
@@ -50,6 +52,7 @@ work today.
 | [../AUTONOMOUS_CONTINUATION_REPORT.md](../AUTONOMOUS_CONTINUATION_REPORT.md) | MX import, the cancellation lifecycle, and a CORS defect |
 | [../MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md](../MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md) | MT import, unified coverage, authoritative-source drop points |
 | [../MESSAGE_DIFF_IMPLEMENTATION_REPORT.md](../MESSAGE_DIFF_IMPLEMENTATION_REPORT.md) | Original versus regenerated, and the clean-machine verification |
+| [../V0_1_0_RELEASE_READINESS_REPORT.md](../V0_1_0_RELEASE_READINESS_REPORT.md) | What was verified for the v0.1.0 baseline |
 
 Earlier plan and report pairs were removed to keep the repository readable. They remain in
 git history at the first commit.

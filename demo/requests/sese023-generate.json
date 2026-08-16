@@ -1,0 +1,88 @@
+{
+  "format": "MX",
+  "messageType": "sese.023",
+  "profileId": "BASE_DEMO_V1",
+  "scenarioId": "DEMO-SESE023",
+  "elements": [
+    {
+      "path": "/Document/SctiesSttlmTxInstr/TxId",
+      "occurrence": 1,
+      "value": "TESTREF001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/SctiesMvmntTp",
+      "occurrence": 1,
+      "value": "RECE"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/Pmt",
+      "occurrence": 1,
+      "value": "APMT"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/CmonId",
+      "occurrence": 1,
+      "value": "COMMONREF001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/TradDtls/TradDt/Dt/Dt",
+      "occurrence": 1,
+      "value": "2026-08-14"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/TradDtls/SttlmDt/Dt/Dt",
+      "occurrence": 1,
+      "value": "2026-08-18"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/FinInstrmId/ISIN",
+      "occurrence": 1,
+      "value": "XS0000000001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/FinInstrmId/Desc",
+      "occurrence": 1,
+      "value": "SYNTHETIC TEST BOND 2030"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SttlmQty/Qty/Unit",
+      "occurrence": 1,
+      "value": "1000"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SfkpgAcct/Id",
+      "occurrence": 1,
+      "value": "SAFE0000001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/SttlmParams/SctiesTxTp/Cd",
+      "occurrence": 1,
+      "value": "TRAD"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/DlvrgSttlmPties/Dpstry/Id/AnyBIC",
+      "occurrence": 1,
+      "value": "DEMOGB2LXXX"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/DlvrgSttlmPties/Pty1/Id/AnyBIC",
+      "occurrence": 1,
+      "value": "DEMODEAGXXX"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/SttlmAmt/Amt",
+      "occurrence": 1,
+      "value": "USD 25000.00"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxInstr/SttlmAmt/CdtDbtInd",
+      "occurrence": 1,
+      "value": "DBIT"
+    }
+  ],
+  "envelope": {
+    "businessMessageIdentifier": "SESE023DEMO0000001",
+    "creationDate": "2026-08-16T09:00:00Z"
+  },
+  "persist": false
+}

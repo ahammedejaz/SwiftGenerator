@@ -333,6 +333,23 @@ def allowed_origins(configured: str) -> list[str]:
     return [item.strip() for item in configured.split(",") if item.strip()]
 
 
+def ensure_database_directory(database_url: str) -> None:
+    """Create the folder a file-backed SQLite database lives in.
+
+    Alembic builds its own engine and never imports app.persistence.database, so the
+    directory has to be created from somewhere both paths reach. Without this, `make
+    migrate` fails on a clean clone with "unable to open database file": the folder was
+    only ever created as a side effect of importing the application, which the migration
+    path does not do — so the second step of the documented setup failed on every new
+    machine while working on every machine that had already run the app.
+    """
+    if not database_url.startswith("sqlite:///"):
+        return
+    location = database_url.removeprefix("sqlite:///").split("?", 1)[0]
+    if location and location != ":memory:":
+        Path(location).parent.mkdir(parents=True, exist_ok=True)
+
+
 def source_path(configured: str, *default: str) -> Path:
     """Resolve one authoritative-source location.
 
