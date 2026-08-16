@@ -46,7 +46,7 @@ message in both formats, and for all 17 golden MT fixtures. The older
 
 The four lifecycle specifications are flagged **UNVERIFIED** in their own `limitations`:
 version, root element name and element set were not reconciled against an authoritative ISO
-20022 message-definition report. See §13.
+20022 message-definition report. See §14.
 
 After importing, **every difference between the message that went in and the one that came
 out is attributed**: a value the caller edited, normalisation, content outside the configured
@@ -63,6 +63,7 @@ the same data; `GET /api/v1/sources` reports which authoritative artifacts are p
 ```
 757 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
  61 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
+CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
 secret scan: clean in tree and in git history
@@ -331,7 +332,42 @@ English" screen. Order when enabled: **deterministic → cache → model**.
 
 ---
 
-## 11. Commands
+## 11. Continuous integration
+
+`.github/workflows/ci.yml`. Runs on every pull request to `main`, every push to `main`, and
+on demand. **Python 3.13, Node 22** — the same versions this repository targets locally.
+
+| Job | What it runs | On |
+|---|---|---|
+| **Required Checks** | `make install` → `make check` → `make secret-scan` → `git diff --check` | PR, main |
+| **Clean Clone** | `make install` → `make migrate` → `make check`, from git-tracked files only | PR, main |
+| **Browser E2E** | `make e2e`; report, traces and screenshots uploaded **on failure only** | PR, main |
+| **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
+| **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
+
+**Reproduce any job locally by running the same make target.** The workflow adds only what a
+runner needs that a laptop does not: the browser's OS libraries (`--with-deps`, which needs
+sudo and would be wrong on a developer machine), and a base ref so `git diff --check` has a
+range — bare `git diff --check` compares the worktree to the index and is always clean in CI.
+
+Things worth knowing before editing it:
+
+- **`CI / Required Checks` is the name branch protection should require.** Renaming that job
+  silently disables the gate.
+- **Clean Clone deliberately has no dependency cache.** A cached wheel would hide exactly the
+  class of defect that motivated the job — `lxml-stubs==0.6.0`, a pin that does not exist
+  upstream and broke `make install` for everyone who had never run it.
+- **Security Audit is deliberately not part of Required Checks.** It asks the world whether a
+  dependency has a newly published advisory, so it can turn red overnight for a reason
+  nobody's change caused. A required gate should fail only for something in the diff.
+- **`reuseExistingServer` is false whenever `CI` is set**, so a run can never adopt a server
+  it did not start.
+- Concurrency cancels superseded **pull request** runs only; a `main` run is never cancelled,
+  because the default branch would be left with no verified result.
+
+---
+
+## 12. Commands
 
 ```bash
 make install      # venv + npm ci                    (Python 3.13, Node 22)
@@ -358,7 +394,7 @@ cd frontend && npx playwright test studio-create --headed
 
 ---
 
-## 12. Gotchas discovered the hard way
+## 13. Gotchas discovered the hard way
 
 Defects found and fixed while building this. These are the ones likely to recur:
 
@@ -510,7 +546,7 @@ Defects found and fixed while building this. These are the ones likely to recur:
 
 ---
 
-## 13. Known limitations
+## 14. Known limitations
 
 Full list: [docs/limitations.md](docs/limitations.md).
 
@@ -546,7 +582,7 @@ Full list: [docs/limitations.md](docs/limitations.md).
 
 ---
 
-## 14. How to extend
+## 15. How to extend
 
 | Task | What to do |
 |---|---|
@@ -563,7 +599,7 @@ output. That friction is deliberate: update the fixture in the same commit and s
 
 ---
 
-## 15. Recommended next work
+## 16. Recommended next work
 
 In value order on the current architecture:
 
@@ -577,12 +613,12 @@ In value order on the current architecture:
    fits.
 3. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
    code, MX validation becomes authoritative.
-4. **Fix `22F::SETR` placement** once §13's authoritative source exists.
+4. **Fix `22F::SETR` placement** once §14's authoritative source exists.
 5. **Shared state for rate limiter and circuit breaker** before running more than one
    instance. Needs Redis or equivalent.
 6. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
 
-## 16. Writing style expected in this repo
+## 17. Writing style expected in this repo
 
 - Comments explain **why**, not what. A comment restating code is noise; one recording a
   decision, a constraint, or a fixed bug is why nobody reintroduces it.

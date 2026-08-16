@@ -1,7 +1,11 @@
 .PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
 
+# The interpreter used to build the virtualenv. Overridable so a runner or a machine that
+# spells it differently needs no change to the recipe: `make install PYTHON=python3`.
+PYTHON ?= python3.13
+
 install:
-	python3.13 -m venv backend/.venv
+	$(PYTHON) -m venv backend/.venv
 	backend/.venv/bin/pip install -r backend/requirements-dev.txt
 	cd frontend && npm ci
 	# The browser Playwright drives is a separate download from the npm package, so a

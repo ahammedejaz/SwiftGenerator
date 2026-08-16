@@ -1,11 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/** A shared runner is slower than a laptop, and a cold Next compile is the slowest part of
+ *  the first test. Thirty seconds is comfortable locally and marginal in CI. */
+const CI_SERVER_TIMEOUT_MS = process.env.CI ? 180_000 : 30_000;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: "list",
+  // On CI the HTML report is the artifact somebody opens after a failure; locally it is
+  // noise nobody asked for.
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     // 127.0.0.1 everywhere, never `localhost`. The servers bind 127.0.0.1, but a browser
     // resolves `localhost` to ::1 first on a dual-stack machine and only then falls back —
@@ -14,6 +20,7 @@ export default defineConfig({
     // so matching the address is the fix rather than listening on both.
     baseURL: "http://127.0.0.1:3000",
     trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
@@ -21,8 +28,12 @@ export default defineConfig({
       command:
         "../backend/.venv/bin/uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port 8000",
       url: "http://127.0.0.1:8000/api/health",
-      reuseExistingServer: true,
-      timeout: 30_000,
+      // Never adopt a process CI did not start. A runner has nothing on these ports, so
+      // this changes no behaviour there — it removes the possibility of a green run that
+      // tested somebody else's server, which is a failure mode worth making impossible
+      // rather than unlikely.
+      reuseExistingServer: !process.env.CI,
+      timeout: CI_SERVER_TIMEOUT_MS,
       env: {
         DATABASE_URL: "sqlite://",
         APP_ENV: "development",
@@ -42,8 +53,8 @@ export default defineConfig({
     {
       command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
       url: "http://127.0.0.1:3000",
-      reuseExistingServer: true,
-      timeout: 30_000,
+      reuseExistingServer: !process.env.CI,
+      timeout: CI_SERVER_TIMEOUT_MS,
     },
   ],
 });
