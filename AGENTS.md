@@ -513,10 +513,13 @@ Defects found and fixed while building this. These are the ones likely to recur:
     `tests/conftest.py` and `playwright.config.ts` both raise the ambient limit. The
     throttle is still tested — `tests/security/test_cors_and_throttling.py` installs its own
     limiter, which is the only place the limit is the subject rather than the scenery.
-22. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** One e2e
-    assertion meant to check a generated MT537 was matching the page title instead, and only
-    failed strict mode once the real heading also rendered — so it passed or failed on
-    timing. Use `exact` and `level` when a page and its result share a word.
+22. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** An assertion
+    meant to check a generated message matches the page title instead, and only trips strict
+    mode once the real heading also renders — so it passes or fails on timing. This has now
+    happened twice: MT537 on `penalties`, then MT530 on `settlement-processing`, which passed
+    on every laptop and failed on the **first CI run**, because a shared runner renders more
+    slowly and both headings were present. Use `exact: true, level: 2` whenever a page and
+    its result share a word — a generated message's code is always an `<h2>`.
 23. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
     nothing.** Derive counts from the registries.
 
