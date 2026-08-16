@@ -46,7 +46,7 @@ message in both formats, and for all 17 golden MT fixtures. The older
 
 The four lifecycle specifications are flagged **UNVERIFIED** in their own `limitations`:
 version, root element name and element set were not reconciled against an authoritative ISO
-20022 message-definition report. See §13.
+20022 message-definition report. See §14.
 
 After importing, **every difference between the message that went in and the one that came
 out is attributed**: a value the caller edited, normalisation, content outside the configured
@@ -61,8 +61,9 @@ the same data; `GET /api/v1/sources` reports which authoritative artifacts are p
 **Verification status (all passing):**
 
 ```
-757 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
+766 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
  61 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
+CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
 secret scan: clean in tree and in git history
@@ -331,7 +332,46 @@ English" screen. Order when enabled: **deterministic → cache → model**.
 
 ---
 
-## 11. Commands
+## 11. Continuous integration
+
+`.github/workflows/ci.yml`. Runs on every pull request to `main`, every push to `main`, and
+on demand. **Python 3.13, Node 22** — the same versions this repository targets locally.
+
+| Job | What it runs | On |
+|---|---|---|
+| **Required Checks** | `make install` → `make check` → `make secret-scan` → `git diff --check` | PR, main |
+| **Clean Clone** | `make install` → `make migrate` → `make check`, from git-tracked files only | PR, main |
+| **Browser E2E** | `make e2e`; report, traces and screenshots uploaded **on failure only** | PR, main |
+| **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
+| **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
+
+Branch protection is **not** configured yet; mark `CI / Required Checks` as required for
+`main` to turn CI from reporting into blocking. Detail and rationale:
+[CI_IMPLEMENTATION_REPORT.md](CI_IMPLEMENTATION_REPORT.md).
+
+**Reproduce any job locally by running the same make target.** The workflow adds only what a
+runner needs that a laptop does not: the browser's OS libraries (`--with-deps`, which needs
+sudo and would be wrong on a developer machine), and a base ref so `git diff --check` has a
+range — bare `git diff --check` compares the worktree to the index and is always clean in CI.
+
+Things worth knowing before editing it:
+
+- **`CI / Required Checks` is the name branch protection should require.** Renaming that job
+  silently disables the gate.
+- **Clean Clone deliberately has no dependency cache.** A cached wheel would hide exactly the
+  class of defect that motivated the job — `lxml-stubs==0.6.0`, a pin that does not exist
+  upstream and broke `make install` for everyone who had never run it.
+- **Security Audit is deliberately not part of Required Checks.** It asks the world whether a
+  dependency has a newly published advisory, so it can turn red overnight for a reason
+  nobody's change caused. A required gate should fail only for something in the diff.
+- **`reuseExistingServer` is false whenever `CI` is set**, so a run can never adopt a server
+  it did not start.
+- Concurrency cancels superseded **pull request** runs only; a `main` run is never cancelled,
+  because the default branch would be left with no verified result.
+
+---
+
+## 12. Commands
 
 ```bash
 make install      # venv + npm ci                    (Python 3.13, Node 22)
@@ -358,7 +398,7 @@ cd frontend && npx playwright test studio-create --headed
 
 ---
 
-## 12. Gotchas discovered the hard way
+## 13. Gotchas discovered the hard way
 
 Defects found and fixed while building this. These are the ones likely to recur:
 
@@ -435,33 +475,44 @@ Defects found and fixed while building this. These are the ones likely to recur:
     the app. `ensure_database_directory` in `app/config.py` is now called from both.
     `tests/unit/test_setup_from_a_clean_clone.py` fails if `env.py` stops calling it.
 
+16. **A cached `lxml` `XMLSchema` is shared mutable state.** `validate()` writes its
+    findings onto the schema object — `error_log` is instance state, and libxml2 keeps a
+    validation context there too — while `_compiled` hands one object to every caller and
+    FastAPI runs sync endpoints in a threadpool. Two concurrent validations interleave, so a
+    verdict or an error list can be attributed to the wrong document. Found by CI: a
+    lifecycle test failed about one run in three with "No matching global declaration
+    available for the validation root" against a document whose root the schema declares.
+    Validation is now behind `_VALIDATION_LOCK`, held across the verdict *and* the error-log
+    read, because releasing between them would let another thread overwrite the findings.
+    Compilation stays cached; validating a settlement message takes microseconds.
+
 **Middleware and HTTP**
 
-16. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
+17. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
     registered first and therefore ended up innermost, so every short-circuit response from
     the request-context middleware — 400, 413, 429 — reached the browser with no
     `Access-Control-Allow-Origin`. `fetch()` rejects such a response with a bare network
     error, so a throttled tester was told the backend was down. Keep the CORS registration
     last, and keep `tests/security/test_cors_and_throttling.py`.
-17. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
+18. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
     chose to send; throttling it fails the real request with an unexplainable CORS error and
     defends nothing, because a non-browser client never sends one.
 
 **Environment**
 
-18. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
+19. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
     is missing.** `node_modules/next/dist/server/lib/generate-agent-files.js` walks up to the
     project root when it cannot find its file, and it **replaces** rather than merges — this
     document was reduced to nine lines of Next boilerplate once. Keep `frontend/AGENTS.md`
     committed; it is Next's target and it is what protects this file.
-19. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
+20. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
     backend you started by hand — which has a *different environment*. `playwright.config.ts`
     passes `DATA_ENCRYPTION_KEY` and `SESSION_HMAC_SECRET`; a hand-started server reads
     `.env` instead, and the encrypted-draft and guided specs then fail for reasons that have
     nothing to do with the change under test. It will also happily reuse a **stale** backend
     started before your change. Stop your own servers before `make e2e`.
 
-20. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
+21. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
     first.** The backend binds `127.0.0.1`, so a browser `fetch()` to `http://localhost:8000`
     occasionally died with `ECONNREFUSED ::1:8000` — which reaches `fetch()` as a bare
     network error and reads as "the backend is down". It surfaced as an unrelated e2e test
@@ -471,46 +522,49 @@ Defects found and fixed while building this. These are the ones likely to recur:
 
 **Tests**
 
-21. **The demonstration rate limit is per process, and each suite shares one.** Whether a
+22. **The demonstration rate limit is per process, and each suite shares one.** Whether a
     run passed depended on how many requests it happened to make; growing either suite
     eventually tipped it over and produced 429s in files with nothing to do with throttling.
     `tests/conftest.py` and `playwright.config.ts` both raise the ambient limit. The
     throttle is still tested — `tests/security/test_cors_and_throttling.py` installs its own
     limiter, which is the only place the limit is the subject rather than the scenery.
-22. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** One e2e
-    assertion meant to check a generated MT537 was matching the page title instead, and only
-    failed strict mode once the real heading also rendered — so it passed or failed on
-    timing. Use `exact` and `level` when a page and its result share a word.
-23. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
+23. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** An assertion
+    meant to check a generated message matches the page title instead, and only trips strict
+    mode once the real heading also renders — so it passes or fails on timing. This has now
+    happened twice: MT537 on `penalties`, then MT530 on `settlement-processing`, which passed
+    on every laptop and failed on the **first CI run**, because a shared runner renders more
+    slowly and both headings were present. Use `exact: true, level: 2` whenever a page and
+    its result share a word — a generated message's code is always an `<h2>`.
+24. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
     nothing.** Derive counts from the registries.
 
 **Comparing two messages**
 
-24. **An expected difference presented as a fault trains the tester to ignore all of them.**
+25. **An expected difference presented as a fault trains the tester to ignore all of them.**
     A regenerated message almost always differs from the pasted one, and almost always
     harmlessly. Every difference therefore carries a reason, and only `UNEXPLAINED` and
     `IMPORT_DROPPED` are counted as worth acting on. A Block 5 trailer or an MX `Sgntr` is
     `NOT_REPRODUCED` and is never an application error.
-25. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
+26. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
     exists for exactly the case the comparison is there to surface; a comfortable-sounding
     default would hide it.
-26. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
+27. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
     ISO 20022 document changes nothing about the message, but in FIN the line structure *is*
     the message. Normalising MT before comparing would hide a real defect.
 
 **Coverage reporting**
 
-27. **A declared coverage figure reports the flag, not the truth.** The Excel reference
+28. **A declared coverage figure reports the flag, not the truth.** The Excel reference
     sheet was once hardcoded to three MX messages while the registry held seven, and a
     `composer_supported`-style flag would have said 100%. Every figure in
     `app/studio/coverage.py` is measured by asking the component what it produced.
-28. **The coverage document is gated by `make check`, so it must be deterministic.** Render
+29. **The coverage document is gated by `make check`, so it must be deterministic.** Render
     counts, never values: sample dates move with the clock and would fail the build on an
     unrelated commit. A test renders it twice and compares.
 
 ---
 
-## 13. Known limitations
+## 14. Known limitations
 
 Full list: [docs/limitations.md](docs/limitations.md).
 
@@ -546,7 +600,7 @@ Full list: [docs/limitations.md](docs/limitations.md).
 
 ---
 
-## 14. How to extend
+## 15. How to extend
 
 | Task | What to do |
 |---|---|
@@ -563,7 +617,7 @@ output. That friction is deliberate: update the fixture in the same commit and s
 
 ---
 
-## 15. Recommended next work
+## 16. Recommended next work
 
 In value order on the current architecture:
 
@@ -577,12 +631,12 @@ In value order on the current architecture:
    fits.
 3. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
    code, MX validation becomes authoritative.
-4. **Fix `22F::SETR` placement** once §13's authoritative source exists.
+4. **Fix `22F::SETR` placement** once §14's authoritative source exists.
 5. **Shared state for rate limiter and circuit breaker** before running more than one
    instance. Needs Redis or equivalent.
 6. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
 
-## 16. Writing style expected in this repo
+## 17. Writing style expected in this repo
 
 - Comments explain **why**, not what. A comment restating code is noise; one recording a
   decision, a constraint, or a fixed bug is why nobody reintroduces it.
