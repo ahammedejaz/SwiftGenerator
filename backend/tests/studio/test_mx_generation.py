@@ -324,14 +324,34 @@ def test_xsd_layer_is_reported_in_the_result(sese023_elements: list[ElementInput
 
 
 def test_official_schema_is_preferred_when_present(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """The licensed-schema drop point is configuration, not a code change.
+
+    Pointing the setting at a directory is the whole procedure, so the test performs the
+    procedure rather than reaching into the module to fake its result.
+    """
     import app.studio.mx.xsd as xsd_module
+    from app.config import get_settings
 
     spec = mx_registry.get("sese.023")
     official = tmp_path / f"{spec.version}.xsd"
     official.write_text(derive_schema(spec), encoding="utf-8")
-    monkeypatch.setattr(xsd_module, "OFFICIAL_SCHEMA_DIRECTORY", tmp_path)
+    monkeypatch.setenv("MX_OFFICIAL_XSD_DIRECTORY", str(tmp_path))
+    get_settings.cache_clear()
+    try:
+        assert xsd_module.official_schema_path(spec) == official
+    finally:
+        monkeypatch.delenv("MX_OFFICIAL_XSD_DIRECTORY", raising=False)
+        get_settings.cache_clear()
 
-    assert xsd_module.official_schema_path(spec) == official
+
+def test_the_official_schema_directory_defaults_to_the_committed_one() -> None:
+    """A clean clone with no environment must keep working."""
+    from app.studio.mx.xsd import official_schema_directory
+
+    directory = official_schema_directory()
+
+    assert directory.is_dir()
+    assert directory.parts[-4:] == ("config", "mx", "xsd", "official")
 
 
 # -- AppHdr ----------------------------------------------------------------------------

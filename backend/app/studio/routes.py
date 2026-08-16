@@ -8,6 +8,8 @@ two to drift apart.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import Annotated
@@ -20,6 +22,8 @@ from pydantic import ValidationError
 from app.config import get_settings
 from app.studio import intelligence
 from app.studio.catalogue import build_catalogue, known_message_type, message_spec, resolve_format
+from app.studio.coverage import UnifiedCoverage, build_coverage
+from app.studio.diff import build_diff
 from app.studio.excel import (
     ExcelFormatError,
     ParsedScenario,
@@ -28,10 +32,17 @@ from app.studio.excel import (
     validate_upload,
 )
 from app.studio.models import (
+    DiffRequest,
+    DiffResult,
+    ElementInput,
+    EnvelopeOverride,
     ExcelGenerateResponse,
     ExcelScenarioResult,
+    FieldInput,
     GenerateRequest,
     GenerateResult,
+    ImportRequest,
+    ImportResult,
     IntelligenceDetail,
     IntelligenceSearchResponse,
     IssueSeverity,
@@ -49,9 +60,14 @@ from app.studio.models import (
     ValidationLayer,
     ValidationResult,
 )
+from app.studio.mt.parser import MtImportError
+from app.studio.mt.parser import parse_message as parse_mt
+from app.studio.mx.parser import MxImportError
+from app.studio.mx.parser import parse_message as parse_mx
 from app.studio.samples import available_variants, build_sample
 from app.studio.security import AutomationCaller
 from app.studio.service import DISCLAIMER, UnknownMessageType, studio_service
+from app.studio.sources import SourceReadinessReport, build_readiness
 from app.studio.store import studio_message_store
 
 router = APIRouter(prefix="/api/v1", tags=["Financial Message Studio"])
@@ -100,6 +116,28 @@ def get_catalogue(caller: AutomationCaller) -> StudioCatalogue:
     """Every format, business area and message the platform can generate."""
     del caller
     return build_catalogue()
+
+
+@router.get("/coverage", response_model=UnifiedCoverage)
+def get_coverage(caller: AutomationCaller) -> UnifiedCoverage:
+    """What this repository implements for every configured message, in both formats.
+
+    Every figure is out of the configured subset, never out of the standard, and each
+    carries the basis it was measured on. This is the same data `make coverage` renders
+    into `docs/generated/message-coverage.md`, so the document and the API cannot drift.
+    """
+    return build_coverage()
+
+
+@router.get("/sources", response_model=SourceReadinessReport)
+def get_source_readiness(caller: AutomationCaller) -> SourceReadinessReport:
+    """Where an authorised specification artifact goes, and what changes when it arrives.
+
+    Nothing licensed is reproduced here. This reports the receiving end: the drop location,
+    the setting that redirects it, what is being read today, and what a real artifact would
+    unlock.
+    """
+    return build_readiness()
 
 
 @router.get("/messages/{message_type}/spec", response_model=MessageSpec)
@@ -178,6 +216,226 @@ def _generate(request: GenerateRequest, *, persist: bool, source: str) -> Genera
         raise HTTPException(status_code=404, detail=str(error)) from error
     except KeyError as error:
         raise HTTPException(status_code=404, detail=str(error).strip("'\"")) from error
+
+
+def _import_format(text: str) -> MessageFormat:
+    """Decide which parser a pasted message belongs to, from the message itself.
+
+    An ISO 20022 document opens with markup; a FIN message opens with a block, and a
+    pasted text block is a run of colon-prefixed lines. Anything else is refused by name
+    rather than guessed at, because handing prose to a parser produces a confident,
+    misleading error about the wrong format.
+    """
+    stripped = text.lstrip()
+    if stripped.startswith("<") or "<Document" in text or "urn:iso:std:iso:20022" in text:
+        return MessageFormat.MX
+    if stripped.startswith("{") or ":16R:" in text or stripped.startswith(":"):
+        return MessageFormat.MT
+    raise HTTPException(
+        status_code=422,
+        detail="That does not look like a SWIFT message. Paste an ISO 20022 document, "
+        "a FIN message, or an MT text block.",
+    )
+
+
+@dataclass
+class _Existing:
+    """What reading an existing message produced, whichever format it turned out to be."""
+
+    format: MessageFormat
+    message_type: str
+    version: str | None = None
+    namespace: str | None = None
+    app_hdr_present: bool = False
+    fin_blocks: list[str] = dataclass_field(default_factory=list)
+    fields: list[FieldInput] = dataclass_field(default_factory=list)
+    elements: list[ElementInput] = dataclass_field(default_factory=list)
+    envelope: EnvelopeOverride | None = None
+    errors: list[ValidationIssue] = dataclass_field(default_factory=list)
+    warnings: list[ValidationIssue] = dataclass_field(default_factory=list)
+
+
+def _read_existing(text: str, message_type: str | None) -> _Existing:
+    """Read a pasted message with whichever parser its own content calls for.
+
+    Shared by import and by diff so the two can never disagree about what a message says —
+    which matters more here than anywhere, because the diff endpoint's whole job is to
+    compare what was read with what was written.
+    """
+    format_ = _import_format(text)
+    if format_ is MessageFormat.MX:
+        try:
+            mx = parse_mx(text)
+        except MxImportError as error:
+            raise HTTPException(status_code=422, detail=error.issue.message) from error
+        return _Existing(
+            format=MessageFormat.MX,
+            message_type=mx.specification.message_type,
+            version=mx.specification.version,
+            namespace=mx.specification.namespace,
+            app_hdr_present=mx.app_hdr_present,
+            elements=mx.elements,
+            envelope=mx.envelope,
+            errors=mx.errors,
+            warnings=mx.warnings,
+        )
+    try:
+        mt = parse_mt(text, message_type=message_type)
+    except MtImportError as error:
+        raise HTTPException(status_code=422, detail=error.issue.message) from error
+    return _Existing(
+        format=MessageFormat.MT,
+        message_type=mt.specification.message_type.value,
+        fin_blocks=mt.blocks,
+        fields=mt.fields,
+        envelope=mt.envelope,
+        errors=mt.errors,
+        warnings=mt.warnings,
+    )
+
+
+def _merge_import_issues(
+    generated: GenerateResult,
+    errors: list[ValidationIssue],
+    warnings: list[ValidationIssue],
+) -> GenerateResult:
+    """Fold what could not be read into the validation the caller already looks at.
+
+    Listing them separately as well is not enough: a caller that checks only `valid` would
+    otherwise treat a half-imported message as a faithful one.
+    """
+    if not errors and not warnings:
+        return generated
+    validation = generated.validation
+    merged = ValidationResult(
+        valid=validation.valid and not errors,
+        summary=validation.summary,
+        layers=validation.layers,
+        errors=[*errors, *validation.errors],
+        warnings=[*warnings, *validation.warnings],
+    )
+    merged.summary = _summarise(merged)
+    return generated.model_copy(update={"validation": merged, "valid": merged.valid})
+
+
+@router.post("/messages/diff", response_model=DiffResult)
+def diff_message(request: DiffRequest, caller: AutomationCaller) -> DiffResult:
+    """Regenerate from these values and compare the result with a message you already have.
+
+    This is the honest end of the round trip. `Compose(Parse(Compose(v))) == Compose(v)` is
+    asserted in the test suite, but a tester holding two messages that differ needs to know
+    *why* they differ, and the answer is almost never "something is wrong": it is a value
+    they edited, a field written back in specification order, or a trailer the studio
+    refuses to invent. Every difference is attributed to one of those, and anything that
+    fits none of them is reported as unexplained rather than dressed up as normalisation.
+
+    Deterministic throughout. No model is called.
+    """
+    read = _read_existing(request.original, request.message_type)
+    if read.format is not request.format:
+        raise HTTPException(
+            status_code=422,
+            detail=f"The message you supplied is {read.format.value}, but the values are "
+            f"{request.format.value}. Compare a message with values of the same format.",
+        )
+
+    generated = _generate(
+        request.as_generate_request(),
+        persist=request.persist,
+        source=_source(caller),
+    )
+    generated = _merge_import_issues(generated, read.errors, read.warnings)
+
+    diff = build_diff(
+        format_=read.format,
+        original=request.original,
+        outputs=generated.outputs,
+        imported_fields=read.fields,
+        imported_elements=read.elements,
+        submitted_fields=request.fields,
+        submitted_elements=request.elements,
+        issues=[*read.errors, *read.warnings],
+        rendered_lines=generated.rendered_lines,
+    )
+    return DiffResult(
+        format=read.format,
+        message_type=generated.message_type,
+        result=generated,
+        diff=diff,
+        import_issues=read.errors,
+        import_warnings=read.warnings,
+        disclaimer=DISCLAIMER,
+    )
+
+
+@router.post("/messages/import", response_model=ImportResult)
+def import_message(request: ImportRequest, caller: AutomationCaller) -> ImportResult:
+    """Read an existing MT or MX message back into canonical values.
+
+    The parsed values are handed straight to the ordinary generation path, so an imported
+    message is regenerated by exactly the code that generates every other message. That is
+    what makes the round trip meaningful: if import and generation could disagree, comparing
+    them would prove nothing.
+
+    Anything the message contained that could not be imported is reported. It is folded
+    into the returned validation as well as listed separately, so a partial import can never
+    be mistaken for a faithful one.
+    """
+    text = request.content
+    read = _read_existing(text, request.message_type)
+
+    generate = GenerateRequest(
+        format=read.format,
+        message_type=read.message_type,
+        profile_id=request.profile_id,
+        scenario_id=request.scenario_id,
+        fields=read.fields,
+        elements=read.elements,
+        envelope=read.envelope,
+        output_modes=request.output_modes,
+        persist=request.persist,
+    )
+    generated = _generate(generate, persist=request.persist, source=_source(caller))
+    generated = _merge_import_issues(generated, read.errors, read.warnings)
+
+    # Nothing has been edited yet, so the values that went in are the values that came out.
+    diff = build_diff(
+        format_=read.format,
+        original=text,
+        outputs=generated.outputs,
+        imported_fields=read.fields,
+        imported_elements=read.elements,
+        submitted_fields=read.fields,
+        submitted_elements=read.elements,
+        issues=[*read.errors, *read.warnings],
+        rendered_lines=generated.rendered_lines,
+    )
+
+    return ImportResult(
+        format=read.format,
+        message_type=read.message_type,
+        version=read.version,
+        namespace=read.namespace,
+        profile_id=request.profile_id,
+        app_hdr_present=read.app_hdr_present,
+        fin_blocks=read.fin_blocks,
+        element_count=len(read.elements) + len(read.fields),
+        elements=read.elements,
+        fields=read.fields,
+        envelope=read.envelope,
+        import_issues=read.errors,
+        import_warnings=read.warnings,
+        result=generated,
+        diff=diff,
+        disclaimer=DISCLAIMER,
+    )
+
+
+def _summarise(validation: ValidationResult) -> str:
+    count = len(validation.errors)
+    if count == 0:
+        return "Ready to generate"
+    return "1 issue needs attention" if count == 1 else f"{count} issues need attention"
 
 
 @router.post("/messages/generate-from-excel", response_model=ExcelGenerateResponse)

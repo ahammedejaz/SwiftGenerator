@@ -3,8 +3,10 @@
 import { apiUrl } from "@/lib/api-client";
 import type {
   ExcelGenerateResponse,
+  DiffResult,
   GenerateRequest,
   GenerateResult,
+  ImportResult,
   IntelligenceDetail,
   IntelligenceSearchResponse,
   MessageFormat,
@@ -43,6 +45,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   if (!response.ok) {
+    if (response.status === 429) {
+      // Distinct from NETWORK_UNAVAILABLE on purpose: being throttled and the backend
+      // being down look identical to fetch(), and telling a tester to restart a server
+      // that is running wastes their time.
+      const retry = Number(response.headers.get("Retry-After"));
+      throw new StudioError(
+        `Too many requests were sent to the studio API. Wait ${
+          Number.isFinite(retry) && retry > 0 ? `${retry} seconds` : "a minute"
+        } and try again.`,
+        429,
+        "RATE_LIMIT_EXCEEDED",
+      );
+    }
     let message = `The request failed with status ${response.status}.`;
     let code = "API_ERROR";
     try {
@@ -88,6 +103,27 @@ export const studioApi = {
     request<GenerateResult>("/api/v1/messages/generate", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+
+  /** Read an existing ISO 20022 message back into canonical values. */
+  /** `messageType` is only read when the message cannot name itself — a pasted MT text
+   *  block. An MT header that disagrees with it is a refusal, not a reconciliation. */
+  importMessage: (text: string, profileId?: string, messageType?: string | null) =>
+    request<ImportResult>("/api/v1/messages/import", {
+      method: "POST",
+      body: JSON.stringify({
+        text,
+        ...(profileId ? { profileId } : {}),
+        ...(messageType ? { messageType } : {}),
+      }),
+    }),
+
+  /** Regenerate from these values and compare the result with a message you already have.
+   *  Deterministic and server-side — the diff is part of the API, not a browser feature. */
+  diffMessage: (original: string, payload: GenerateRequest) =>
+    request<DiffResult>("/api/v1/messages/diff", {
+      method: "POST",
+      body: JSON.stringify({ ...payload, original, persist: false }),
     }),
 
   recent: (limit = 40, format?: MessageFormat) =>

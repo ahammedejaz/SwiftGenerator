@@ -1,0 +1,283 @@
+# ---------------------------------------------------------------------------------------
+# sese.027 — Securities Transaction Cancellation Request
+#
+# REPOSITORY-CONFIGURED SUBSET. See sese.023.001.11.yaml for the full honesty note.
+#
+# Added without an authoritative ISO 20022 message-definition report to hand. The version,
+# the message root element name and the element set below are UNVERIFIED; they are modelled
+# on the ISO 20022 idioms this repository already carries. Reconcile before any use beyond
+# internal testing.
+#
+# The difference from sese.020 matters and is easy to get wrong: sese.020 withdraws a
+# *message*, while this asks the account servicer to cancel a *transaction* that has already
+# been accepted. The servicer may refuse, which is why sese.027 is answered by a status
+# advice and sese.020 is not.
+# ---------------------------------------------------------------------------------------
+messageType: sese.027
+version: sese.027.001.08
+name: Securities Transaction Cancellation Request
+shortDescription: >-
+  Asks the account servicer to cancel a settlement transaction it has already accepted. The
+  servicer replies with a status advice; the transaction is not cancelled until it agrees.
+businessArea: SETTLEMENT_COMMANDS
+namespace: "urn:iso:std:iso:20022:tech:xsd:sese.027.001.08"
+messageRoot: SctiesTxCxlReq
+documentElement: Document
+standardsRelease: ISO20022_CONFIGURED_SUBSET_V1
+authoritativeCompletenessKnown: false
+source:
+  sourceType: CONFIGURED_SUBSET_REQUIRES_VERIFICATION
+  sourceReference: ISO20022-SESE027-CONFIGURED-SUBSET-2026-08-16
+  reviewedAt: "2026-08-16"
+  reviewedBy: REPOSITORY_CONFIGURATION
+limitations:
+  - >-
+    The version, the message root element name and the element set are UNVERIFIED against an
+    authoritative ISO 20022 message-definition report.
+  - >-
+    Only the transaction identification, financial instrument, quantity and settlement
+    parties branches below are configured.
+  - >-
+    The request carries no cancellation reason code list; narrative is the only reason
+    channel configured here.
+
+structure:
+  - name: TxId
+    displayName: Cancellation Request Reference
+    presence: MANDATORY
+    dataType: Max35Text
+    businessPath: senderReference
+    businessMeaning: Your own reference for this cancellation request.
+    technicalMeaning: Max35Text.
+    whyUsed: >-
+      The status advice that answers this request quotes this reference, so it is how you
+      will find the answer.
+    businessQuestion: What reference are you giving this cancellation request?
+    examples:
+      - value: CXLREQ0000001
+        explanation: A synthetic reference for the cancellation request.
+    commonMistakes:
+      - Reusing the original instruction reference; that belongs in Ref/AcctOwnrTxId.
+    searchTerms: [TxId, cancellation request reference]
+
+  - name: Ref
+    displayName: Reference to the Transaction Being Cancelled
+    presence: MANDATORY
+    businessMeaning: Identifies the settlement transaction to cancel.
+    technicalMeaning: References container.
+    whyUsed: The servicer cannot act on a request that does not say what to cancel.
+    businessQuestion: Which transaction do you want cancelled?
+    searchTerms: [Ref, references, original instruction, PREV]
+    children:
+      - name: AcctOwnrTxId
+        displayName: Account Owner Transaction Identification
+        presence: MANDATORY
+        dataType: Max35Text
+        businessPath: relatedReference
+        businessMeaning: The reference the account owner sent on the original instruction.
+        technicalMeaning: Max35Text.
+        whyUsed: >-
+          This is the value the servicer matches on. It must be exactly the TxId of the
+          sese.023 being cancelled.
+        businessQuestion: What was the reference of the instruction you want cancelled?
+        examples:
+          - value: TESTREF001
+            explanation: The TxId of the related sese.023 instruction.
+        commonMistakes:
+          - Supplying a new reference instead of the original instruction reference.
+        searchTerms: [AcctOwnrTxId, related reference, original instruction, PREV]
+
+      - name: AcctSvcrTxId
+        displayName: Account Servicer Transaction Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessMeaning: The account servicer's own reference for the transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: >-
+          Quoting the servicer's reference alongside your own removes any doubt about which
+          transaction is meant.
+        businessQuestion: Did the servicer give you its own reference?
+        examples:
+          - value: SVCR000000001
+            explanation: A synthetic account servicer reference.
+        searchTerms: [AcctSvcrTxId, servicer reference]
+
+  - name: TxDtls
+    displayName: Transaction Details
+    presence: OPTIONAL
+    conditionExplanation: >-
+      Repeating the key details of the transaction lets the servicer confirm it is
+      cancelling the transaction you meant, and is commonly required in practice.
+    businessMeaning: The identifying details of the transaction being cancelled.
+    technicalMeaning: Transaction details container.
+    whyUsed: Guards against cancelling the wrong transaction when references collide.
+    businessQuestion: Do you want to restate the transaction details?
+    searchTerms: [TxDtls, transaction details]
+    children:
+      - name: SctiesMvmntTp
+        displayName: Securities Movement Type
+        presence: OPTIONAL
+        dataType: Code
+        codes: [RECE, DELI]
+        businessPath: direction
+        businessMeaning: Whether the transaction receives or delivers securities.
+        technicalMeaning: ReceiveDelivery1Code.
+        whyUsed: Confirms which side of the movement is being cancelled.
+        businessQuestion: Was the original a receipt or a delivery?
+        examples:
+          - value: RECE
+            explanation: The transaction being cancelled is a receipt.
+        searchTerms: [SctiesMvmntTp, RECE, DELI, direction]
+
+      - name: Pmt
+        displayName: Payment
+        presence: OPTIONAL
+        dataType: Code
+        codes: [APMT, FREE]
+        businessPath: paymentType
+        businessMeaning: Whether the transaction settles against payment.
+        technicalMeaning: DeliveryReceiptType2Code.
+        whyUsed: Confirms the payment characteristic of the transaction being cancelled.
+        businessQuestion: Was the original against payment?
+        examples:
+          - value: APMT
+            explanation: The transaction settles against payment.
+        searchTerms: [Pmt, APMT, FREE]
+
+      - name: FinInstrmId
+        displayName: Financial Instrument Identification
+        presence: OPTIONAL
+        businessMeaning: The security the transaction concerns.
+        technicalMeaning: SecurityIdentification container.
+        whyUsed: Confirms the instrument so the wrong transaction is not withdrawn.
+        businessQuestion: Which security was being settled?
+        searchTerms: [FinInstrmId, ISIN, security]
+        children:
+          - name: ISIN
+            displayName: ISIN
+            presence: MANDATORY
+            dataType: ISINOct2015Identifier
+            businessPath: instrument.isin
+            businessMeaning: The ISIN of the security.
+            technicalMeaning: ISINOct2015Identifier.
+            whyUsed: The unambiguous identifier for the instrument.
+            businessQuestion: What is the ISIN?
+            examples:
+              - value: XS0000000001
+                explanation: A synthetic test ISIN.
+            commonMistakes:
+              - Prefixing the value with 'ISIN ' as MT does; MX carries the code alone.
+            searchTerms: [ISIN, security, 35B]
+
+      - name: SttlmQty
+        displayName: Settlement Quantity
+        presence: OPTIONAL
+        businessMeaning: The quantity the transaction was for.
+        technicalMeaning: Quantity choice container.
+        whyUsed: Confirms the size of the transaction being cancelled.
+        businessQuestion: What quantity was being settled?
+        searchTerms: [SttlmQty, quantity, 36B]
+        children:
+          - name: Qty
+            displayName: Quantity
+            presence: MANDATORY
+            businessMeaning: The quantity container.
+            technicalMeaning: FinancialInstrumentQuantity choice.
+            whyUsed: Holds the quantity in its unit of measure.
+            businessQuestion: How much was being settled?
+            searchTerms: [Qty, quantity]
+            children:
+              - name: Unit
+                displayName: Unit
+                presence: MANDATORY
+                dataType: DecimalNumber
+                businessPath: quantity.unit
+                businessMeaning: The number of units.
+                technicalMeaning: DecimalNumber.
+                whyUsed: States the size of the transaction.
+                businessQuestion: How many units?
+                examples:
+                  - value: "1000"
+                    explanation: One thousand units.
+                commonMistakes:
+                  - Using a comma as the decimal separator; MX uses a full stop.
+                searchTerms: [Unit, quantity, UNIT, 36B]
+
+      - name: SttlmDt
+        displayName: Intended Settlement Date
+        presence: OPTIONAL
+        businessMeaning: The date the cancelled transaction was due to settle.
+        technicalMeaning: DateAndDateTimeChoice container.
+        whyUsed: Distinguishes transactions that differ only by settlement date.
+        businessQuestion: When was it due to settle?
+        searchTerms: [SttlmDt, settlement date, SETT, 98A]
+        children:
+          - name: Dt
+            displayName: Settlement Date Choice
+            presence: MANDATORY
+            businessMeaning: The date container.
+            technicalMeaning: DateAndDateTimeChoice.
+            whyUsed: Wraps the date value.
+            businessQuestion: On what date?
+            searchTerms: [Dt, date]
+            children:
+              - name: Dt
+                displayName: Settlement Date
+                presence: MANDATORY
+                dataType: ISODate
+                businessPath: trade.settlementDate
+                businessMeaning: The intended settlement date.
+                technicalMeaning: ISODate.
+                whyUsed: States when the transaction was due to settle.
+                businessQuestion: What was the intended settlement date?
+                examples:
+                  - value: "2026-08-18"
+                    explanation: A synthetic settlement date.
+                commonMistakes:
+                  - Using the MT format YYYYMMDD; MX uses YYYY-MM-DD.
+                searchTerms: [SttlmDt, SETT, settlement date, 98A]
+
+      - name: SfkpgAcct
+        displayName: Safekeeping Account
+        presence: OPTIONAL
+        businessMeaning: The account the transaction was booked against.
+        technicalMeaning: SecuritiesAccount container.
+        whyUsed: Identifies which account the cancellation applies to.
+        businessQuestion: Which safekeeping account?
+        searchTerms: [SfkpgAcct, safekeeping account, 97A]
+        children:
+          - name: Id
+            displayName: Safekeeping Account Identification
+            presence: MANDATORY
+            dataType: Max35Text
+            businessPath: safekeepingAccount
+            businessMeaning: The account number.
+            technicalMeaning: Max35Text.
+            whyUsed: Identifies the account.
+            businessQuestion: What is the safekeeping account number?
+            examples:
+              - value: SAFE0000001
+                explanation: A synthetic safekeeping account.
+            searchTerms: [SfkpgAcct, account, SAFE, 97A]
+
+  - name: AddtlInf
+    displayName: Additional Information
+    presence: OPTIONAL
+    businessMeaning: Free-text narrative explaining why cancellation is requested.
+    technicalMeaning: Additional information container.
+    whyUsed: The reason is usually what the servicer's operator acts on.
+    businessQuestion: Why are you asking for the cancellation?
+    searchTerms: [AddtlInf, narrative, reason]
+    children:
+      - name: Rsn
+        displayName: Cancellation Reason
+        presence: OPTIONAL
+        dataType: Max350Text
+        businessMeaning: Why the transaction should be cancelled.
+        technicalMeaning: Max350Text narrative.
+        whyUsed: Explains the request in plain words.
+        businessQuestion: What is the reason?
+        examples:
+          - value: INSTRUCTED IN ERROR - WRONG SAFEKEEPING ACCOUNT
+            explanation: A synthetic narrative reason.
+        searchTerms: [Rsn, reason, narrative]

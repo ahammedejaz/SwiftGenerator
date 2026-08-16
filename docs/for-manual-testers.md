@@ -149,6 +149,43 @@ them. That last row is the tool being honest rather than plausible.
 
 ---
 
+## Already have a message? Change one value and send it again
+
+This is the fastest route when a message failed downstream and you want to retry it with one
+thing different.
+
+On **Create Message**, step 1, open **Import a message** and paste what you have — a full
+FIN message, an MT text block, or an ISO 20022 document. You do not tell it which; it works
+that out from the message itself. It fills the form in, and you carry on as normal.
+
+### "Did anything change that I did not change?"
+
+After you generate, **Original and regenerated** answers that in one sentence, and then
+shows you every line that differs. Each one says *why*:
+
+| It says | It means |
+|---|---|
+| **You changed this** | A value you edited. |
+| **Written the studio's way** | Same meaning, different presentation — fields put back in specification order, indentation, a header rebuilt from the client profile. |
+| **Could not be imported** | The original held something outside the configured subset. It was reported when you pasted it, and it is not in the new message. |
+| **Never generated** | A trailer, a user-header field or a signature. A messaging interface or the network supplies these; the tool refuses to invent them. **Not a fault.** |
+| **Unexplained** | The tool could not account for it. This is the only one worth investigating. |
+
+If the headline says *the regenerated message is identical*, nothing was lost and nothing was
+rewritten. If it says *every difference is accounted for*, the differences are all expected
+— you can stop reading.
+
+Tick **Show only changes** off to read the whole message side by side with the original.
+**Copy regenerated** and **Download regenerated** give you the new message; **Return to
+edit** takes you back to the form.
+
+> A very large message — over 3,000 lines — is not listed line by line. You are still told
+> whether the two are the same. No message the tool itself generates comes close to that.
+
+> An ISO 20022 document is compared on **meaning**, not layout. Reformatting the XML,
+> collapsing it to one line or changing the indentation will never show up as a difference.
+> An MT message is compared line by line, because in FIN the line structure *is* the message.
+
 ## Making many messages at once
 
 Go to **Bulk / Excel**.

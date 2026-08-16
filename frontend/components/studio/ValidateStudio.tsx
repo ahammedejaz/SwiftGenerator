@@ -3,11 +3,17 @@
 /**
  * Validate — check data without generating and keeping a message.
  *
- * Two ways in: paste JSON field data (what an automation tester already has), or check an
- * existing MT text block against the configured subset.
+ * Two ways in: paste JSON field data (what an automation tester already has), or paste an
+ * existing message and have it read back. Both run the same layers as generation and keep
+ * nothing.
+ *
+ * There used to be a separate mode for MT and for MX. The import endpoint recognises a
+ * message from its own content, so asking the tester to classify it first was a question
+ * with no purpose and one more way to pick wrong.
  */
 
 import { useEffect, useState } from "react";
+import { MessageDiffPanel } from "@/components/studio/MessageDiff";
 import { ValidationPanel } from "@/components/studio/ValidationPanel";
 import {
   Button,
@@ -20,15 +26,14 @@ import {
   TextArea,
 } from "@/components/studio/ui";
 import { StudioError, studioApi } from "@/lib/studio-api";
-import { apiUrl } from "@/lib/api-client";
 import type {
   GenerateRequest,
   GenerateResult,
+  MessageDiff,
   StudioCatalogue,
-  ValidationResult,
 } from "@/lib/studio-types";
 
-type Mode = "STRUCTURED" | "RAW";
+type Mode = "STRUCTURED" | "EXISTING";
 
 const STARTER = `{
   "format": "MT",
@@ -43,23 +48,31 @@ const STARTER = `{
 export function ValidateStudio() {
   const [mode, setMode] = useState<Mode>("STRUCTURED");
   const [payload, setPayload] = useState(STARTER);
-  const [raw, setRaw] = useState("");
+  const [text, setText] = useState("");
+  const [messageType, setMessageType] = useState("");
   const [profileId, setProfileId] = useState("BASE_DEMO_V1");
   const [catalogue, setCatalogue] = useState<StudioCatalogue | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateResult | null>(null);
-  const [rawResult, setRawResult] = useState<ValidationResult | null>(null);
+  // Validating an existing message and importing it are the same read, so the same
+  // question applies: did anything get lost on the way in?
+  const [diff, setDiff] = useState<MessageDiff | null>(null);
 
   useEffect(() => {
     studioApi.catalogue().then(setCatalogue).catch(() => setCatalogue(null));
   }, []);
 
+  // Only a pasted MT text block cannot say what it is, so the picker appears once the
+  // studio has said it could not tell — never as a question asked up front.
+  const needsType =
+    error !== null && /fits more than one message|could not be worked out/.test(error);
+
   async function runStructured() {
     setBusy(true);
     setError(null);
     setResult(null);
-    setRawResult(null);
+    setDiff(null);
     let parsed: unknown;
     try {
       parsed = JSON.parse(payload);
@@ -95,28 +108,21 @@ export function ValidateStudio() {
     }
   }
 
-  async function runRaw() {
+  async function runExisting() {
     setBusy(true);
     setError(null);
     setResult(null);
-    setRawResult(null);
+    setDiff(null);
     try {
-      const response = await fetch(apiUrl("/api/messages/validate-raw"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawMessage: raw, profileId }),
-      });
-      const body = (await response.json()) as {
-        validation?: ValidationResult;
-        error?: { message?: string };
-      };
-      if (!response.ok) {
-        setError(body.error?.message ?? "The message could not be parsed.");
-        return;
-      }
-      setRawResult(body.validation ?? null);
-    } catch {
-      setError("The studio API could not be reached.");
+      // The same endpoint the Create screen imports with. Validating and importing are the
+      // same read; only what the caller does with the result differs.
+      const imported = await studioApi.importMessage(text, profileId, messageType || null);
+      setResult(imported.result);
+      setDiff(imported.diff);
+    } catch (caught) {
+      setError(
+        caught instanceof StudioError ? caught.message : "That message could not be read.",
+      );
     } finally {
       setBusy(false);
     }
@@ -131,7 +137,7 @@ export function ValidateStudio() {
           onChange={setMode}
           options={[
             { value: "STRUCTURED", label: "Field or element data" },
-            { value: "RAW", label: "An existing MT message" },
+            { value: "EXISTING", label: "An existing message" },
           ]}
         />
         {catalogue && (
@@ -147,7 +153,54 @@ export function ValidateStudio() {
         )}
       </div>
 
-      {mode === "STRUCTURED" ? (
+      {mode === "EXISTING" ? (
+        <Panel
+          title="An existing message"
+          description="Paste an MT FIN message, an MT text block, or an ISO 20022 document. It is read back into values and checked against the configured subset, the client profile and — for MX — the schema. Nothing is saved."
+          action={
+            <Button
+              variant="primary"
+              icon="check-shield"
+              loading={busy}
+              disabled={!text.trim() || (needsType && !messageType)}
+              onClick={() => void runExisting()}
+            >
+              Validate
+            </Button>
+          }
+        >
+          <TextArea
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            rows={16}
+            spellCheck={false}
+            placeholder={"{1:F01…}{2:I541…}{4:  or  <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:sese.023.001.11\">…"}
+            aria-label="Message to validate"
+          />
+          {needsType && (
+            <Labelled
+              className="mt-3"
+              label="Which message is it?"
+              hint="A text block on its own does not say which message it belongs to."
+            >
+              <Select
+                value={messageType}
+                onChange={(event) => setMessageType(event.target.value)}
+                aria-label="Message type of the pasted text block"
+              >
+                <option value="">Choose a message</option>
+                {(catalogue?.messages ?? [])
+                  .filter((entry) => entry.format === "MT")
+                  .map((entry) => (
+                    <option key={entry.messageType} value={entry.messageType}>
+                      {entry.messageType} — {entry.name}
+                    </option>
+                  ))}
+              </Select>
+            </Labelled>
+          )}
+        </Panel>
+      ) : (
         <Panel
           title="Field or element data"
           description="Paste the same body you would send to POST /api/v1/messages/generate. Nothing is saved."
@@ -165,38 +218,27 @@ export function ValidateStudio() {
             aria-label="Request body"
           />
         </Panel>
-      ) : (
-        <Panel
-          title="An existing MT message"
-          description="Paste a Block 4 text block or a full FIN message. It is parsed and checked against the configured subset."
-          action={
-            <Button
-              variant="primary"
-              icon="check-shield"
-              loading={busy}
-              disabled={!raw.trim()}
-              onClick={() => void runRaw()}
-            >
-              Validate
-            </Button>
-          }
-        >
-          <TextArea
-            value={raw}
-            onChange={(event) => setRaw(event.target.value)}
-            rows={16}
-            spellCheck={false}
-            placeholder={"{4:\n:16R:GENL\n:20C::SEME//TESTREF001\n…\n-}"}
-            aria-label="Raw message"
-          />
-        </Panel>
       )}
 
       {error && <ErrorNotice message={error} />}
       {result && <ValidationPanel validation={result.validation} />}
-      {rawResult && <RawValidation validation={rawResult} />}
+      {result && diff && (
+        <MessageDiffPanel
+          diff={diff}
+          regenerated={
+            result.outputs.fin ??
+            result.outputs.xml ??
+            result.outputs.block4 ??
+            result.outputs.document ??
+            ""
+          }
+          filename={`${result.messageType.replace(/[^A-Za-z0-9._-]/g, "-")}.${
+            result.format === "MT" ? "fin" : "xml"
+          }`}
+        />
+      )}
 
-      {!result && !rawResult && !error && (
+      {!result && !error && (
         <Panel>
           <EmptyState icon="check-shield" title="Nothing checked yet">
             Validation runs the same layers as generation — structure, formats, business
@@ -206,54 +248,4 @@ export function ValidateStudio() {
       )}
     </div>
   );
-}
-
-/**
- * The legacy raw-validation endpoint returns the older finding shape, so it is mapped onto
- * the studio's validation panel rather than given a second, inconsistent presentation.
- */
-function RawValidation({ validation }: { validation: ValidationResult }) {
-  const legacy = validation as unknown as {
-    status?: string;
-    findings?: Array<Record<string, string | null>>;
-    errorCount?: number;
-  };
-  if (!legacy.findings) return <ValidationPanel validation={validation} />;
-
-  const errors = legacy.findings.filter((item) => item.severity === "ERROR");
-  const warnings = legacy.findings.filter((item) => item.severity !== "ERROR");
-  const count = errors.length;
-  const mapped: ValidationResult = {
-    valid: count === 0,
-    summary:
-      count === 0
-        ? "Ready to generate"
-        : count === 1
-          ? "1 issue needs attention"
-          : `${count} issues need attention`,
-    layers: [],
-    errors: errors.map((item) => ({
-      ruleId: item.ruleId ?? "RULE",
-      severity: "ERROR",
-      layer: "BUSINESS_RULES",
-      field: item.fieldPath ?? null,
-      location: item.fieldPath ?? null,
-      message: item.message ?? "",
-      expected: item.expectedCondition ?? null,
-      currentValue: item.currentValue ?? null,
-      suggestion: item.suggestion ?? null,
-    })),
-    warnings: warnings.map((item) => ({
-      ruleId: item.ruleId ?? "RULE",
-      severity: "WARNING",
-      layer: "BUSINESS_RULES",
-      field: item.fieldPath ?? null,
-      location: item.fieldPath ?? null,
-      message: item.message ?? "",
-      expected: item.expectedCondition ?? null,
-      currentValue: item.currentValue ?? null,
-      suggestion: item.suggestion ?? null,
-    })),
-  };
-  return <ValidationPanel validation={mapped} />;
 }

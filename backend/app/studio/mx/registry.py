@@ -6,15 +6,18 @@ from pathlib import Path
 
 import yaml
 
+from app.config import get_settings, source_path
 from app.studio.models import Presence
 from app.studio.mx.models import FlatElement, MxElement, MxMessageSpec
 
-CONFIG_DIRECTORY = Path(__file__).resolve().parents[3] / "config" / "mx"
+
+def _config_directory() -> Path:
+    return source_path(get_settings().mx_specification_directory, "mx")
 
 
 class MxRegistry:
     def __init__(self, directory: Path | None = None) -> None:
-        self._directory = directory or CONFIG_DIRECTORY
+        self._directory = directory or _config_directory()
         self._specs: dict[str, MxMessageSpec] = {}
         self._flat: dict[str, list[FlatElement]] = {}
         self._load()
@@ -36,6 +39,20 @@ class MxRegistry:
 
     def all_specs(self) -> list[MxMessageSpec]:
         return [self._specs[key] for key in sorted(self._specs)]
+
+    def by_namespace(self, namespace: str) -> MxMessageSpec | None:
+        """Identify a message from its XML namespace.
+
+        The namespace is the only self-describing part of an ISO 20022 document, so this is
+        how an imported document is recognised — never by guessing from the root tag.
+        """
+        for spec in self._specs.values():
+            if spec.namespace == namespace:
+                return spec
+        return None
+
+    def namespaces(self) -> list[str]:
+        return sorted(spec.namespace for spec in self._specs.values())
 
     def get(self, message_type: str) -> MxMessageSpec:
         try:

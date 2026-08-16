@@ -1,8 +1,11 @@
 # Testing
 
-**453 automated tests.** 417 backend, 36 in a real browser.
+**813 automated tests.** 752 backend, 61 in a real browser.
 
 ---
+
+`make install` installs the browser Playwright drives, so a machine that has never run it
+still gets `make e2e` working. Nothing else needs configuring: no `.env`, no API keys.
 
 ## Run everything
 
@@ -43,12 +46,14 @@ npx playwright test --debug                                   # step through it
 
 | Folder | Tests | Covers |
 |---|---|---|
-| `studio/` | 145 | FIN envelope, MT generation, MX generation, Excel, the `/api/v1` contract |
-| `api/` | ~90 | The original scenario API, bulk, samples, security, lifecycle |
-| `unit/` | ~90 | Resolver, profiles, validation, AI service, cache, telemetry, security |
-| `golden/` | ~35 | Byte-for-byte MT output regression |
-| `workflows/` | ~25 | Settlement processing, penalties, corporate actions |
-| `knowledge/`, `specifications/`, `samples/`, `security/` | ~30 | Knowledge base, registry, samples, encryption |
+| `studio/` | 485 | FIN envelope, MT and MX generation, import, the comparison, coverage, Excel, the `/api/v1` contract |
+| `unit/` | 139 | Resolver, profiles, validation, AI service, cache, telemetry, security |
+| `api/` | 63 | The original scenario API, bulk, samples, security, lifecycle |
+| `golden/` | 17 | Byte-for-byte MT output regression |
+| `workflows/` | 16 | Settlement processing, penalties, corporate actions |
+| `knowledge/` | 16 | The MT knowledge base |
+| `security/` | 9 | CORS, throttling, encryption |
+| `specifications/`, `samples/` | 7 | Registry and sample coverage |
 
 The studio suite is worth knowing in detail, because it encodes the rules that matter:
 
@@ -106,14 +111,22 @@ The studio suite is worth knowing in detail, because it encodes the rules that m
 | Spec | Covers |
 |---|---|
 | `studio-create.spec.ts` | The full manual journey for MT541 and sese.023, field explanations, progressive disclosure, plain-English validation, envelope origins, download |
+| `studio-import.spec.ts` | Importing MT and MX back into the builder, the message-type picker, refusals, the cancellation lifecycle |
+| `message-diff.spec.ts` | Original versus regenerated: the verdict, every reason, show-only-changes, copy, download, return to edit, phone width |
 | `studio-screens.spec.ts` | Excel round trip both formats, Intelligence search, Validate, Automation examples, Recent Messages, responsive behaviour, accessibility basics |
 | `guided`, `bulk`, `lifecycle`, `penalties`, … | The pre-existing Advanced screens |
 
-Two structural assertions worth keeping:
+Three structural assertions worth keeping:
 
 - **No page scrolls sideways** at any of the tested widths — checked by comparing
   `scrollWidth` to `clientWidth` on every route.
 - **Message Intelligence issues no model request** — checked by watching network traffic.
+- **A network-generated trailer is never presented as a fault** — the comparison must show
+  it as expected, with the alarming counters at zero.
+
+> Stop any backend or frontend you started by hand before running `make e2e`.
+> `reuseExistingServer` will reuse it, and a hand-started backend has a different
+> environment from the one the config provides.
 
 ---
 

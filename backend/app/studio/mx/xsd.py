@@ -22,12 +22,15 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 
+from app.config import get_settings, source_path
 from app.studio.models import IssueSeverity, Presence, ValidationIssue, ValidationLayer
 from app.studio.mx.models import MxDataType, MxElement, MxMessageSpec
 
-OFFICIAL_SCHEMA_DIRECTORY = (
-    Path(__file__).resolve().parents[3] / "config" / "mx" / "xsd" / "official"
-)
+
+def official_schema_directory() -> Path:
+    """Where a licensed ISO 20022 schema is dropped in. Read per call, not cached at
+    import, so pointing the setting at a drop directory needs no code change."""
+    return source_path(get_settings().mx_official_xsd_directory, "mx", "xsd", "official")
 
 XS = "http://www.w3.org/2001/XMLSchema"
 
@@ -153,7 +156,7 @@ def derive_schema(spec: MxMessageSpec) -> str:
 
 
 def official_schema_path(spec: MxMessageSpec) -> Path | None:
-    candidate = OFFICIAL_SCHEMA_DIRECTORY / f"{spec.version}.xsd"
+    candidate = official_schema_directory() / f"{spec.version}.xsd"
     return candidate if candidate.is_file() else None
 
 

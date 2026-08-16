@@ -390,3 +390,98 @@ export const ORIGIN_LABEL: Record<FieldOrigin, string> = {
   INTERFACE_GENERATED: "Your messaging interface adds this",
   NETWORK_GENERATED: "The network adds this",
 };
+
+export type DiffKind = "UNCHANGED" | "ADDED" | "REMOVED" | "CHANGED";
+
+export type DiffReason =
+  | "USER_EDIT"
+  | "NORMALISATION"
+  | "IMPORT_DROPPED"
+  | "NOT_REPRODUCED"
+  | "UNEXPLAINED";
+
+export type DiffBasis = "FIN_LINES" | "CANONICAL_XML";
+
+export interface DiffLine {
+  kind: DiffKind;
+  originalLine: number | null;
+  regeneratedLine: number | null;
+  originalText: string | null;
+  regeneratedText: string | null;
+  /** Absent on an unchanged line; always present otherwise. */
+  reason: DiffReason | null;
+  explanation: string | null;
+  field: string | null;
+  location: string | null;
+}
+
+export interface DiffSummary {
+  identical: boolean;
+  unchanged: number;
+  added: number;
+  removed: number;
+  changed: number;
+  /** Differences with a known, benign cause. Never a reason to investigate. */
+  expected: number;
+  /** Content the original held that the configured subset could not carry. */
+  dropped: number;
+  /** The only figure worth acting on. */
+  unexplained: number;
+  byReason: Record<string, number>;
+}
+
+export interface MessageDiff {
+  format: MessageFormat;
+  basis: DiffBasis;
+  compared: string;
+  /** False when the messages were too large, or too broken, to list the differences of. */
+  comparable: boolean;
+  notComparedReason: string | null;
+  summary: DiffSummary;
+  lines: DiffLine[];
+  notes: string[];
+}
+
+export interface DiffResult {
+  format: MessageFormat;
+  messageType: string;
+  result: GenerateResult;
+  diff: MessageDiff;
+  importIssues: ValidationIssue[];
+  importWarnings: ValidationIssue[];
+  disclaimer: string;
+}
+
+export interface ImportRequest {
+  text: string;
+  /** Only consulted when the message does not name itself — a pasted MT text block. */
+  messageType?: string | null;
+  profileId?: string;
+  scenarioId?: string | null;
+  outputModes?: OutputMode[] | null;
+  persist?: boolean;
+}
+
+export interface ImportResult {
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  namespace: string | null;
+  profileId: string;
+  /** MX: whether the document carried a business application header. */
+  appHdrPresent: boolean;
+  /** MT: which FIN blocks the text carried. `["4"]` for a pasted text block. */
+  finBlocks: string[];
+  /** How many values were read, whichever format they came from. */
+  elementCount: number;
+  elements: ElementInput[];
+  fields: FieldInput[];
+  envelope: EnvelopeOverride | null;
+  /** Anything the document held that could not be imported. Never silently dropped. */
+  importIssues: ValidationIssue[];
+  importWarnings: ValidationIssue[];
+  result: GenerateResult;
+  /** The imported message compared with the one just regenerated from it. */
+  diff: MessageDiff;
+  disclaimer: string;
+}

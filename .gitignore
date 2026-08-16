@@ -24,3 +24,6 @@ backend/data/
 data/
 .DS_Store
 **/.DS_Store
+
+# Licensed ISO 20022 schemas are dropped in locally, never committed.
+backend/config/mx/xsd/official/*.xsd

@@ -5,6 +5,9 @@ from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+#: Where the committed configuration lives; every source path below defaults into it.
+#: `backend/config`, not `PROJECT_ROOT/config` — PROJECT_ROOT is the repository root.
+CONFIG_ROOT = Path(__file__).resolve().parents[1] / "config"
 
 
 class Settings(BaseSettings):
@@ -18,7 +21,11 @@ class Settings(BaseSettings):
     app_name: str = "Intelligent SWIFT Message Engineering Platform"
     database_url: str = "sqlite:///./data/securities_studio.db"
     report_directory: str = "./data/reports"
-    frontend_origin: str = "http://localhost:3000"
+    # Both spellings of the same machine: a tester opening 127.0.0.1:3000 and one opening
+    # localhost:3000 send different Origin headers, and being refused by CORS for choosing
+    # the other one is unexplainable from the browser. Comma-separated; the first is the
+    # canonical one.
+    frontend_origin: str = "http://localhost:3000,http://127.0.0.1:3000"
     max_upload_bytes: int = 5_242_880
     max_request_bytes: int = 6_291_456
     max_bulk_rows: int = 1_000
@@ -85,6 +92,15 @@ class Settings(BaseSettings):
     # development and closed everywhere else. Never commit a value here.
     automation_api_keys: SecretStr | None = None
     max_excel_scenarios: int = 200
+
+    # Where authorised specification artifacts are read from. Each defaults to the
+    # directory committed here, so a clean clone behaves exactly as before; pointing one at
+    # a licensed drop keeps the import a configuration change rather than a code change.
+    # See docs/authoritative-sources.md.
+    mt_specification_manifest: str = ""
+    mx_specification_directory: str = ""
+    mx_official_xsd_directory: str = ""
+    client_profile_directory: str = ""
 
     @field_validator("automation_api_keys")
     @classmethod
@@ -310,3 +326,21 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def allowed_origins(configured: str) -> list[str]:
+    """Every origin the browser may legitimately arrive from."""
+    return [item.strip() for item in configured.split(",") if item.strip()]
+
+
+def source_path(configured: str, *default: str) -> Path:
+    """Resolve one authoritative-source location.
+
+    An empty setting means "the configuration committed to this repository", which is what
+    keeps a clean clone working with no environment at all. A relative override is resolved
+    against the project root so a drop directory can sit beside the checkout.
+    """
+    if not configured.strip():
+        return CONFIG_ROOT.joinpath(*default)
+    candidate = Path(configured.strip()).expanduser()
+    return candidate if candidate.is_absolute() else (PROJECT_ROOT / candidate).resolve()

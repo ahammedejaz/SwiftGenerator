@@ -19,6 +19,12 @@ os.environ["SESSION_HMAC_SECRET"] = "test-session-secret-that-is-longer-than-thi
 os.environ["DATA_ENCRYPTION_KEY"] = base64.b64encode(b"T" * 32).decode()
 os.environ["MOCK_UAT_CONNECTOR_ENABLED"] = "true"
 os.environ["SUBMISSION_MODE"] = "uat"
+# The demonstration throttle is per process and the whole suite shares one, so whether the
+# run passes depended on how many requests it happened to make — adding tests eventually
+# tipped it over and produced 429s in files that have nothing to do with throttling. The
+# throttle itself is still tested: tests/security/test_cors_and_throttling.py installs its
+# own limiter, which is the only place the limit is the subject rather than the scenery.
+os.environ["RATE_LIMIT_REQUESTS_PER_MINUTE"] = "1000000"
 
 from app.main import app  # noqa: E402
 

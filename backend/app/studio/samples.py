@@ -166,6 +166,14 @@ def _candidates(field: SpecField, message_type: str) -> list[str]:
             options.append(MT_DIRECTION_BY_TYPE.get(message_type, ("RECE", "BUY"))[0])
         elif path == "trade.transactionType":
             options.append(MT_DIRECTION_BY_TYPE.get(message_type, ("RECE", "BUY"))[1])
+    # A field that declares its own example knows more than the cross-message table. This
+    # matters where one message carries both a sender's own reference and a reference to a
+    # previous message: the generic table gives both the same value, so the sample would
+    # demonstrate exactly the mistake the field's guidance warns against. MT keeps the table
+    # first because its samples are pinned by golden files.
+    prefer_own_example = field.format is MessageFormat.MX and bool(field.examples)
+    if prefer_own_example:
+        options.extend(example.value for example in field.examples)
     if path:
         by_format = BUSINESS_VALUES.get(path, {})
         if field.format in by_format:

@@ -1,0 +1,291 @@
+# ---------------------------------------------------------------------------------------
+# sese.031 — Securities Settlement Condition Modification Status Advice
+#
+# REPOSITORY-CONFIGURED SUBSET. See sese.023.001.11.yaml for the full honesty note.
+#
+# Added without an authoritative ISO 20022 message-definition report to hand. The version,
+# the message root element name and the element set below are UNVERIFIED; they are modelled
+# on the ISO 20022 idioms this repository already carries. Reconcile before any use beyond
+# internal testing.
+#
+# This closes the loop opened by sese.030: the servicer answers a modification request with
+# accepted, pending, rejected or denied. The requireOneOf below is the same honesty rule
+# sese.024 uses — a status advice that reports no status carries no information.
+# ---------------------------------------------------------------------------------------
+messageType: sese.031
+version: sese.031.001.09
+name: Securities Settlement Condition Modification Status Advice
+shortDescription: >-
+  Answers a modification request, saying whether the account servicer accepted, is still
+  processing, rejected or denied the requested change.
+businessArea: SETTLEMENT_COMMANDS
+namespace: "urn:iso:std:iso:20022:tech:xsd:sese.031.001.09"
+messageRoot: SctiesSttlmCondModStsAdvc
+documentElement: Document
+standardsRelease: ISO20022_CONFIGURED_SUBSET_V1
+authoritativeCompletenessKnown: false
+source:
+  sourceType: CONFIGURED_SUBSET_REQUIRES_VERIFICATION
+  sourceReference: ISO20022-SESE031-CONFIGURED-SUBSET-2026-08-16
+  reviewedAt: "2026-08-16"
+  reviewedBy: REPOSITORY_CONFIGURATION
+limitations:
+  - >-
+    The version, the message root element name and the element set are UNVERIFIED against an
+    authoritative ISO 20022 message-definition report.
+  - Only the processing-status branches below are configured.
+  - Reason code lists are the configured subset, not the ISO external code sets.
+
+# A status advice that reports no status at all carries no information.
+requireOneOf:
+  - [PrcgSts]
+
+structure:
+  - name: ReqRef
+    displayName: Modification Request Reference
+    presence: MANDATORY
+    dataType: Max35Text
+    businessPath: relatedReference
+    businessMeaning: The reference of the modification request this advice answers.
+    technicalMeaning: Max35Text.
+    whyUsed: >-
+      This is the TxId the requester sent on the sese.030, and it is how they match the
+      answer to their request.
+    businessQuestion: Which modification request are you answering?
+    examples:
+      - value: MODREQ0000001
+        explanation: The TxId of the related sese.030 request.
+    commonMistakes:
+      - Supplying the original settlement instruction reference instead of the request's.
+    searchTerms: [ReqRef, related reference, modification request, PREV]
+
+  - name: TxId
+    displayName: Transaction Identification
+    presence: MANDATORY
+    businessMeaning: Identifies the settlement transaction the modification applied to.
+    technicalMeaning: TransactionIdentifications container.
+    whyUsed: Lets the requester see which transaction the status concerns.
+    businessQuestion: Which transaction does this status relate to?
+    searchTerms: [TxId, transaction identification]
+    children:
+      - name: AcctOwnrTxId
+        displayName: Account Owner Transaction Identification
+        presence: MANDATORY
+        dataType: Max35Text
+        businessMeaning: The account owner's reference for the underlying transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: The reference the account owner knows the transaction by.
+        businessQuestion: What is the account owner's transaction reference?
+        examples:
+          - value: TESTREF001
+            explanation: The TxId of the underlying sese.023 instruction.
+        searchTerms: [AcctOwnrTxId, account owner reference]
+
+      - name: AcctSvcrTxId
+        displayName: Account Servicer Transaction Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessMeaning: The account servicer's own reference for the transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: Lets the servicer quote its internal reference.
+        businessQuestion: Does the account servicer have its own reference?
+        examples:
+          - value: SVCR000000001
+            explanation: A synthetic account servicer reference.
+        searchTerms: [AcctSvcrTxId, servicer reference]
+
+  - name: SfkpgAcct
+    displayName: Safekeeping Account
+    presence: OPTIONAL
+    businessMeaning: The account the transaction is booked against.
+    technicalMeaning: SecuritiesAccount container.
+    whyUsed: Identifies which account the status concerns.
+    businessQuestion: Which safekeeping account?
+    searchTerms: [SfkpgAcct, safekeeping account, 97A]
+    children:
+      - name: Id
+        displayName: Safekeeping Account Identification
+        presence: MANDATORY
+        dataType: Max35Text
+        businessPath: safekeepingAccount
+        businessMeaning: The account number.
+        technicalMeaning: Max35Text.
+        whyUsed: Identifies the account.
+        businessQuestion: What is the safekeeping account number?
+        examples:
+          - value: SAFE0000001
+            explanation: A synthetic safekeeping account.
+        searchTerms: [SfkpgAcct, account, SAFE, 97A]
+
+  - name: PrcgSts
+    displayName: Processing Status
+    presence: MANDATORY
+    choice: true
+    conditionExplanation: >-
+      Exactly one processing-status branch may be chosen. The advice must report a status;
+      that is the whole content of the message.
+    businessMeaning: Whether the requested modification was accepted, is pending, or failed.
+    technicalMeaning: ModificationProcessingStatus choice container.
+    whyUsed: Tells the requester whether their change took effect.
+    businessQuestion: What happened to the modification request?
+    searchTerms: [PrcgSts, processing status, modification status]
+    children:
+      - name: Cmpltd
+        displayName: Completed
+        presence: OPTIONAL
+        businessMeaning: The requested modification was applied.
+        technicalMeaning: Completed status choice.
+        whyUsed: Confirms the change took effect.
+        businessQuestion: Was the modification applied?
+        searchTerms: [Cmpltd, completed, accepted, CAND, MODC]
+        children:
+          - name: NoSpcfdRsn
+            displayName: No Specified Reason
+            presence: MANDATORY
+            dataType: Code
+            codes: [NORE]
+            businessMeaning: Completion with no further reason to report.
+            technicalMeaning: NoReasonCode.
+            whyUsed: The standard way to state a plain completion.
+            businessQuestion: Is there any reason to report alongside the completion?
+            examples:
+              - value: NORE
+                explanation: No reason specified.
+            searchTerms: [NoSpcfdRsn, NORE, completed]
+
+      - name: AckdAccptd
+        displayName: Acknowledged and Accepted
+        presence: OPTIONAL
+        businessMeaning: The request passed validation and is queued to be applied.
+        technicalMeaning: AcknowledgedAccepted status choice.
+        whyUsed: >-
+          Distinct from Completed: the servicer has taken the request but has not yet
+          changed the transaction.
+        businessQuestion: Was the request accepted for processing?
+        searchTerms: [AckdAccptd, accepted, acknowledged, ACCP]
+        children:
+          - name: NoSpcfdRsn
+            displayName: No Specified Reason
+            presence: MANDATORY
+            dataType: Code
+            codes: [NORE]
+            businessMeaning: Acceptance with no further reason to report.
+            technicalMeaning: NoReasonCode.
+            whyUsed: The standard way to state a plain acceptance.
+            businessQuestion: Is there any reason to report alongside the acceptance?
+            examples:
+              - value: NORE
+                explanation: No reason specified.
+            searchTerms: [NoSpcfdRsn, NORE, accepted]
+
+      - name: Pdg
+        displayName: Pending
+        presence: OPTIONAL
+        businessMeaning: The servicer has the request but cannot act on it yet.
+        technicalMeaning: Pending status container.
+        whyUsed: Tells the requester to wait rather than resend.
+        businessQuestion: Why has the modification not been applied yet?
+        searchTerms: [Pdg, pending, PEND]
+        children:
+          - name: Rsn
+            displayName: Pending Reason
+            presence: MANDATORY
+            dataType: Code
+            codes: [ADEA, CDRE, CDPD, CVAL, LATE, NARR, OTHR]
+            businessMeaning: The configured reason the request is pending.
+            technicalMeaning: PendingReason code from the configured subset.
+            whyUsed: A pending status without a reason gives the requester nothing to act on.
+            businessQuestion: Why is it pending?
+            examples:
+              - value: LATE
+                explanation: The request arrived too late in the settlement cycle.
+            searchTerms: [Rsn, pending reason, LATE, ADEA]
+
+          - name: AddtlRsnInf
+            displayName: Additional Reason Information
+            presence: OPTIONAL
+            dataType: Max350Text
+            businessMeaning: Narrative expanding on the pending reason.
+            technicalMeaning: Max210Text narrative.
+            whyUsed: Codes are coarse; the narrative is what an operator reads.
+            businessQuestion: Is there more to say about why it is pending?
+            examples:
+              - value: AWAITING COUNTERPARTY CONFIRMATION
+                explanation: A synthetic narrative.
+            searchTerms: [AddtlRsnInf, narrative, pending]
+
+      - name: Rjctd
+        displayName: Rejected
+        presence: OPTIONAL
+        businessMeaning: The request was rejected because it could not be processed.
+        technicalMeaning: Rejected status container.
+        whyUsed: >-
+          Distinct from Denied: rejection is about the request itself being unusable, not
+          about the servicer choosing not to act.
+        businessQuestion: Why was the request rejected?
+        searchTerms: [Rjctd, rejected, REJT]
+        children:
+          - name: Rsn
+            displayName: Rejection Reason
+            presence: MANDATORY
+            dataType: Code
+            codes: [ADEA, DSEC, LATE, NRGN, REFE, SAFE, ULNK, OTHR]
+            businessMeaning: The configured reason the request was rejected.
+            technicalMeaning: RejectionReason code from the configured subset.
+            whyUsed: A rejection without a reason cannot be corrected and resent.
+            businessQuestion: Why was it rejected?
+            examples:
+              - value: REFE
+                explanation: The referenced transaction could not be found.
+            searchTerms: [Rsn, rejection reason, REFE, REJT]
+
+          - name: AddtlRsnInf
+            displayName: Additional Reason Information
+            presence: OPTIONAL
+            dataType: Max350Text
+            businessMeaning: Narrative expanding on the rejection reason.
+            technicalMeaning: Max210Text narrative.
+            whyUsed: Tells the requester what to fix.
+            businessQuestion: Is there more to say about the rejection?
+            examples:
+              - value: NO TRANSACTION FOUND FOR REFERENCE TESTREF001
+                explanation: A synthetic narrative.
+            searchTerms: [AddtlRsnInf, narrative, rejected]
+
+      - name: Dnd
+        displayName: Denied
+        presence: OPTIONAL
+        businessMeaning: The servicer understood the request and declined to apply it.
+        technicalMeaning: Denied status container.
+        whyUsed: >-
+          The transaction had already moved past the point where the change was possible, or
+          the servicer is not willing to make it.
+        businessQuestion: Why was the request denied?
+        searchTerms: [Dnd, denied, DEND]
+        children:
+          - name: Rsn
+            displayName: Denial Reason
+            presence: MANDATORY
+            dataType: Code
+            codes: [ADEA, DCAN, DPRG, DSET, LATE, OTHR]
+            businessMeaning: The configured reason the request was denied.
+            technicalMeaning: DeniedReason code from the configured subset.
+            whyUsed: Tells the requester whether trying again could ever work.
+            businessQuestion: Why was it denied?
+            examples:
+              - value: DSET
+                explanation: The underlying transaction had already settled.
+            searchTerms: [Rsn, denial reason, DSET, DEND]
+
+          - name: AddtlRsnInf
+            displayName: Additional Reason Information
+            presence: OPTIONAL
+            dataType: Max350Text
+            businessMeaning: Narrative expanding on the denial reason.
+            technicalMeaning: Max210Text narrative.
+            whyUsed: Explains the decision in plain words.
+            businessQuestion: Is there more to say about the denial?
+            examples:
+              - value: TRANSACTION SETTLED AT 09:15 ON 2026-08-18
+                explanation: A synthetic narrative.
+            searchTerms: [AddtlRsnInf, narrative, denied]

@@ -258,5 +258,5 @@ Two mechanisms keep them honest:
   validator names as missing is added back, for a few rounds. This is how a sample
   automatically picks up a conditional block that its own values made mandatory.
 
-All 38 samples across all 19 message types validate. A test asserts it, so a specification
+All 46 samples across all 23 message types validate. A test asserts it, so a specification
 change that breaks one fails the build.
