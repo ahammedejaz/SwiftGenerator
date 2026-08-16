@@ -1,0 +1,196 @@
+# ---------------------------------------------------------------------------------------
+# sese.020 — Securities Message Cancellation Advice
+#
+# REPOSITORY-CONFIGURED SUBSET. See sese.023.001.11.yaml for the full honesty note.
+#
+# This file was added without an authoritative ISO 20022 message-definition report to hand.
+# In addition to the usual subset caveat, the version number, the message root element name
+# and the element set below are UNVERIFIED. They are modelled on the ISO 20022 idioms this
+# repository already carries (references, transaction identifications, movement type), not
+# copied from a licensed specification. Reconcile before any use beyond internal testing.
+# ---------------------------------------------------------------------------------------
+messageType: sese.020
+version: sese.020.001.08
+name: Securities Message Cancellation Advice
+shortDescription: >-
+  Advises the receiver that a message previously sent to them is cancelled, naming the
+  message it withdraws.
+businessArea: SETTLEMENT_COMMANDS
+namespace: "urn:iso:std:iso:20022:tech:xsd:sese.020.001.08"
+messageRoot: SctiesMsgCxlAdvc
+documentElement: Document
+standardsRelease: ISO20022_CONFIGURED_SUBSET_V1
+authoritativeCompletenessKnown: false
+source:
+  sourceType: CONFIGURED_SUBSET_REQUIRES_VERIFICATION
+  sourceReference: ISO20022-SESE020-CONFIGURED-SUBSET-2026-08-16
+  reviewedAt: "2026-08-16"
+  reviewedBy: REPOSITORY_CONFIGURATION
+limitations:
+  - >-
+    The version, the message root element name and the element set are UNVERIFIED against an
+    authoritative ISO 20022 message-definition report.
+  - Only the identification, reference and account-servicer branches below are configured.
+  - Cancellation reason code lists are the configured subset, not the ISO external code sets.
+
+structure:
+  - name: Id
+    displayName: Cancellation Advice Identification
+    presence: MANDATORY
+    dataType: Max35Text
+    businessPath: senderReference
+    businessMeaning: Your own reference for this cancellation advice.
+    technicalMeaning: Max35Text identification of the advice itself.
+    whyUsed: >-
+      Every message needs its own reference so it can be quoted in a query. This is the
+      reference of the cancellation, not of the message being cancelled.
+    businessQuestion: What reference are you giving this cancellation advice?
+    examples:
+      - value: CXLADV0000001
+        explanation: A synthetic reference for the cancellation advice.
+    commonMistakes:
+      - Reusing the reference of the message being cancelled; that goes in Ref/MsgId.
+    searchTerms: [Id, cancellation reference, advice reference]
+
+  - name: Ref
+    displayName: Reference to the Cancelled Message
+    presence: MANDATORY
+    businessMeaning: Identifies the message this advice withdraws.
+    technicalMeaning: References container.
+    whyUsed: >-
+      A cancellation that does not say what it cancels is unusable. This is the whole point
+      of the message.
+    businessQuestion: Which message are you cancelling?
+    searchTerms: [Ref, references, cancelled message, PREV]
+    children:
+      - name: MsgId
+        displayName: Identification of the Cancelled Message
+        presence: MANDATORY
+        dataType: Max35Text
+        businessPath: relatedReference
+        businessMeaning: The reference carried by the message being cancelled.
+        technicalMeaning: Max35Text.
+        whyUsed: >-
+          This is the value the receiver will match on, so it must be exactly the reference
+          that was sent on the original message.
+        businessQuestion: What reference did the original message carry?
+        examples:
+          - value: TESTREF001
+            explanation: The TxId of the sese.023 instruction being withdrawn.
+        commonMistakes:
+          - Supplying a new reference instead of the original message's reference.
+          - Supplying the account servicer's reference when the account owner's was sent.
+        searchTerms: [MsgId, related reference, original message, PREV]
+
+      - name: CreDtTm
+        displayName: Creation Date and Time of the Cancelled Message
+        presence: OPTIONAL
+        dataType: ISODateTime
+        businessMeaning: When the message being cancelled was created.
+        technicalMeaning: ISODateTime.
+        whyUsed: Disambiguates when the same reference has been reused over time.
+        businessQuestion: When was the original message created?
+        examples:
+          - value: "2026-08-16T09:30:00Z"
+            explanation: A synthetic creation timestamp in UTC.
+        searchTerms: [CreDtTm, creation date, original message]
+
+  - name: TxDtls
+    displayName: Transaction Details
+    presence: OPTIONAL
+    conditionExplanation: >-
+      Supply these when the receiver needs more than the reference to find the transaction,
+      for example when references are reused across accounts.
+    businessMeaning: Enough of the original transaction to identify it without the reference.
+    technicalMeaning: Transaction details container.
+    whyUsed: Lets the receiver locate the transaction when reference matching is ambiguous.
+    businessQuestion: Do you need to describe the transaction being cancelled?
+    searchTerms: [TxDtls, transaction details]
+    children:
+      - name: AcctOwnrTxId
+        displayName: Account Owner Transaction Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessMeaning: The account owner's reference for the transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: The reference the account owner knows the transaction by.
+        businessQuestion: What is the account owner's transaction reference?
+        examples:
+          - value: TESTREF001
+            explanation: A synthetic account owner reference.
+        searchTerms: [AcctOwnrTxId, account owner reference]
+
+      - name: AcctSvcrTxId
+        displayName: Account Servicer Transaction Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessMeaning: The account servicer's own reference for the transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: Lets the servicer find the transaction by its internal reference.
+        businessQuestion: Does the account servicer have its own reference?
+        examples:
+          - value: SVCR000000001
+            explanation: A synthetic account servicer reference.
+        searchTerms: [AcctSvcrTxId, servicer reference]
+
+      - name: SctiesMvmntTp
+        displayName: Securities Movement Type
+        presence: OPTIONAL
+        dataType: Code
+        codes: [RECE, DELI]
+        businessPath: direction
+        businessMeaning: Whether the cancelled transaction received or delivered securities.
+        technicalMeaning: ReceiveDelivery1Code.
+        whyUsed: Narrows the search when the same reference exists on both sides.
+        businessQuestion: Was the original a receipt or a delivery?
+        examples:
+          - value: RECE
+            explanation: The cancelled transaction was a receipt.
+        searchTerms: [SctiesMvmntTp, RECE, DELI, direction]
+
+      - name: SfkpgAcct
+        displayName: Safekeeping Account
+        presence: OPTIONAL
+        businessMeaning: The account the cancelled transaction was booked against.
+        technicalMeaning: SecuritiesAccount container.
+        whyUsed: Identifies which account the withdrawal applies to.
+        businessQuestion: Which safekeeping account was used?
+        searchTerms: [SfkpgAcct, safekeeping account]
+        children:
+          - name: Id
+            displayName: Safekeeping Account Identification
+            presence: MANDATORY
+            dataType: Max35Text
+            businessPath: safekeepingAccount
+            businessMeaning: The account number.
+            technicalMeaning: Max35Text.
+            whyUsed: Identifies the account.
+            businessQuestion: What is the safekeeping account number?
+            examples:
+              - value: SAFE0000001
+                explanation: A synthetic safekeeping account.
+            searchTerms: [SfkpgAcct, account, 97A, SAFE]
+
+  - name: AddtlInf
+    displayName: Additional Information
+    presence: OPTIONAL
+    businessMeaning: Free-text narrative explaining the cancellation.
+    technicalMeaning: Additional information container.
+    whyUsed: Gives an operator reading the message the reason in plain words.
+    businessQuestion: Do you want to explain why the message is being cancelled?
+    searchTerms: [AddtlInf, narrative, reason]
+    children:
+      - name: Rsn
+        displayName: Cancellation Reason
+        presence: OPTIONAL
+        dataType: Max350Text
+        businessMeaning: Why the message is being withdrawn.
+        technicalMeaning: Max350Text narrative.
+        whyUsed: A narrative reason is often what an operator acts on.
+        businessQuestion: Why is the message being cancelled?
+        examples:
+          - value: SENT IN ERROR - DUPLICATE OF TESTREF000
+            explanation: A synthetic narrative reason.
+        commonMistakes:
+          - Putting a structured reason code here; this element is narrative only.
+        searchTerms: [Rsn, reason, narrative, cancellation]

@@ -1,0 +1,312 @@
+# ---------------------------------------------------------------------------------------
+# sese.030 — Securities Settlement Conditions Modification Request
+#
+# REPOSITORY-CONFIGURED SUBSET. See sese.023.001.11.yaml for the full honesty note.
+#
+# Added without an authoritative ISO 20022 message-definition report to hand. The version,
+# the message root element name and the element set below are UNVERIFIED; they are modelled
+# on the ISO 20022 idioms this repository already carries. Reconcile before any use beyond
+# internal testing.
+#
+# A modification request changes a condition on an accepted transaction rather than
+# withdrawing it — so unlike sese.027 it must say both which transaction and *what to
+# change*. The requireOneOf below enforces the second half: a modification that requests no
+# modification is meaningless, and the STRUCTURE layer catches it as configuration rather
+# than as code.
+# ---------------------------------------------------------------------------------------
+messageType: sese.030
+version: sese.030.001.10
+name: Securities Settlement Conditions Modification Request
+shortDescription: >-
+  Asks the account servicer to change a condition on a settlement transaction it has already
+  accepted — for example to release a hold or amend the settlement date.
+businessArea: SETTLEMENT_COMMANDS
+namespace: "urn:iso:std:iso:20022:tech:xsd:sese.030.001.10"
+messageRoot: SctiesSttlmCondsModReq
+documentElement: Document
+standardsRelease: ISO20022_CONFIGURED_SUBSET_V1
+authoritativeCompletenessKnown: false
+source:
+  sourceType: CONFIGURED_SUBSET_REQUIRES_VERIFICATION
+  sourceReference: ISO20022-SESE030-CONFIGURED-SUBSET-2026-08-16
+  reviewedAt: "2026-08-16"
+  reviewedBy: REPOSITORY_CONFIGURATION
+limitations:
+  - >-
+    The version, the message root element name and the element set are UNVERIFIED against an
+    authoritative ISO 20022 message-definition report.
+  - >-
+    Only the hold/release, settlement date, partial settlement and linkage modifications
+    below are configured. Other modifiable conditions are not.
+  - Reason code lists are the configured subset, not the ISO external code sets.
+
+# A modification request that requests no modification carries no instruction, so at least
+# one of the modification blocks must be present. Expressed as configuration, not code.
+requireOneOf:
+  - [HldInd, ModfdSttlmDt, PrtlSttlmInd, Lnkgs]
+
+structure:
+  - name: TxId
+    displayName: Modification Request Reference
+    presence: MANDATORY
+    dataType: Max35Text
+    businessPath: senderReference
+    businessMeaning: Your own reference for this modification request.
+    technicalMeaning: Max35Text.
+    whyUsed: >-
+      The status advice that answers this request quotes this reference, so it is how you
+      will find the answer.
+    businessQuestion: What reference are you giving this modification request?
+    examples:
+      - value: MODREQ0000001
+        explanation: A synthetic reference for the modification request.
+    commonMistakes:
+      - Reusing the original instruction reference; that belongs in Ref/AcctOwnrTxId.
+    searchTerms: [TxId, modification request reference]
+
+  - name: Ref
+    displayName: Reference to the Transaction Being Modified
+    presence: MANDATORY
+    businessMeaning: Identifies the settlement transaction whose conditions are to change.
+    technicalMeaning: References container.
+    whyUsed: The servicer cannot act on a request that does not say what to modify.
+    businessQuestion: Which transaction do you want modified?
+    searchTerms: [Ref, references, original instruction, PREV]
+    children:
+      - name: AcctOwnrTxId
+        displayName: Account Owner Transaction Identification
+        presence: MANDATORY
+        dataType: Max35Text
+        businessPath: relatedReference
+        businessMeaning: The reference the account owner sent on the original instruction.
+        technicalMeaning: Max35Text.
+        whyUsed: This is the value the servicer matches on.
+        businessQuestion: What was the reference of the instruction you want modified?
+        examples:
+          - value: TESTREF001
+            explanation: The TxId of the related sese.023 instruction.
+        commonMistakes:
+          - Supplying a new reference instead of the original instruction reference.
+        searchTerms: [AcctOwnrTxId, related reference, original instruction, PREV]
+
+      - name: AcctSvcrTxId
+        displayName: Account Servicer Transaction Identification
+        presence: OPTIONAL
+        dataType: Max35Text
+        businessMeaning: The account servicer's own reference for the transaction.
+        technicalMeaning: Max35Text.
+        whyUsed: Removes any doubt about which transaction is meant.
+        businessQuestion: Did the servicer give you its own reference?
+        examples:
+          - value: SVCR000000001
+            explanation: A synthetic account servicer reference.
+        searchTerms: [AcctSvcrTxId, servicer reference]
+
+  - name: SfkpgAcct
+    displayName: Safekeeping Account
+    presence: OPTIONAL
+    businessMeaning: The account the transaction is booked against.
+    technicalMeaning: SecuritiesAccount container.
+    whyUsed: Identifies which account the modification applies to.
+    businessQuestion: Which safekeeping account?
+    searchTerms: [SfkpgAcct, safekeeping account, 97A]
+    children:
+      - name: Id
+        displayName: Safekeeping Account Identification
+        presence: MANDATORY
+        dataType: Max35Text
+        businessPath: safekeepingAccount
+        businessMeaning: The account number.
+        technicalMeaning: Max35Text.
+        whyUsed: Identifies the account.
+        businessQuestion: What is the safekeeping account number?
+        examples:
+          - value: SAFE0000001
+            explanation: A synthetic safekeeping account.
+        searchTerms: [SfkpgAcct, account, SAFE, 97A]
+
+  - name: HldInd
+    displayName: Hold or Release
+    presence: CONDITIONAL
+    conditionExplanation: >-
+      One of Hold or Release, Modified Settlement Date, Partial Settlement or Linkages must
+      be present. Use this one to put a transaction on hold or to release it for settlement.
+    businessMeaning: Whether the transaction should be held back from settlement or released.
+    technicalMeaning: HoldIndicator container.
+    whyUsed: >-
+      Holding and releasing is the most common modification: it is how an account owner
+      stops a transaction settling without cancelling it.
+    businessQuestion: Do you want to hold the transaction or release it?
+    searchTerms: [HldInd, hold, release, NPRE, PREA, CHAN]
+    children:
+      - name: Ind
+        displayName: Hold Indicator
+        presence: MANDATORY
+        dataType: YesNoIndicator
+        businessMeaning: true to hold the transaction, false to release it.
+        technicalMeaning: YesNoIndicator.
+        whyUsed: Carries the hold or release decision itself.
+        businessQuestion: Should the transaction be held?
+        examples:
+          - value: "false"
+            explanation: Release the transaction for settlement.
+          - value: "true"
+            explanation: Hold the transaction back from settlement.
+        commonMistakes:
+          - Writing YES or NO; MX uses true or false.
+        searchTerms: [Ind, hold indicator, release, "true", "false"]
+
+      - name: Rsn
+        displayName: Hold Reason
+        presence: OPTIONAL
+        dataType: Code
+        codes: [CDPD, CLAT, CONF, MONY, SDUT, WAIT]
+        businessMeaning: The configured reason for holding the transaction.
+        technicalMeaning: HoldReason code from the configured subset.
+        whyUsed: Tells the servicer why the transaction is being held.
+        businessQuestion: Why is the transaction being held?
+        examples:
+          - value: WAIT
+            explanation: Awaiting a further instruction or confirmation.
+        conditionExplanation: Only meaningful when the hold indicator is true.
+        searchTerms: [Rsn, hold reason, WAIT, CONF, MONY]
+
+  - name: ModfdSttlmDt
+    displayName: Modified Settlement Date
+    presence: CONDITIONAL
+    conditionExplanation: >-
+      One of Hold or Release, Modified Settlement Date, Partial Settlement or Linkages must
+      be present. Use this one to move the intended settlement date.
+    businessMeaning: A new intended settlement date for the transaction.
+    technicalMeaning: DateAndDateTimeChoice container.
+    whyUsed: Changes when the transaction is due to settle without reinstructing it.
+    businessQuestion: Do you want to change the settlement date?
+    searchTerms: [ModfdSttlmDt, settlement date, SETT, 98A]
+    children:
+      - name: Dt
+        displayName: Modified Settlement Date Choice
+        presence: MANDATORY
+        businessMeaning: The date container.
+        technicalMeaning: DateAndDateTimeChoice.
+        whyUsed: Wraps the date value.
+        businessQuestion: To what date?
+        searchTerms: [Dt, date]
+        children:
+          - name: Dt
+            displayName: New Settlement Date
+            presence: MANDATORY
+            dataType: ISODate
+            businessPath: trade.settlementDate
+            businessMeaning: The new intended settlement date.
+            technicalMeaning: ISODate.
+            whyUsed: States the date the transaction should now settle on.
+            businessQuestion: What is the new settlement date?
+            examples:
+              - value: "2026-08-20"
+                explanation: A synthetic revised settlement date.
+            commonMistakes:
+              - Using the MT format YYYYMMDD; MX uses YYYY-MM-DD.
+            searchTerms: [ModfdSttlmDt, SETT, settlement date, 98A]
+
+  - name: PrtlSttlmInd
+    displayName: Partial Settlement
+    presence: CONDITIONAL
+    conditionExplanation: >-
+      One of Hold or Release, Modified Settlement Date, Partial Settlement or Linkages must
+      be present. Use this one to change whether the transaction may settle partially.
+    businessMeaning: Whether the transaction may settle in parts.
+    technicalMeaning: SettlementTransactionCondition code container.
+    whyUsed: >-
+      Allowing partial settlement is a common way to get most of a transaction settled when
+      the full quantity is not available.
+    businessQuestion: Should the transaction be allowed to settle partially?
+    searchTerms: [PrtlSttlmInd, partial settlement, PART, NPAR]
+    children:
+      - name: Cd
+        displayName: Partial Settlement Code
+        presence: MANDATORY
+        dataType: Code
+        codes: [NPAR, PAR, PARC, PARQ]
+        businessMeaning: The configured partial-settlement condition.
+        technicalMeaning: SettlementTransactionCondition code from the configured subset.
+        whyUsed: Carries the partial-settlement decision.
+        businessQuestion: Which partial-settlement condition applies?
+        examples:
+          - value: PAR
+            explanation: Partial settlement is allowed.
+          - value: NPAR
+            explanation: Partial settlement is not allowed.
+        searchTerms: [Cd, PART, NPAR, PAR, partial]
+
+  - name: Lnkgs
+    displayName: Linkages
+    presence: CONDITIONAL
+    maxOccurs: 10
+    conditionExplanation: >-
+      One of Hold or Release, Modified Settlement Date, Partial Settlement or Linkages must
+      be present. Use this one to link the transaction to another, or to unlink it.
+    businessMeaning: A link between this transaction and another one.
+    technicalMeaning: Linkages container, repeatable.
+    whyUsed: >-
+      Linked transactions settle together. Adding or removing a link is a modification in
+      its own right.
+    businessQuestion: Do you want to link this transaction to another?
+    searchTerms: [Lnkgs, linkage, LINK, pool, 20C]
+    children:
+      - name: PrcgPos
+        displayName: Processing Position
+        presence: OPTIONAL
+        dataType: Code
+        codes: [AFTE, WITH, BEFO, INFO]
+        businessMeaning: Where this transaction sits relative to the linked one.
+        technicalMeaning: ProcessingPosition code from the configured subset.
+        whyUsed: States whether this settles before, with or after the linked transaction.
+        businessQuestion: Should this settle before, with or after the linked transaction?
+        examples:
+          - value: WITH
+            explanation: Settle together with the linked transaction.
+        searchTerms: [PrcgPos, AFTE, WITH, BEFO, linkage]
+
+      - name: Ref
+        displayName: Linked Transaction Reference
+        presence: MANDATORY
+        businessMeaning: The transaction being linked to.
+        technicalMeaning: References choice container.
+        whyUsed: Identifies the other side of the link.
+        businessQuestion: Which transaction are you linking to?
+        searchTerms: [Ref, linked reference, LINK]
+        children:
+          - name: AcctOwnrTxId
+            displayName: Linked Account Owner Transaction Identification
+            presence: MANDATORY
+            dataType: Max35Text
+            businessMeaning: The account owner's reference for the linked transaction.
+            technicalMeaning: Max35Text.
+            whyUsed: Identifies the linked transaction by the reference the owner knows.
+            businessQuestion: What is the reference of the linked transaction?
+            examples:
+              - value: TESTREF002
+                explanation: A synthetic reference for the linked transaction.
+            searchTerms: [AcctOwnrTxId, linked reference, LINK, 20C]
+
+  - name: AddtlInf
+    displayName: Additional Information
+    presence: OPTIONAL
+    businessMeaning: Free-text narrative explaining the modification.
+    technicalMeaning: Additional information container.
+    whyUsed: The reason is usually what the servicer's operator acts on.
+    businessQuestion: Why are you asking for the modification?
+    searchTerms: [AddtlInf, narrative, reason]
+    children:
+      - name: Rsn
+        displayName: Modification Reason
+        presence: OPTIONAL
+        dataType: Max350Text
+        businessMeaning: Why the condition should change.
+        technicalMeaning: Max350Text narrative.
+        whyUsed: Explains the request in plain words.
+        businessQuestion: What is the reason?
+        examples:
+          - value: RELEASE FOR SETTLEMENT - FUNDING CONFIRMED
+            explanation: A synthetic narrative reason.
+        searchTerms: [Rsn, reason, narrative]

@@ -495,3 +495,50 @@ class SampleMessage(ApiModel):
     field_count: int
     inputs: list[FieldInput] = Field(default_factory=list)
     elements: list[ElementInput] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------------------
+# Import
+# --------------------------------------------------------------------------------------
+
+
+class ImportRequest(ApiModel):
+    """Read an existing message back into canonical values.
+
+    Only the raw text is supplied: the message type is identified from the document itself,
+    because the namespace is the one part of an ISO 20022 document that is self-describing.
+    Trusting a caller-supplied type would let a mislabelled file be parsed against the wrong
+    specification.
+    """
+
+    xml: str = Field(min_length=1, max_length=1_000_000)
+    profile_id: str = "BASE_DEMO_V1"
+    scenario_id: str | None = Field(default=None, max_length=64)
+    output_modes: list[OutputMode] | None = None
+    #: Imports are a reading exercise by default; nothing is kept unless asked for.
+    persist: bool = False
+
+
+class ImportResult(ApiModel):
+    """What the document turned out to contain, and what it regenerates to.
+
+    ``elements`` is the canonical form — exactly the shape accepted by
+    ``POST /api/v1/messages/generate``, so the round trip is closed: edit the values, send
+    them back, and the same composer that produced the original produces the new one.
+    """
+
+    format: MessageFormat
+    message_type: str
+    version: str | None
+    namespace: str
+    profile_id: str
+    app_hdr_present: bool
+    element_count: int
+    elements: list[ElementInput] = Field(default_factory=list)
+    envelope: EnvelopeOverride | None = None
+    #: Anything the document contained that could not be imported. Never silently dropped.
+    import_issues: list[ValidationIssue] = Field(default_factory=list)
+    import_warnings: list[ValidationIssue] = Field(default_factory=list)
+    #: The regenerated message, produced by the ordinary generation path.
+    result: GenerateResult
+    disclaimer: str

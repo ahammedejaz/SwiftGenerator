@@ -165,12 +165,24 @@ def build_template(format_: MessageFormat, message_types: list[str] | None = Non
                 )
     _style_header(scenarios)
 
-    _write_reference_sheet(workbook, format_, targets)
+    # The Scenarios sheet stays a small, usable set of worked examples. The Reference
+    # sheet is the field dictionary a tester actually looks things up in, so it covers
+    # every configured message — otherwise a message is generatable but undiscoverable.
+    _write_reference_sheet(workbook, format_, message_types or _all_message_types(format_))
     _write_readme_sheet(workbook, format_)
 
     output = BytesIO()
     workbook.save(output)
     return output.getvalue()
+
+
+def _all_message_types(format_: MessageFormat) -> list[str]:
+    from app.specifications.registry import specification_registry
+    from app.studio.mx.registry import mx_registry
+
+    if format_ is MessageFormat.MX:
+        return [spec.message_type for spec in mx_registry.all_specs()]
+    return [spec.message_type for spec in specification_registry.list()]
 
 
 def _write_reference_sheet(

@@ -9,6 +9,8 @@ from zipfile import ZipFile
 import pytest
 
 from app.config import get_settings
+from app.specifications.registry import specification_registry
+from app.studio.mx.registry import mx_registry
 
 
 def sample_request(client, format_: str, message_type: str, variant: str = "TYPICAL") -> dict:  # type: ignore[no-untyped-def]
@@ -27,12 +29,19 @@ def sample_request(client, format_: str, message_type: str, variant: str = "TYPI
 
 
 def test_catalogue_lists_both_formats(client) -> None:  # type: ignore[no-untyped-def]
+    """Counts come from the registries, not from literals.
+
+    A hardcoded count turns "someone added a YAML file" into a test failure that says
+    nothing about whether the catalogue is correct. What matters is that the catalogue
+    advertises exactly what is configured.
+    """
     payload = client.get("/api/v1/catalogue").json()
 
     formats = {item["id"]: item for item in payload["formats"]}
     assert set(formats) == {"MT", "MX"}
-    assert formats["MT"]["messageCount"] == 16
-    assert formats["MX"]["messageCount"] == 3
+    assert formats["MT"]["messageCount"] == len(specification_registry.list())
+    assert formats["MX"]["messageCount"] == len(mx_registry.all_specs())
+    assert formats["MX"]["messageCount"] > 0
     assert payload["defaultProfileId"] == "BASE_DEMO_V1"
 
 

@@ -64,24 +64,26 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=[
-        "Content-Type",
-        "X-Request-ID",
-        "X-Demo-Reset-Key",
-        "X-API-Key",
-        settings.csrf_header_name,
-    ],
-)
+def _is_cors_preflight(request: Request) -> bool:
+    """A genuine browser preflight, which the client never chose to send.
+
+    Preflights carry no body and do no work beyond header negotiation, so counting them
+    against the request budget only punishes browser callers — a non-browser client never
+    sends one. Worse, a throttled preflight fails the *real* request that follows with a
+    CORS error, which is unexplainable from the browser's side.
+    """
+    return (
+        request.method == "OPTIONS"
+        and "origin" in request.headers
+        and "access-control-request-method" in request.headers
+    )
 
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):  # type: ignore[no-untyped-def]
     request.state.request_id = request.headers.get("X-Request-ID", str(uuid4()))
+    if _is_cors_preflight(request):
+        return await call_next(request)
     content_length = request.headers.get("content-length")
     if content_length:
         try:
@@ -134,6 +136,27 @@ async def request_context(request: Request, call_next):  # type: ignore[no-untyp
     if request.url.path.startswith("/api"):
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
+
+
+# Registered last, and therefore outermost: Starlette inserts each new middleware at the
+# front of the stack. CORS has to wrap `request_context` because that middleware
+# short-circuits — 400, 413, 429 — and a short-circuit response that skips CORS reaches the
+# browser with no Access-Control-Allow-Origin, so fetch() rejects with a bare network error.
+# A throttled tester was being told the backend was down. Order is the whole fix; keep this
+# call below every other middleware registration.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=[
+        "Content-Type",
+        "X-Request-ID",
+        "X-Demo-Reset-Key",
+        "X-API-Key",
+        settings.csrf_header_name,
+    ],
+)
 
 
 @app.exception_handler(DomainValidationError)

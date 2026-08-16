@@ -373,3 +373,132 @@ def test_profile_can_be_chosen_per_upload(client) -> None:  # type: ignore[no-un
     # The template references BASE_DEMO_V1 explicitly, so the query default does not win;
     # what matters is that the request is accepted and every scenario is reported.
     assert payload["totalScenarios"] == 3
+
+
+# -- every configured message, over the automation path ----------------------------------
+#
+# The Excel importer, the JSON API and the browser all call the same StudioService. These
+# tests are the proof for the Excel third of that claim, and they are derived from the
+# registries so a message added as YAML is covered without anyone editing this file.
+
+
+def _every_message(format_: MessageFormat) -> list[str]:
+    from app.specifications.registry import specification_registry
+    from app.studio.mx.registry import mx_registry
+
+    if format_ is MessageFormat.MX:
+        return [spec.message_type for spec in mx_registry.all_specs()]
+    return [spec.message_type for spec in specification_registry.list()]
+
+
+def _rows_for(format_: MessageFormat, message_type: str) -> list[list[object]]:
+    from app.studio.samples import available_variants, build_sample
+
+    variant = available_variants(format_, message_type)[0]
+    sample = build_sample(format_, message_type, variant)
+    scenario = f"TC-{message_type}"
+    if format_ is MessageFormat.MX:
+        return [
+            [scenario, message_type, "BASE_DEMO_V1", item.path, item.occurrence, item.value]
+            for item in sample.elements
+        ]
+    return [
+        [
+            scenario,
+            message_type,
+            "BASE_DEMO_V1",
+            item.sequence,
+            1,
+            item.tag,
+            item.qualifier,
+            item.option,
+            item.value,
+        ]
+        for item in sample.inputs
+    ]
+
+
+@pytest.mark.parametrize(
+    ("format_", "headers"),
+    [(MessageFormat.MT, MT_HEADERS), (MessageFormat.MX, MX_HEADERS)],
+)
+def test_every_configured_message_generates_from_a_workbook(  # type: ignore[no-untyped-def]
+    client, format_: MessageFormat, headers: list[str]
+) -> None:
+    message_types = _every_message(format_)
+    rows = [row for message_type in message_types for row in _rows_for(format_, message_type)]
+
+    response = upload(client, workbook_bytes(headers, rows), persist=False)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["totalScenarios"] == len(message_types)
+    failures = [item for item in body["results"] if not item["valid"]]
+    assert not failures, [
+        (item["scenarioId"], item["validation"]["errors"]) for item in failures
+    ]
+
+
+def test_an_excel_caller_receives_the_raw_message_not_just_a_verdict(client) -> None:  # type: ignore[no-untyped-def]
+    """An automation tester's whole reason for calling this is the message text itself."""
+    rows = _rows_for(MessageFormat.MT, "MT541")
+
+    body = upload(client, workbook_bytes(MT_HEADERS, rows), persist=False).json()
+    outputs = body["results"][0]["outputs"]
+
+    assert outputs["fin"].startswith("{1:F01")
+    assert ":16R:GENL" in outputs["block4"]
+    assert body["results"][0]["validation"]["layers"]
+    assert body["results"][0]["checksum"]
+
+
+def test_an_excel_mx_caller_receives_the_document_and_header(client) -> None:  # type: ignore[no-untyped-def]
+    rows = _rows_for(MessageFormat.MX, "sese.023")
+
+    body = upload(client, workbook_bytes(MX_HEADERS, rows), persist=False).json()
+    outputs = body["results"][0]["outputs"]
+
+    assert outputs["document"].startswith("<Document")
+    assert "urn:iso:std:iso:20022:tech:xsd:sese.023.001.11" in outputs["xml"]
+    assert "{1:" not in outputs["xml"]
+
+
+def test_excel_and_json_produce_the_same_message(client) -> None:  # type: ignore[no-untyped-def]
+    """The two entry points share one composer, so they cannot disagree. Prove it."""
+    from app.studio.models import SampleVariant
+    from app.studio.samples import build_sample
+
+    sample = build_sample(MessageFormat.MX, "sese.023", SampleVariant.TYPICAL)
+    rows = [
+        ["TC-sese.023", "sese.023", "BASE_DEMO_V1", item.path, item.occurrence, item.value]
+        for item in sample.elements
+    ]
+
+    from_excel = upload(client, workbook_bytes(MX_HEADERS, rows), persist=False).json()
+    from_json = client.post(
+        "/api/v1/messages/generate",
+        json={
+            "format": "MX",
+            "messageType": "sese.023",
+            "elements": [item.model_dump(by_alias=True) for item in sample.elements],
+            "persist": False,
+        },
+    ).json()
+
+    assert (
+        from_excel["results"][0]["outputs"]["document"] == from_json["outputs"]["document"]
+    )
+
+
+def test_the_reference_sheet_covers_every_configured_message() -> None:
+    """The Scenarios sheet is a handful of worked examples; the Reference sheet is the
+    dictionary. A message missing from it is generatable but undiscoverable, which is how a
+    new message quietly fails to reach automation testers."""
+    for format_ in (MessageFormat.MT, MessageFormat.MX):
+        workbook = load_workbook(BytesIO(build_template(format_)))
+        listed = {
+            str(row[0])
+            for row in workbook["Reference"].iter_rows(min_row=2, values_only=True)
+        }
+
+        assert set(_every_message(format_)) == listed

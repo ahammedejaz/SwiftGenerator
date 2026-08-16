@@ -47,6 +47,11 @@ const ENDPOINTS: Array<{ method: string; path: string; body: string }> = [
   },
   {
     method: "POST",
+    path: "/api/v1/messages/import",
+    body: "An existing ISO 20022 message in, its canonical element values out.",
+  },
+  {
+    method: "POST",
     path: "/api/v1/messages/generate-from-excel",
     body: "Multipart .xlsx upload; one message per ScenarioID.",
   },

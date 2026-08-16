@@ -5,6 +5,7 @@ import type {
   ExcelGenerateResponse,
   GenerateRequest,
   GenerateResult,
+  ImportResult,
   IntelligenceDetail,
   IntelligenceSearchResponse,
   MessageFormat,
@@ -43,6 +44,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   if (!response.ok) {
+    if (response.status === 429) {
+      // Distinct from NETWORK_UNAVAILABLE on purpose: being throttled and the backend
+      // being down look identical to fetch(), and telling a tester to restart a server
+      // that is running wastes their time.
+      const retry = Number(response.headers.get("Retry-After"));
+      throw new StudioError(
+        `Too many requests were sent to the studio API. Wait ${
+          Number.isFinite(retry) && retry > 0 ? `${retry} seconds` : "a minute"
+        } and try again.`,
+        429,
+        "RATE_LIMIT_EXCEEDED",
+      );
+    }
     let message = `The request failed with status ${response.status}.`;
     let code = "API_ERROR";
     try {
@@ -88,6 +102,13 @@ export const studioApi = {
     request<GenerateResult>("/api/v1/messages/generate", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+
+  /** Read an existing ISO 20022 message back into canonical values. */
+  importMessage: (xml: string, profileId?: string) =>
+    request<ImportResult>("/api/v1/messages/import", {
+      method: "POST",
+      body: JSON.stringify({ xml, ...(profileId ? { profileId } : {}) }),
     }),
 
   recent: (limit = 40, format?: MessageFormat) =>

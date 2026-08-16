@@ -390,3 +390,28 @@ export const ORIGIN_LABEL: Record<FieldOrigin, string> = {
   INTERFACE_GENERATED: "Your messaging interface adds this",
   NETWORK_GENERATED: "The network adds this",
 };
+
+export interface ImportRequest {
+  xml: string;
+  profileId?: string;
+  scenarioId?: string | null;
+  outputModes?: OutputMode[] | null;
+  persist?: boolean;
+}
+
+export interface ImportResult {
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  namespace: string;
+  profileId: string;
+  appHdrPresent: boolean;
+  elementCount: number;
+  elements: ElementInput[];
+  envelope: EnvelopeOverride | null;
+  /** Anything the document held that could not be imported. Never silently dropped. */
+  importIssues: ValidationIssue[];
+  importWarnings: ValidationIssue[];
+  result: GenerateResult;
+  disclaimer: string;
+}

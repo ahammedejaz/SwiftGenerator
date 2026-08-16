@@ -37,6 +37,20 @@ class MxRegistry:
     def all_specs(self) -> list[MxMessageSpec]:
         return [self._specs[key] for key in sorted(self._specs)]
 
+    def by_namespace(self, namespace: str) -> MxMessageSpec | None:
+        """Identify a message from its XML namespace.
+
+        The namespace is the only self-describing part of an ISO 20022 document, so this is
+        how an imported document is recognised — never by guessing from the root tag.
+        """
+        for spec in self._specs.values():
+            if spec.namespace == namespace:
+                return spec
+        return None
+
+    def namespaces(self) -> list[str]:
+        return sorted(spec.namespace for spec in self._specs.values())
+
     def get(self, message_type: str) -> MxMessageSpec:
         try:
             return self._specs[_key(message_type)]

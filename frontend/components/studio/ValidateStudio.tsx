@@ -3,8 +3,9 @@
 /**
  * Validate — check data without generating and keeping a message.
  *
- * Two ways in: paste JSON field data (what an automation tester already has), or check an
- * existing MT text block against the configured subset.
+ * Three ways in: paste JSON field data (what an automation tester already has), check an
+ * existing MT text block, or read back an existing ISO 20022 document. All three run the
+ * same layers as generation and keep nothing.
  */
 
 import { useEffect, useState } from "react";
@@ -28,7 +29,7 @@ import type {
   ValidationResult,
 } from "@/lib/studio-types";
 
-type Mode = "STRUCTURED" | "RAW";
+type Mode = "STRUCTURED" | "RAW" | "MX";
 
 const STARTER = `{
   "format": "MT",
@@ -44,6 +45,7 @@ export function ValidateStudio() {
   const [mode, setMode] = useState<Mode>("STRUCTURED");
   const [payload, setPayload] = useState(STARTER);
   const [raw, setRaw] = useState("");
+  const [xml, setXml] = useState("");
   const [profileId, setProfileId] = useState("BASE_DEMO_V1");
   const [catalogue, setCatalogue] = useState<StudioCatalogue | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,6 +97,25 @@ export function ValidateStudio() {
     }
   }
 
+  async function runMx() {
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    setRawResult(null);
+    try {
+      // The same endpoint the Create screen imports with. Validating and importing are the
+      // same read; only what the caller does with the result differs.
+      const imported = await studioApi.importMessage(xml, profileId);
+      setResult(imported.result);
+    } catch (caught) {
+      setError(
+        caught instanceof StudioError ? caught.message : "That document could not be read.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runRaw() {
     setBusy(true);
     setError(null);
@@ -132,6 +153,7 @@ export function ValidateStudio() {
           options={[
             { value: "STRUCTURED", label: "Field or element data" },
             { value: "RAW", label: "An existing MT message" },
+            { value: "MX", label: "An existing MX message" },
           ]}
         />
         {catalogue && (
@@ -147,7 +169,32 @@ export function ValidateStudio() {
         )}
       </div>
 
-      {mode === "STRUCTURED" ? (
+      {mode === "MX" ? (
+        <Panel
+          title="An existing MX message"
+          description="Paste an ISO 20022 document. It is read back into element values and checked against the configured subset, the client profile and the schema. Nothing is saved."
+          action={
+            <Button
+              variant="primary"
+              icon="check-shield"
+              loading={busy}
+              disabled={!xml.trim()}
+              onClick={() => void runMx()}
+            >
+              Validate
+            </Button>
+          }
+        >
+          <TextArea
+            value={xml}
+            onChange={(event) => setXml(event.target.value)}
+            rows={16}
+            spellCheck={false}
+            placeholder={'<Document xmlns="urn:iso:std:iso:20022:tech:xsd:sese.023.001.11">…'}
+            aria-label="Message to validate"
+          />
+        </Panel>
+      ) : mode === "STRUCTURED" ? (
         <Panel
           title="Field or element data"
           description="Paste the same body you would send to POST /api/v1/messages/generate. Nothing is saved."
