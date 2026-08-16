@@ -220,34 +220,33 @@ or logged into. The job verifies reproducible image construction only, and compl
 
 ## 10 · Actual GitHub Actions results
 
-**Authoritative run** (head of the branch, `72459a6`):
-<https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942423127> — **success, 5/5**
+**Authoritative run** — head of the branch, `e4a1159`:
+<https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31943239115> — **success, 5/5**
 
 | Job | Result |
 |---|---|
-| Required Checks | ✅ 1m 55s |
+| Required Checks | ✅ 1m 54s |
 | Clean Clone | ✅ 1m 59s |
-| Browser E2E | ✅ 5m 26s |
-| Docker | ✅ 1m 36s |
+| Browser E2E | ✅ 5m 22s |
+| Docker | ✅ 1m 38s |
 | Security Audit | ✅ 59s |
 
-**Previous green run** (`cb284e1`), kept for its per-job links:
-<https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130> — **success**
+### Every run, and what each one established
 
-| Job | Result | Link |
-|---|---|---|
-| Required Checks | ✅ 2m 2s | [job](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130/job/95152563387) |
-| Clean Clone | ✅ 1m 50s | [job](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130/job/95152563363) |
-| Browser E2E | ✅ 5m 3s | [job](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130/job/95152563362) |
-| Docker | ✅ 1m 33s | [job](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130/job/95152563358) |
-| Security Audit | ✅ 1m 11s | [job](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130/job/95152563443) |
+| Run | SHA | Event | Result | What it established |
+|---|---|---|---|---|
+| [31941598188](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31941598188) | `1e0ca84` | pull_request | 4/5 | CI **starts automatically** on a PR; found the MT530 heading defect; the failure artifact uploaded (2.29 MB) |
+| [31942022509](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942022509) | `b65e562` | pull_request | **cancelled** | Concurrency: superseded by a newer commit, exactly as specified |
+| [31942042130](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130) | `cb284e1` | pull_request | ✅ 5/5 | First all-green run |
+| [31942423127](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942423127) | `72459a6` | pull_request | ✅ 5/5 | |
+| [31942692669](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942692669) | `5250024` | pull_request | 4/5 | **Markdown-only commit failed** — proving a flake, not a regression. The downloaded artifact diagnosed the XSD race |
+| [31943239115](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31943239115) | `e4a1159` | pull_request | ✅ 5/5 | After the XSD lock |
+| [31943507697](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31943507697) | `e4a1159` | workflow_dispatch | ✅ 5/5 | Manual trigger works; flake confidence |
+| [31943515499](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31943515499) | `e4a1159` | workflow_dispatch | ✅ 5/5 | Third consecutive green on the same commit |
 
-**Earlier runs, kept because they are the evidence:**
-
-| Run | SHA | Result | Why it matters |
-|---|---|---|---|
-| [31941598188](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31941598188) | `1e0ca84` | 4/5 — Browser E2E failed | CI found a real timing-dependent test defect on its first run, and the failure artifact uploaded correctly |
-| [31942022509](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942022509) | `b65e562` | cancelled | Superseded by a newer commit — concurrency working as specified |
+The failing test ran at roughly **one failure in three runs** before the fix. Three
+consecutive green runs on the same commit afterwards is supporting evidence, not proof —
+stated as such in §12.
 
 CI **started automatically** on the pull request; no manual dispatch was needed.
 
@@ -260,6 +259,8 @@ CI **started automatically** on the pull request; no manual dispatch was needed.
 | `frontend/tests/e2e/settlement-processing.spec.ts` | The heading assertion CI exposed |
 | `frontend/tests/e2e/corporate-actions.spec.ts` | Same fragile pattern, pinned before it bites |
 | `backend/requirements.txt` | `lxml` 6.0.2 → 6.1.1 (PYSEC-2026-87) |
+| `backend/app/studio/mx/xsd.py` | Validation serialised on the shared cached schema |
+| `backend/tests/unit/test_xsd_concurrency.py` | **New.** Guards the validation invariant |
 | `Makefile` | `PYTHON ?= python3.13`, so the interpreter can be named differently without duplicating the recipe |
 | `AGENTS.md` | New §11 *Continuous integration*; gotcha 22 updated with the second occurrence |
 | `docs/testing.md` | Points at CI and at how to reproduce a job |
@@ -283,3 +284,7 @@ CI **started automatically** on the pull request; no manual dispatch was needed.
   stack serves traffic; that check is manual and recorded in
   [V0_1_0_RELEASE_READINESS_REPORT.md](V0_1_0_RELEASE_READINESS_REPORT.md) §5.
 - **No deployment, release automation or image publishing.** Deliberately out of scope.
+- **The XSD race fix is reasoned, not locally reproduced.** It does not manifest on macOS,
+  whose lxml wheel bundles a different libxml2. Three consecutive green CI runs on the same
+  commit is supporting evidence against a roughly one-in-three failure rate, not proof. If it
+  recurs, the next step is per-thread schema instances rather than a lock.
