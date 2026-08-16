@@ -37,7 +37,7 @@ change followed the same route: branch → PR → merge. No commit was pushed di
 | Tag | Commit | Status |
 |---|---|---|
 | `v0.1.0` | `5254d42` | Pushed. **Superseded** — the documented setup fails on a clean machine at this commit (§5) |
-| `v0.1.1` | see §4 | Pushed. **This is the stable baseline.** |
+| `v0.1.1` | `6849ce2` | Pushed. **This is the stable baseline.** |
 
 `v0.1.0` was tagged after post-merge `make check` and `make e2e` passed, which is the order
 the brief specifies — the clean-clone phase that exposed the defect runs afterwards. Rather
@@ -49,8 +49,15 @@ Both tags are annotated and state plainly that no SWIFT certification is claimed
 
 ## 4 · Final commit SHA
 
-See the summary at the end of this document — `main` and the `v0.1.1` tag point at the same
-commit.
+```
+6849ce2cff2f38cfcc0af304f0ee557dae73c8e1
+```
+
+`main`, `origin/main` and the `v0.1.1` tag all point at this commit. Two pull requests were
+merged to reach it (#2 and #3); nothing was pushed directly to `main`.
+
+This document cites that SHA, so the commit that fills it in necessarily lands *after* the
+tag. `6849ce2` is the baseline; this report describes it.
 
 ## 5 · Clean-clone verification
 
@@ -76,6 +83,8 @@ paths, with `tests/unit/test_setup_from_a_clean_clone.py` failing if `env.py` st
 it. Verified by removing `backend/data/` and re-running.
 
 ### After the fix
+
+Re-verified from a **second** fresh clone of `main` at `6849ce2`, after the fix:
 
 ```
 make install ... ✅
