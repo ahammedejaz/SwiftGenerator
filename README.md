@@ -159,6 +159,7 @@ will not make those up. If it cannot get one legitimately, it says why instead o
 
 | If you want to… | Read |
 |---|---|
+| Demo this to somebody in twenty minutes | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Make your first message | [docs/for-manual-testers.md](docs/for-manual-testers.md) |
 | Call it from a test suite | [docs/for-automation-testers.md](docs/for-automation-testers.md) |
 | Understand how the code fits together | [ARCHITECTURE.md](ARCHITECTURE.md) |

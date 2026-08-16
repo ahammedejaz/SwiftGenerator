@@ -1,0 +1,78 @@
+{
+  "format": "MX",
+  "messageType": "sese.025",
+  "profileId": "BASE_DEMO_V1",
+  "scenarioId": "DEMO-SESE025",
+  "elements": [
+    {
+      "path": "/Document/SctiesSttlmTxConf/TxIdDtls/SctiesMvmntTp",
+      "occurrence": 1,
+      "value": "RECE"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/TxIdDtls/Pmt",
+      "occurrence": 1,
+      "value": "APMT"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/TxIdDtls/AcctOwnrTxId",
+      "occurrence": 1,
+      "value": "TEST001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/TradDtls/TradDt/Dt/Dt",
+      "occurrence": 1,
+      "value": "2026-08-14"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/TradDtls/FctvSttlmDt/Dt/Dt",
+      "occurrence": 1,
+      "value": "2026-08-18"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/FinInstrmId/ISIN",
+      "occurrence": 1,
+      "value": "XS0000000001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/QtyAndAcctDtls/SttlmQty/Qty/Unit",
+      "occurrence": 1,
+      "value": "1000"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/QtyAndAcctDtls/SfkpgAcct/Id",
+      "occurrence": 1,
+      "value": "SAFE0000001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/SttlmParams/SctiesTxTp/Cd",
+      "occurrence": 1,
+      "value": "TRAD"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/DlvrgSttlmPties/Dpstry/Id/AnyBIC",
+      "occurrence": 1,
+      "value": "DEMOGB2LXXX"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/DlvrgSttlmPties/Pty1/Id/AnyBIC",
+      "occurrence": 1,
+      "value": "DEMODEAGXXX"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/SttlmAmt/Amt",
+      "occurrence": 1,
+      "value": "USD 25000.00"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxConf/SttlmAmt/CdtDbtInd",
+      "occurrence": 1,
+      "value": "DBIT"
+    }
+  ],
+  "envelope": {
+    "businessMessageIdentifier": "SESE025DEMO0000001",
+    "creationDate": "2026-08-16T09:00:00Z"
+  },
+  "persist": false
+}

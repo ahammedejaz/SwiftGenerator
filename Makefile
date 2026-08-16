@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
 
 install:
 	python3.13 -m venv backend/.venv
@@ -39,7 +39,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage
+check: lint typecheck test coverage demo-pack-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -55,6 +55,12 @@ coverage:
 
 coverage-write:
 	cd backend && .venv/bin/python -m app.studio.coverage --write
+
+demo-pack:
+	cd backend && .venv/bin/python -m app.studio.demo_pack --write
+
+demo-pack-check:
+	cd backend && .venv/bin/python -m app.studio.demo_pack --check
 
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark

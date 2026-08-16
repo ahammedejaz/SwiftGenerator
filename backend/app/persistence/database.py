@@ -1,11 +1,9 @@
-from pathlib import Path
-
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 
-from app.config import get_settings
+from app.config import ensure_database_directory, get_settings
 
 
 def _build_engine() -> Engine:
@@ -30,10 +28,7 @@ def _build_engine() -> Engine:
         kwargs["poolclass"] = QueuePool
         kwargs["pool_size"] = 1
         kwargs["max_overflow"] = 0
-    elif database_url.startswith("sqlite:///"):
-        database_path = database_url.removeprefix("sqlite:///")
-        if database_path != ":memory:":
-            Path(database_path).parent.mkdir(parents=True, exist_ok=True)
+    ensure_database_directory(database_url)
     return create_engine(database_url, **kwargs)
 
 

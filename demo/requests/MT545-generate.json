@@ -1,0 +1,124 @@
+{
+  "format": "MT",
+  "messageType": "MT545",
+  "profileId": "BASE_DEMO_V1",
+  "scenarioId": "DEMO-MT545",
+  "fields": [
+    {
+      "id": "MT545-A-20C-SEME",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "SEME",
+      "option": "C",
+      "value": "TESTREF001"
+    },
+    {
+      "id": "MT545-A-20C-RELA",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "RELA",
+      "option": "C",
+      "value": "TESTREF001"
+    },
+    {
+      "id": "MT545-A-20C-COMM",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "COMM",
+      "option": "C",
+      "value": "COMMONREF001"
+    },
+    {
+      "id": "MT545-A-23G-NONE",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "23G",
+      "option": "G",
+      "value": "NEWM"
+    },
+    {
+      "id": "MT545-B-98A-ESET",
+      "sequence": "CONFDET",
+      "occurrence": 1,
+      "tag": "98A",
+      "qualifier": "ESET",
+      "option": "A",
+      "value": "20260818"
+    },
+    {
+      "id": "MT545-B-35B-NONE",
+      "sequence": "CONFDET",
+      "occurrence": 1,
+      "tag": "35B",
+      "option": "B",
+      "value": "ISIN XS0000000001"
+    },
+    {
+      "id": "MT545-B-36B-ESTT",
+      "sequence": "CONFDET",
+      "occurrence": 1,
+      "tag": "36B",
+      "qualifier": "ESTT",
+      "option": "B",
+      "value": "UNIT/1000"
+    },
+    {
+      "id": "MT545-B-19A-ESTT",
+      "sequence": "CONFDET",
+      "occurrence": 1,
+      "tag": "19A",
+      "qualifier": "ESTT",
+      "option": "A",
+      "value": "USD25000,00"
+    },
+    {
+      "id": "MT545-B-22F-STCO",
+      "sequence": "CONFDET",
+      "occurrence": 1,
+      "tag": "22F",
+      "qualifier": "STCO",
+      "option": "F",
+      "value": "FULL"
+    },
+    {
+      "id": "MT545-C-97A-SAFE",
+      "sequence": "FIAC",
+      "occurrence": 1,
+      "tag": "97A",
+      "qualifier": "SAFE",
+      "option": "A",
+      "value": "SAFE0000001"
+    },
+    {
+      "id": "MT545-E-95R-PSET",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "95R",
+      "qualifier": "PSET",
+      "option": "R",
+      "value": "CSD/DEMOPSET01"
+    },
+    {
+      "id": "MT545-E-95R-DEAG",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "95R",
+      "qualifier": "DEAG",
+      "option": "R",
+      "value": "AGT/DEMODEAG01"
+    },
+    {
+      "id": "MT545-E-95R-REAG",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "95R",
+      "qualifier": "REAG",
+      "option": "R",
+      "value": "AGT/DEMOREAG01"
+    }
+  ],
+  "persist": false
+}

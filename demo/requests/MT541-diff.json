@@ -1,0 +1,131 @@
+{
+  "format": "MT",
+  "messageType": "MT541",
+  "original": "{1:F01DEMOGB2LAXXX0001000001}\n{2:I541DEMOUS33XXXXN}\n{4:\n:16R:GENL\n:20C::SEME//TESTREF001\n:20C::COMM//COMMONREF001\n:23G:NEWM\n:16S:GENL\n:16R:TRADDET\n:98A::TRAD//20260814\n:98A::SETT//20260818\n:35B:ISIN XS0000000001\n:36B::SETT//UNIT/1000\n:22F::SETR//BUY\n:16S:TRADDET\n:16R:FIAC\n:97A::SAFE//SAFE0000001\n:16S:FIAC\n:16R:SETDET\n:22F::SETR//RECE\n:95R::PSET//CSD/DEMOPSET01\n:95R::DEAG//AGT/DEMODEAG01\n:95R::REAG//AGT/DEMOREAG01\n:19A::SETT//USD25000,00\n:16S:SETDET\n-}",
+  "fields": [
+    {
+      "id": "MT541-A-20C-SEME",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "SEME",
+      "option": "C",
+      "value": "DEMOEDIT0001"
+    },
+    {
+      "id": "MT541-A-20C-COMM",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "20C",
+      "qualifier": "COMM",
+      "option": "C",
+      "value": "COMMONREF001"
+    },
+    {
+      "id": "MT541-A-23G-NONE",
+      "sequence": "GENL",
+      "occurrence": 1,
+      "tag": "23G",
+      "option": "G",
+      "value": "NEWM"
+    },
+    {
+      "id": "MT541-B-98A-TRAD",
+      "sequence": "TRADDET",
+      "occurrence": 1,
+      "tag": "98A",
+      "qualifier": "TRAD",
+      "option": "A",
+      "value": "20260814"
+    },
+    {
+      "id": "MT541-B-98A-SETT",
+      "sequence": "TRADDET",
+      "occurrence": 1,
+      "tag": "98A",
+      "qualifier": "SETT",
+      "option": "A",
+      "value": "20260818"
+    },
+    {
+      "id": "MT541-B-35B-NONE",
+      "sequence": "TRADDET",
+      "occurrence": 1,
+      "tag": "35B",
+      "option": "B",
+      "value": "ISIN XS0000000001"
+    },
+    {
+      "id": "MT541-B-36B-SETT",
+      "sequence": "TRADDET",
+      "occurrence": 1,
+      "tag": "36B",
+      "qualifier": "SETT",
+      "option": "B",
+      "value": "UNIT/1000"
+    },
+    {
+      "id": "MT541-B-22F-SETR",
+      "sequence": "TRADDET",
+      "occurrence": 1,
+      "tag": "22F",
+      "qualifier": "SETR",
+      "option": "F",
+      "value": "BUY"
+    },
+    {
+      "id": "MT541-C-97A-SAFE",
+      "sequence": "FIAC",
+      "occurrence": 1,
+      "tag": "97A",
+      "qualifier": "SAFE",
+      "option": "A",
+      "value": "SAFE0000001"
+    },
+    {
+      "id": "MT541-E-22F-SETR",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "22F",
+      "qualifier": "SETR",
+      "option": "F",
+      "value": "RECE"
+    },
+    {
+      "id": "MT541-E-95R-PSET",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "95R",
+      "qualifier": "PSET",
+      "option": "R",
+      "value": "CSD/DEMOPSET01"
+    },
+    {
+      "id": "MT541-E-95R-DEAG",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "95R",
+      "qualifier": "DEAG",
+      "option": "R",
+      "value": "AGT/DEMODEAG01"
+    },
+    {
+      "id": "MT541-E-95R-REAG",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "95R",
+      "qualifier": "REAG",
+      "option": "R",
+      "value": "AGT/DEMOREAG01"
+    },
+    {
+      "id": "MT541-E-19A-SETT",
+      "sequence": "SETDET",
+      "occurrence": 1,
+      "tag": "19A",
+      "qualifier": "SETT",
+      "option": "A",
+      "value": "USD25000,00"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "format": "MX",
+  "messageType": "sese.024",
+  "profileId": "BASE_DEMO_V1",
+  "scenarioId": "DEMO-SESE024",
+  "elements": [
+    {
+      "path": "/Document/SctiesSttlmTxStsAdvc/TxIdDtls/SctiesMvmntTp",
+      "occurrence": 1,
+      "value": "RECE"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxStsAdvc/TxIdDtls/Pmt",
+      "occurrence": 1,
+      "value": "APMT"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxStsAdvc/TxIdDtls/AcctOwnrTxId",
+      "occurrence": 1,
+      "value": "TEST001"
+    },
+    {
+      "path": "/Document/SctiesSttlmTxStsAdvc/PrcgSts/AckdAccptd/NoSpcfdRsn",
+      "occurrence": 1,
+      "value": "NORE"
+    }
+  ],
+  "envelope": {
+    "businessMessageIdentifier": "SESE024DEMO0000001",
+    "creationDate": "2026-08-16T09:00:00Z"
+  },
+  "persist": false
+}
