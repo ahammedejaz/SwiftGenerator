@@ -53,6 +53,7 @@ work today.
 | [../MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md](../MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md) | MT import, unified coverage, authoritative-source drop points |
 | [../MESSAGE_DIFF_IMPLEMENTATION_REPORT.md](../MESSAGE_DIFF_IMPLEMENTATION_REPORT.md) | Original versus regenerated, and the clean-machine verification |
 | [../V0_1_0_RELEASE_READINESS_REPORT.md](../V0_1_0_RELEASE_READINESS_REPORT.md) | What was verified for the v0.1.0 baseline |
+| [../CI_IMPLEMENTATION_REPORT.md](../CI_IMPLEMENTATION_REPORT.md) | The GitHub Actions pipeline, and the two defects it found |
 
 Earlier plan and report pairs were removed to keep the repository readable. They remain in
 git history at the first commit.

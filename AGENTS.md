@@ -345,6 +345,10 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 | **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
 | **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
 
+Branch protection is **not** configured yet; mark `CI / Required Checks` as required for
+`main` to turn CI from reporting into blocking. Detail and rationale:
+[CI_IMPLEMENTATION_REPORT.md](CI_IMPLEMENTATION_REPORT.md).
+
 **Reproduce any job locally by running the same make target.** The workflow adds only what a
 runner needs that a laptop does not: the browser's OS libraries (`--with-deps`, which needs
 sudo and would be wrong on a developer machine), and a base ref so `git diff --check` has a
