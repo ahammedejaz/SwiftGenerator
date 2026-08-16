@@ -189,7 +189,18 @@ or logged into. The job verifies reproducible image construction only, and compl
 
 ## 10 · Actual GitHub Actions results
 
-**Authoritative run:**
+**Authoritative run** (head of the branch, `72459a6`):
+<https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942423127> — **success, 5/5**
+
+| Job | Result |
+|---|---|
+| Required Checks | ✅ 1m 55s |
+| Clean Clone | ✅ 1m 59s |
+| Browser E2E | ✅ 5m 26s |
+| Docker | ✅ 1m 36s |
+| Security Audit | ✅ 59s |
+
+**Previous green run** (`cb284e1`), kept for its per-job links:
 <https://github.com/ahammedejaz/SwiftGenerator/actions/runs/31942042130> — **success**
 
 | Job | Result | Link |
