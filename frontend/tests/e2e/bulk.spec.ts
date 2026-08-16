@@ -4,7 +4,7 @@ test("uploads the Excel template, reports invalid rows, and downloads the ZIP", 
   page,
   request,
 }) => {
-  const template = await request.get("http://localhost:8000/api/bulk/template");
+  const template = await request.get("http://127.0.0.1:8000/api/bulk/template");
   expect(template.ok()).toBeTruthy();
   await page.goto("/bulk");
   await page.getByLabel("Select Excel workbook").setInputFiles({

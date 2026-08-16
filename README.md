@@ -45,7 +45,7 @@ You need **Python 3.13**, **Node 22** and about two minutes.
 git clone <this-repo>
 cd SwiftGenerator
 
-make install     # creates the Python virtualenv and installs npm packages
+make install     # Python virtualenv, npm packages, and the browser the tests drive
 make migrate     # creates the database
 ```
 
@@ -58,8 +58,10 @@ make frontend    # terminal 2 → http://localhost:3000
 
 Open <http://localhost:3000> and you are looking at Create Message.
 
-**No API keys are needed.** The AI features are optional and off by default; everything
-that makes a message is plain deterministic code.
+**No API keys are needed, and there is no `.env` to write.** The AI features are optional
+and off by default; everything that makes a message is plain deterministic code. A clean
+clone runs `make install`, `make check` and `make e2e` with nothing else configured — and
+that is verified, not assumed.
 
 ### Or use Docker
 
@@ -107,7 +109,7 @@ business language, and there is an **ℹ** button next to each one that explains
 | **Create Message** | Make one message by hand. Six steps, one decision at a time. |
 | **Bulk / Excel** | Keep many test scenarios in a spreadsheet, turn them all into messages at once. |
 | **Message Intelligence** | Look anything up. Type `PSET` or `SttlmDt` and find out what it means. |
-| **Validate** | Check data, or an existing message, without generating anything. |
+| **Validate** | Check data, or paste an existing MT or MX message, without generating anything. |
 | **API & Automation** | Copy-paste-ready examples in curl, Java, Python and JavaScript. |
 | **Recent Messages** | Everything you generated lately, ready to download again. |
 
@@ -119,14 +121,23 @@ message.
 
 ## What it supports today
 
-**19 message types, all generatable end to end.**
+**23 message types, all generatable end to end.**
 
 - **16 MT types** — MT530, MT537, MT540–MT548, MT564–MT568
-- **3 MX types** — sese.023 (instruction), sese.024 (status), sese.025 (confirmation)
+- **3 MX settlement types** — sese.023 (instruction), sese.024 (status),
+  sese.025 (confirmation)
+- **4 MX cancellation and modification types** — sese.020, sese.027, sese.030, sese.031
 
-Every one of them has a working sample in three depths (minimal, typical, full), and every
-sample is produced by the same code that produces your message — so a sample can never
+Every one of them has a working sample in up to three depths (minimal, typical, full), and
+every sample is produced by the same code that produces your message — so a sample can never
 show you something the tool would not actually generate.
+
+**Every one of them also imports.** Paste a message you already have — a FIN message, an MT
+text block, or an ISO 20022 document — and the tool reads it back into the form, so you can
+change one value and generate it again. It then shows you exactly what differs between the
+message you pasted and the one it built, and *why*: a value you changed, a field written in
+specification order, or something a messaging interface supplies that the tool refuses to
+invent.
 
 ### An honest note about coverage
 
@@ -170,8 +181,10 @@ make e2e         # browser tests
 make lint        # ruff + eslint
 make typecheck   # mypy + tsc
 make build       # production frontend build
-make coverage    # regenerate the message-coverage report
+make coverage       # fail if the message-coverage report is out of date
+make coverage-write # regenerate it
+make secret-scan    # no secret-shaped strings in tracked files
 ```
 
-`make check` runs lint, typecheck and the full test suite together — run it before you
-push.
+`make check` runs lint, typecheck, the full test suite and the coverage gate together — run
+it before you push.

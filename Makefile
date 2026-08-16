@@ -1,9 +1,13 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
 
 install:
 	python3.13 -m venv backend/.venv
 	backend/.venv/bin/pip install -r backend/requirements-dev.txt
 	cd frontend && npm ci
+	# The browser Playwright drives is a separate download from the npm package, so a
+	# machine that has never run Playwright cannot `make e2e` without this. Only chromium:
+	# that is the one project the config declares.
+	cd frontend && npx playwright install chromium
 
 migrate:
 	cd backend && .venv/bin/alembic upgrade head
@@ -47,7 +51,10 @@ audit:
 	cd frontend && npm audit --omit=dev
 
 coverage:
-	cd backend && .venv/bin/python -m app.specifications.report --check
+	cd backend && .venv/bin/python -m app.studio.coverage --check
+
+coverage-write:
+	cd backend && .venv/bin/python -m app.studio.coverage --write
 
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark

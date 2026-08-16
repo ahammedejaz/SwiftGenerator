@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -429,3 +430,39 @@ def test_openapi_documents_the_automation_api(client) -> None:  # type: ignore[n
     assert "/api/v1/messages/generate-from-excel" in schema["paths"]
     assert "/api/v1/catalogue" in schema["paths"]
     assert "/api/v1/intelligence/search" in schema["paths"]
+
+
+def test_the_automation_page_lists_every_endpoint(client) -> None:  # type: ignore[no-untyped-def]
+    """The API & Automation screen's panel is titled "Every endpoint", so it has to be.
+
+    It drifted to 14 of 18 once. A list that claims completeness and quietly is not is worse
+    than one that admits it is a selection, because nobody re-checks the first kind.
+
+    The routes come from the OpenAPI schema rather than `app.routes`, which is empty here:
+    the studio router is mounted through a sub-application, so walking `routes` finds
+    nothing and the assertion would pass while testing nothing at all.
+    """
+    from pathlib import Path
+
+    page = (
+        Path(__file__).resolve().parents[3]
+        / "frontend"
+        / "components"
+        / "studio"
+        / "Automation.tsx"
+    ).read_text(encoding="utf-8")
+
+    listed = set(re.findall(r'path: "(/api/v1[^"]*)"', page))
+    served = {
+        path
+        for path in client.get("/openapi.json").json()["paths"]
+        if path.startswith("/api/v1")
+    }
+    assert len(served) > 10, "the schema should list the whole studio API"
+
+    def shape(path: str) -> str:
+        """Compare structure, not the placeholder spelling a human chose."""
+        return re.sub(r"\{[^}]*\}", "{}", path.split("?")[0]).rstrip("/")
+
+    missing = {shape(item) for item in served} - {shape(item) for item in listed}
+    assert not missing, f"not listed on the Automation page: {sorted(missing)}"

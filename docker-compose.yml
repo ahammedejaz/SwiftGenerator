@@ -6,7 +6,7 @@ services:
       APP_ENV: development
       DATABASE_URL: sqlite:////app/data/securities_studio.db
       REPORT_DIRECTORY: /app/data/reports
-      FRONTEND_ORIGIN: http://localhost:3000
+      FRONTEND_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
       AI_PROVIDER: ${AI_PROVIDER:-openrouter}
       AI_MODE: ${AI_MODE:-required}
       AI_RATE_LIMIT_REQUESTS_PER_MINUTE: ${AI_RATE_LIMIT_REQUESTS_PER_MINUTE:-30}
@@ -80,7 +80,10 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+        # 127.0.0.1, not localhost: the browser resolves localhost to ::1 first on a
+        # dual-stack machine, and an occasional request then dies with ECONNREFUSED, which
+        # reaches fetch() as a bare network error. An address needs no resolving.
+        NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
     depends_on:
       backend:
         condition: service_healthy

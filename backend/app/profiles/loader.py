@@ -5,6 +5,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.config import get_settings, source_path
 from app.domain.enums import MessageType, NegativeMutation
 from app.domain.models import ProfileDetail, ProfileSummary, SettlementScenario
 
@@ -143,7 +144,9 @@ def _set_path(payload: dict[str, Any], path: str, value: Any) -> None:
 
 class ProfileRepository:
     def __init__(self, config_dir: Path | None = None) -> None:
-        self._config_dir = config_dir or Path(__file__).resolve().parents[2] / "config" / "profiles"
+        self._config_dir = config_dir or source_path(
+            get_settings().client_profile_directory, "profiles"
+        )
         self._profiles = self._load()
 
     def _load(self) -> dict[str, ClientProfile]:

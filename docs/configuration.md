@@ -17,8 +17,8 @@ Nothing below is required to run the tool locally. The defaults work.
 |---|---|---|
 | `APP_ENV` | `development` | `development`, `test` or `production`. Production enforces PostgreSQL, real authentication and secure cookies. |
 | `DATABASE_URL` | `sqlite:///./data/securities_studio.db` | Where data lives. Production must be PostgreSQL. |
-| `FRONTEND_ORIGIN` | `http://localhost:3000` | Allowed CORS origin. |
-| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Where the browser looks for the API. |
+| `FRONTEND_ORIGIN` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed CORS origins, comma-separated. Both spellings of the same machine, so a tester who opens one is not refused for not choosing the other. |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://127.0.0.1:8000` | Where the browser looks for the API. An address, not `localhost`: a browser resolves `localhost` to `::1` first on a dual-stack machine, and the backend binds `127.0.0.1`. |
 | `AUTOMATION_API_KEYS` | *(empty)* | Comma-separated service keys for `/api/v1`. Empty leaves the API open in development and closed elsewhere. Minimum 24 characters each. |
 | `AI_PROVIDER` | `openrouter` | Set to `disabled` to switch the model off entirely. Nothing that makes a message depends on it. |
 | `OPENROUTER_API_KEY` | *(empty)* | Only needed for the natural-language interpretation feature. |

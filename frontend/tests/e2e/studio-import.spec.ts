@@ -31,6 +31,23 @@ async function generateSese023(
   return xml;
 }
 
+/** The MT equivalent: a complete FIN message, headers and all. */
+async function generateMt541(
+  request: import("@playwright/test").APIRequestContext,
+): Promise<string> {
+  const samples = await request.get(`${API}/api/v1/messages/MT541/samples?format=MT`);
+  expect(samples.ok()).toBeTruthy();
+  const fields = (await samples.json()).at(-1).inputs;
+
+  const generated = await request.post(`${API}/api/v1/messages/generate`, {
+    data: { format: "MT", messageType: "MT541", fields, persist: false },
+  });
+  expect(generated.ok()).toBeTruthy();
+  const fin = (await generated.json()).outputs.fin as string;
+  expect(fin).toContain("{1:F01");
+  return fin;
+}
+
 test.describe("Import an existing message", () => {
   test("is offered on the first step, before a message is chosen", async ({ page }) => {
     await page.goto("/");
@@ -109,7 +126,7 @@ test.describe("Import an existing message", () => {
     const xml = await generateSese023(request);
 
     await page.goto("/validate");
-    await page.getByRole("radio", { name: "An existing MX message" }).click();
+    await page.getByRole("radio", { name: "An existing message" }).click();
     await page.getByLabel("Message to validate").fill(xml);
     await page.getByRole("button", { name: "Validate" }).click();
 
@@ -117,6 +134,91 @@ test.describe("Import an existing message", () => {
     await expect(page.getByText("Schema validation")).toBeHidden();
     await page.getByRole("button", { name: /What was checked/ }).click();
     await expect(page.getByText("Schema validation")).toBeVisible();
+  });
+  test("reads a generated MT message back into the builder and regenerates it", async ({
+    page,
+    request,
+  }) => {
+    const fin = await generateMt541(request);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Import a message" }).click();
+    await page.getByLabel("Message to import").fill(fin);
+    await page.getByRole("button", { name: "Read this message" }).click();
+
+    // The message named itself in its application header; nothing was chosen by hand.
+    await expect(page.getByText(/Loaded from the message you imported/)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText("MT541").first()).toBeVisible();
+
+    const reference = page.getByLabel("Sender's Message Reference").first();
+    await expect(reference).toHaveValue(/TESTREF001/);
+    await reference.fill("MTIMPORT0001");
+
+    await page.getByRole("button", { name: "Generate message" }).click();
+    await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".proof").first()).toContainText(
+      ":20C::SEME//MTIMPORT0001",
+    );
+  });
+
+  test("asks which message a bare text block is, only once it cannot tell", async ({
+    page,
+    request,
+  }) => {
+    const fin = await generateMt541(request);
+    // The text block on its own fits MT540 through MT543 equally well.
+    const block4 = fin.slice(fin.indexOf("{4:"));
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Import a message" }).click();
+    // The question is not asked up front.
+    await expect(
+      page.getByLabel("Message type of the pasted text block"),
+    ).toBeHidden();
+
+    await page.getByLabel("Message to import").fill(block4);
+    await page.getByRole("button", { name: "Read this message" }).click();
+
+    await expect(page.getByText(/fits more than one message/)).toBeVisible({
+      timeout: 20_000,
+    });
+    const picker = page.getByLabel("Message type of the pasted text block");
+    await expect(picker).toBeVisible();
+    await picker.selectOption("MT541");
+    await page.getByRole("button", { name: "Read this message" }).click();
+
+    await expect(page.getByText(/Loaded from the message you imported/)).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
+  test("names the field it could not import from an MT message", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Import a message" }).click();
+    await page
+      .getByLabel("Message to import")
+      .fill("{2:MT541}\n{4:\n:16R:GENL\n:99Z::ZZZZ//X\n:16S:GENL\n-}");
+    await page.getByRole("button", { name: "Read this message" }).click();
+
+    await expect(page.getByText(/99Z\/ZZZZ is not part of the configured/)).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
+  test("checks an existing MT message from the Validate screen", async ({
+    page,
+    request,
+  }) => {
+    const fin = await generateMt541(request);
+
+    await page.goto("/validate");
+    await page.getByRole("radio", { name: "An existing message" }).click();
+    await page.getByLabel("Message to validate").fill(fin);
+    await page.getByRole("button", { name: "Validate" }).click();
+
+    await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });
   });
 });
 

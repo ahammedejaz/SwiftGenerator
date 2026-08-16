@@ -94,12 +94,30 @@ The extension point for all of these is a YAML file. See
 
 ## Round trips and imports
 
-- Raw MT import and validation exist through the API, but the secure builder has no visual
-  original-versus-recomposed diff.
-- Unknown fields in an imported message are preserved as unsupported findings, not
-  validated.
-- **MX has no import path.** You can generate XML; you cannot yet parse someone else's back
-  into fields.
+Both formats import. `POST /api/v1/messages/import` reads an MT FIN message, an MT text
+block or an ISO 20022 document back into canonical values and regenerates it through the
+ordinary generation path, and `Compose(Parse(Compose(v))) == Compose(v)` is asserted for
+every sample of every configured message. What it still cannot do:
+
+- **A repeated block nested inside another repeated block cannot be addressed.** The
+  occurrence address carries one index, so a structure that would come back somewhere else
+  is refused — `MT_IMPORT_NESTED_REPEAT_UNSUPPORTED` and
+  `MX_IMPORT_NESTED_REPEAT_UNSUPPORTED` — rather than silently reshaped. No configured
+  message currently has such a structure in its samples.
+- **An MT text block does not say what message it is.** Where the sequence skeleton fits
+  more than one configured message — MT540 through MT543 share `GENL/TRADDET/FIAC/SETDET` —
+  the import refuses and asks, instead of picking. A complete FIN message names itself in
+  Block 2 and needs no help.
+- **Anything outside the configured subset is reported, not imported.** An unknown tag or
+  element is named in the response; it is never silently dropped, and it is never
+  re-emitted either.
+- **Block 5 trailers and the MX `Sgntr` element are read and deliberately not reproduced.**
+  They are interface- and network-generated. The comparison labels them *never generated*
+  and never counts them as a fault.
+- **A message over 3,000 lines, or with more than 200 import problems, is not compared line
+  by line.** You are still told whether the two messages are the same, and why the
+  differences were not listed. Both limits sit far above anything the tool itself generates
+  — a field occurrence caps at 100.
 
 ## Output
 
@@ -135,12 +153,14 @@ scenarios.
 
 To be equally honest in the other direction:
 
-- **19 message types generate end to end**, from the browser, from JSON and from Excel.
+- **23 message types generate end to end**, from the browser, from JSON and from Excel.
 - **The FIN envelope is real.** Block 1 is a correctly structured basic header; Block 2 is a
   correctly structured application header. No `{1:DEMONSTRATION}` placeholder anywhere.
 - **MX XML is namespace-correct, order-correct, and schema-validated** by libxml2.
 - **Every value carries an origin**, so you can always tell what the tool produced and what
   it refused to.
-- **All 38 samples across all 19 message types validate**, and a test asserts it — so a
+- **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **453 automated tests** cover it: 417 backend, 36 browser.
+- **813 automated tests** cover it: 752 backend, 61 in a real browser.
+- **A clean clone works with nothing configured** — `make install`, `make check` and
+  `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

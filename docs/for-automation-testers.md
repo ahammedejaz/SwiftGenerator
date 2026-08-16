@@ -173,6 +173,85 @@ act on without opening the tool.
 
 ---
 
+## Reading an existing message back
+
+`POST /api/v1/messages/import` takes a message you already have — an MT FIN message, an MT
+text block, or an ISO 20022 `Document` with or without its `AppHdr` — and gives back the
+canonical values, the envelope it arrived with, and the regenerated message.
+
+```bash
+curl -s http://localhost:8000/api/v1/messages/import \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "{1:F01DEMOGB2LAXXX0001000001}\n{2:I541DEMOUS33XXXXN}\n{4:\n:16R:GENL\n…\n-}"}'
+```
+
+Three things are worth knowing:
+
+- **You do not say what it is.** The format and the message type come from the message —
+  the ISO 20022 namespace, or FIN Block 2. A caller-supplied label would let a mislabelled
+  file be parsed against the wrong specification. The one exception is an MT text block
+  pasted on its own, which genuinely cannot name itself: send `messageType` for that, and
+  only then. A header that disagrees with it is refused, not reconciled.
+- **`fields` (MT) and `elements` (MX) are exactly what `generate` accepts.** Change a value
+  and POST them straight back; the same composer produces the new message. That is the
+  whole round trip, and it is asserted byte-for-byte in the test suite for every sample of
+  every configured message.
+- **Nothing is dropped in silence.** Anything the message held that could not be imported
+  comes back in `importIssues`, and is folded into `result.validation` as well, so a partial
+  import cannot be mistaken for a faithful one.
+
+### Comparing what you got with what you had
+
+`POST /api/v1/messages/diff` takes the original message *and* the values to regenerate from,
+and returns the new message plus a line-by-line comparison in which **every difference
+carries a reason**:
+
+```json
+{
+  "diff": {
+    "basis": "FIN_LINES",
+    "compared": "the complete FIN message",
+    "summary": { "identical": false, "changed": 1, "expected": 1, "dropped": 0, "unexplained": 0 },
+    "lines": [
+      {
+        "kind": "CHANGED",
+        "reason": "USER_EDIT",
+        "field": "Sender's Message Reference",
+        "originalText": ":20C::SEME//TESTREF001",
+        "regeneratedText": ":20C::SEME//EDITEDREF01"
+      }
+    ]
+  }
+}
+```
+
+`summary.unexplained` is the only figure worth asserting on in a pipeline. The others are
+expected by construction:
+
+| `reason` | Counted as | Meaning |
+|---|---|---|
+| `USER_EDIT` | `expected` | You changed the value. |
+| `NORMALISATION` | `expected` | Same meaning, written in specification order. |
+| `NOT_REPRODUCED` | `expected` | A trailer, user-header field or signature. Interface- and network-generated; never written. **Never an application error.** |
+| `IMPORT_DROPPED` | `dropped` | Outside the configured subset. Reported on import, absent from the result. |
+| `UNEXPLAINED` | `unexplained` | Could not be accounted for. Fail your test on this one. |
+
+MT is compared line by line, so FIN line structure is preserved. MX is compared on a
+canonical serialisation, so indentation, attribute order and whitespace can never register
+as a difference — only structure and values can.
+
+The same comparison is on every `POST /api/v1/messages/import` response as `diff`, which
+answers "did importing lose anything?" without a second call. Both are deterministic; no
+model is involved in either.
+
+`diff.comparable` is `false` for a message over 3,000 lines or with more than 200 import
+problems — attribution costs lines × issues, so an unbounded comparison is a way to spend
+the server's time rather than something anyone reads. `summary.identical` still answers the
+question, `lines` is empty, and `notComparedReason` says why. Both bounds sit far above
+anything the platform itself generates.
+
+---
+
 ## Excel in, messages out
 
 Keep scenarios in a spreadsheet, get every message back in one response.
@@ -356,6 +435,8 @@ whole `/api/v1` surface returns `503` with an explanation, rather than being qui
 | `GET` | `/api/v1/messages/{type}/samples/{variant}` | One sample: `MINIMAL`, `TYPICAL`, `FULL` |
 | `POST` | `/api/v1/messages/validate` | Validate without keeping anything |
 | `POST` | `/api/v1/messages/generate` | Field or element data in, a message out |
+| `POST` | `/api/v1/messages/import` | An existing MT or MX message in, its canonical values out |
+| `POST` | `/api/v1/messages/diff` | Regenerate from your values and compare with a message you already have |
 | `POST` | `/api/v1/messages/generate-from-excel` | Multipart `.xlsx`; one message per `ScenarioID` |
 | `GET` | `/api/v1/templates/MT.xlsx` · `/MX.xlsx` | The Excel templates |
 | `GET` | `/api/v1/intelligence/search?q=` | Look up any tag or element |
@@ -364,6 +445,8 @@ whole `/api/v1` surface returns `503` with an explanation, rather than being qui
 | `GET` | `/api/v1/messages/id/{id}` | One message and its outputs |
 | `GET` | `/api/v1/messages/id/{id}/download/{output}` | The exact generated bytes |
 | `GET` | `/api/v1/messages/id/{id}/evidence.zip` | Every output plus the validation report |
+| `GET` | `/api/v1/coverage` | What is implemented for every configured message, measured |
+| `GET` | `/api/v1/sources` | Which authoritative specification artifacts are present |
 
 The complete machine-readable contract is at `/openapi.json`, and there is an interactive
 console at `/docs`.

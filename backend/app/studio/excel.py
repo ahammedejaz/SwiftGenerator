@@ -35,6 +35,7 @@ from app.studio.models import (
     MessageFormat,
     Presence,
     SampleVariant,
+    SpecField,
     ValidationIssue,
     ValidationLayer,
 )
@@ -185,6 +186,33 @@ def _all_message_types(format_: MessageFormat) -> list[str]:
     return [spec.message_type for spec in specification_registry.list()]
 
 
+@dataclass(frozen=True)
+class ReferenceRow:
+    """One row of the template's Reference sheet: the field dictionary a tester looks in.
+
+    Exposed as data rather than written straight into a worksheet so the coverage report can
+    measure what the sheet really contains. That is not hypothetical: the sheet was once
+    hardcoded to three MX messages while the registry held seven, and only reading it back
+    would have caught it.
+    """
+
+    message_type: str
+    field: SpecField
+
+
+def reference_rows(
+    format_: MessageFormat, message_types: list[str] | None = None
+) -> list[ReferenceRow]:
+    rows: list[ReferenceRow] = []
+    for message_type in message_types or _all_message_types(format_):
+        spec = message_spec(format_, message_type)
+        rows.extend(
+            ReferenceRow(message_type=spec.message_type, field=item)
+            for item in sorted(spec.fields, key=lambda entry: entry.order)
+        )
+    return rows
+
+
 def _write_reference_sheet(
     workbook: Workbook, format_: MessageFormat, targets: list[str]
 ) -> None:
@@ -218,40 +246,39 @@ def _write_reference_sheet(
                 "Max occurrences",
             ]
         )
-    for message_type in targets:
-        spec = message_spec(format_, message_type)
-        for item in sorted(spec.fields, key=lambda entry: entry.order):
-            example = item.examples[0].value if item.examples else ""
-            codes = ", ".join(item.allowed_codes)
-            if format_ is MessageFormat.MT:
-                row = [
-                    spec.message_type,
-                    item.sequence_code,
-                    item.tag,
-                    item.qualifier,
-                    item.option,
-                    item.presence.value,
-                    item.display_name,
-                    item.format_explanation,
-                    _safe_cell(example),
-                    codes,
-                ]
-            else:
-                row = [
-                    spec.message_type,
-                    item.xpath,
-                    item.presence.value,
-                    item.display_name,
-                    item.data_type,
-                    item.format_explanation,
-                    _safe_cell(example),
-                    codes,
-                    item.max_occurs,
-                ]
-            sheet.append(row)
-            if item.presence is Presence.MANDATORY:
-                for cell in sheet[sheet.max_row]:
-                    cell.fill = MANDATORY_FILL
+    for entry in reference_rows(format_, targets):
+        item = entry.field
+        example = item.examples[0].value if item.examples else ""
+        codes = ", ".join(item.allowed_codes)
+        if format_ is MessageFormat.MT:
+            row = [
+                entry.message_type,
+                item.sequence_code,
+                item.tag,
+                item.qualifier,
+                item.option,
+                item.presence.value,
+                item.display_name,
+                item.format_explanation,
+                _safe_cell(example),
+                codes,
+            ]
+        else:
+            row = [
+                entry.message_type,
+                item.xpath,
+                item.presence.value,
+                item.display_name,
+                item.data_type,
+                item.format_explanation,
+                _safe_cell(example),
+                codes,
+                item.max_occurs,
+            ]
+        sheet.append(row)
+        if item.presence is Presence.MANDATORY:
+            for cell in sheet[sheet.max_row]:
+                cell.fill = MANDATORY_FILL
     _style_header(sheet)
 
 

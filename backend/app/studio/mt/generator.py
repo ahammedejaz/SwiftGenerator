@@ -101,6 +101,59 @@ def _normalise_sequence(specification: MessageSpecification, value: str | None) 
     return None
 
 
+def plan_sequences(
+    specification: MessageSpecification,
+    addressed: set[tuple[str, int]],
+) -> dict[tuple[str, int], ComposeSequence]:
+    """Work out which sequence instances a set of ``(path, occurrence)`` addresses implies.
+
+    This is the whole of the MT occurrence model, in one place. It is shared with the
+    importer, which runs it over what it read and compares the result with the nesting the
+    message actually had — the only reliable way to know whether an imported structure can
+    be expressed at all, rather than restating the rule and hoping the two stay in step.
+    """
+    by_path = {sequence.path: sequence for sequence in specification.sequences}
+    needed: set[tuple[str, int]] = set(addressed)
+    # Mandatory root sequences always exist so their missing fields are reported.
+    for sequence in specification.sequences:
+        if sequence.parent_path is None and sequence.min_occurs >= 1:
+            needed.add((sequence.path, 1))
+    # A child sequence needs its parent chain present. A child at occurrence N does *not*
+    # imply an ancestor at occurrence N: carrying the index up used to build a whole
+    # parallel branch, so asking for two penalty details produced two PENA sequences and
+    # broke PENA's own 1..1 cardinality. An ancestor repeats only where the caller
+    # addressed a field inside that repeat directly; otherwise its first instance is the
+    # container.
+    for path, occurrence in list(needed):
+        current = by_path.get(path)
+        level = occurrence
+        while current and current.parent_path:
+            parent_path = current.parent_path
+            if (parent_path, level) not in needed:
+                needed.add((parent_path, 1))
+                level = 1
+            current = by_path.get(parent_path)
+
+    ordered = sorted(needed, key=lambda item: (by_path[item[0]].order, item[1]))
+    instances: dict[tuple[str, int], ComposeSequence] = {}
+    for path, occurrence in ordered:
+        spec_sequence = by_path[path]
+        parent_id: str | None = None
+        if spec_sequence.parent_path:
+            parent_key = (spec_sequence.parent_path, occurrence)
+            if parent_key not in instances:
+                parent_key = (spec_sequence.parent_path, 1)
+            parent = instances.get(parent_key)
+            parent_id = parent.sequence_id if parent else None
+        instances[(path, occurrence)] = ComposeSequence(
+            sequence_id=f"{path}#{occurrence}",
+            sequence_path=path,
+            parent_sequence_id=parent_id,
+            occurrence=occurrence,
+        )
+    return instances
+
+
 class MtGenerator:
     def supports(self, message_type: str) -> bool:
         try:
@@ -518,38 +571,9 @@ class MtGenerator:
     def _compose_inputs(
         specification: MessageSpecification, resolved: list[ResolvedField]
     ) -> tuple[list[ComposeSequence], list[ComposeField]]:
-        by_path = {sequence.path: sequence for sequence in specification.sequences}
-        needed: set[tuple[str, int]] = {
-            (item.row.sequence_path, item.occurrence) for item in resolved
-        }
-        # Mandatory root sequences always exist so their missing fields are reported.
-        for sequence in specification.sequences:
-            if sequence.parent_path is None and sequence.min_occurs >= 1:
-                needed.add((sequence.path, 1))
-        # A child sequence needs its parent chain present.
-        for path, occurrence in list(needed):
-            current = by_path.get(path)
-            while current and current.parent_path:
-                needed.add((current.parent_path, 1 if occurrence == 1 else occurrence))
-                current = by_path.get(current.parent_path)
-
-        ordered = sorted(needed, key=lambda item: (by_path[item[0]].order, item[1]))
-        instances: dict[tuple[str, int], ComposeSequence] = {}
-        for path, occurrence in ordered:
-            spec_sequence = by_path[path]
-            parent_id: str | None = None
-            if spec_sequence.parent_path:
-                parent_key = (spec_sequence.parent_path, occurrence)
-                if parent_key not in instances:
-                    parent_key = (spec_sequence.parent_path, 1)
-                parent = instances.get(parent_key)
-                parent_id = parent.sequence_id if parent else None
-            instances[(path, occurrence)] = ComposeSequence(
-                sequence_id=f"{path}#{occurrence}",
-                sequence_path=path,
-                parent_sequence_id=parent_id,
-                occurrence=occurrence,
-            )
+        instances = plan_sequences(
+            specification, {(item.row.sequence_path, item.occurrence) for item in resolved}
+        )
         compose_fields = [
             ComposeField(
                 row=item.row,

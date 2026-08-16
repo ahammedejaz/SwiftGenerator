@@ -36,24 +36,37 @@ Tailwind 4 (Node 22) · SQLite locally, PostgreSQL in production.
 | MX | sese.023.001.11, sese.024.001.13, sese.025.001.12 (3) |
 | MX lifecycle | sese.020.001.08, sese.027.001.08, sese.030.001.10, sese.031.001.09 (4) |
 
-MX messages also **import**: `POST /api/v1/messages/import` reads a document back into
-canonical element values. `Compose(Parse(Compose(v))) == Compose(v)` is asserted for every
-sample of every MX message. MT import back into the builder does not exist; the older
-`/api/messages/validate-raw` checks MT text without producing values.
+**Both formats import.** `POST /api/v1/messages/import` reads an MT FIN message, an MT text
+block or an ISO 20022 document back into canonical values and regenerates it through the
+ordinary generation path. The format and the message are identified from the message itself
+— the ISO 20022 namespace, or FIN Block 2 — never from a caller-supplied label.
+`Compose(Parse(Compose(v))) == Compose(v)` is asserted for every sample of every configured
+message in both formats, and for all 17 golden MT fixtures. The older
+`/api/messages/validate-raw` still exists and still serves the Advanced screens.
 
 The four lifecycle specifications are flagged **UNVERIFIED** in their own `limitations`:
 version, root element name and element set were not reconciled against an authoritative ISO
 20022 message-definition report. See §13.
 
-**Verification status (all passing on `main`):**
+After importing, **every difference between the message that went in and the one that came
+out is attributed**: a value the caller edited, normalisation, content outside the configured
+subset, or something interface- or network-generated that the studio deliberately never
+writes. `POST /api/v1/messages/diff` returns it, and every `import` response carries the
+same comparison. Deterministic — `difflib` and string comparison, no model.
+
+`make coverage` reports **all 23 messages in both formats**, and every figure in it is
+measured from the real component rather than read from a flag. `GET /api/v1/coverage` serves
+the same data; `GET /api/v1/sources` reports which authoritative artifacts are present.
+
+**Verification status (all passing):**
 
 ```
-522 backend tests (pytest)      ruff: clean      mypy --strict: clean (125 files)
- 46 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
+752 backend tests (pytest)      ruff: clean      mypy --strict: clean (128 files)
+ 61 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
 secret scan: clean in tree and in git history
-clean clone with no .env and no API keys: generates MT, MX and Excel
+clean clone, no .env, no keys: make install -> make check -> make e2e, all green
 ```
 
 ---
@@ -112,14 +125,19 @@ backend/app/studio/
   models.py         request/response contracts shared by every entry point
   catalogue.py      "what can I generate?" + format-neutral specification projection
   service.py        dispatch, layer assembly, output selection   ← the hub
-  routes.py         /api/v1 (15 endpoints)
+  routes.py         /api/v1 (18 endpoints)
   security.py       X-API-Key service authentication
   samples.py        MINIMAL / TYPICAL / FULL sample generation
   excel.py          template generation + workbook parsing
   intelligence.py   deterministic search index over MT tags and MX elements
   store.py          recent-messages persistence
+  coverage.py       unified MT + MX coverage, measured; renders docs/generated/
+  diff.py           original vs regenerated, with every difference attributed
+  sources.py        authoritative-source readiness: drop points and what is present
   mt/fin.py         FIN envelope — the "nothing is invented" rules live here
   mt/generator.py   MT address resolution, validation, rendering
+                    plan_sequences() is the whole MT occurrence model, shared with the parser
+  mt/parser.py      MT import — the exact inverse of the composer and the envelope
   mx/models.py      declarative ISO 20022 structure model
   mx/registry.py    loads + flattens MX specifications
   mx/generator.py   MX composition, validation, AppHdr
@@ -141,12 +159,19 @@ app/agents/                      AI layer (optional, off by default)
 ### Configuration — the actual source of truth
 
 ```
+backend/config/README.md               what each directory is, and its override setting
 backend/config/knowledge/*.yaml        MT: per-tag meaning, format, examples, mistakes
 backend/config/specifications/*.yaml   MT: sequences and row order per message
 backend/config/mx/*.yaml               MX: complete nested element tree, one per message
 backend/config/mx/xsd/official/        drop licensed .xsd files here; see its README
 backend/config/profiles/*.yaml         client profiles: currencies, rules, envelope values
 ```
+
+Each of those four locations has a setting that redirects it — `MT_SPECIFICATION_MANIFEST`,
+`MX_SPECIFICATION_DIRECTORY`, `MX_OFFICIAL_XSD_DIRECTORY`, `CLIENT_PROFILE_DIRECTORY` — so a
+licensed artifact is a drop-in, not a code change. Unset means "the configuration committed
+here", which is what keeps a clean clone working with no environment.
+[docs/authoritative-sources.md](docs/authoritative-sources.md) is the procedure.
 
 ### Frontend (new, ~4,800 LOC)
 
@@ -156,6 +181,7 @@ frontend/components/studio/
   CreateMessage.tsx    the six-step wizard
   FieldEditor.tsx      progressive disclosure + inline field explanations
   ProofSheet.tsx       the generated message — dark, line-numbered, annotated
+  MessageDiff.tsx      original vs regenerated, and why each line differs
   ValidationPanel.tsx  plain-English validation
   ExcelStudio.tsx  Intelligence.tsx  ValidateStudio.tsx  Automation.tsx  RecentMessages.tsx
   Icon.tsx  ui.tsx     authored SVG icons + the component vocabulary
@@ -170,13 +196,17 @@ frontend/app/{,excel,intelligence,validate,automation,recent,advanced}/page.tsx
 backend/tests/studio/test_fin_envelope.py     envelope correctness + refusal rules
 backend/tests/studio/test_mt_generation.py    addressing, validation, output modes
 backend/tests/studio/test_mx_generation.py    namespace, order, choice, XSD, AppHdr
-backend/tests/studio/test_mx_import.py        the round trip, and every refusal
+backend/tests/studio/test_mt_import.py        the MT round trip, and every refusal
+backend/tests/studio/test_mx_import.py        the MX round trip, and every refusal
+backend/tests/studio/test_coverage_and_sources.py  coverage is measured, not declared
+backend/tests/studio/test_message_diff.py     every difference is attributed correctly
 backend/tests/studio/test_mx_lifecycle.py     the four cancellation/modification messages
 backend/tests/studio/test_excel_api.py        templates, parsing, upload guards
 backend/tests/studio/test_studio_api.py       the /api/v1 contract
 backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay readable
 frontend/tests/e2e/studio-create.spec.ts      the manual journey
 frontend/tests/e2e/studio-import.spec.ts      import round trip + lifecycle in the browser
+frontend/tests/e2e/message-diff.spec.ts       the comparison a tester actually reads
 frontend/tests/e2e/studio-screens.spec.ts     other screens + responsive + a11y
 backend/tests/golden/expected/*.txt           byte-for-byte MT regression fixtures
 ```
@@ -298,7 +328,8 @@ make frontend     # next dev on :3000
 make check        # lint + typecheck + tests + coverage gate   ← before every push
 make e2e          # Playwright (starts both servers itself)
 make secret-scan
-make coverage     # regenerate docs/generated/message-coverage.md
+make coverage     # fail if docs/generated/message-coverage.md is stale
+make coverage-write   # regenerate it
 docker compose up --build
 ```
 
@@ -351,31 +382,109 @@ Defects found and fixed while building this. These are the ones likely to recur:
     other cannot be represented at all — `parser.py` detects the collision and refuses
     rather than overwriting.
 
+**The MT occurrence model**
+
+11. **A child sequence at occurrence N did not imply an ancestor at occurrence N — but the
+    composer assumed it did.** `_compose_inputs` carried the occurrence index up the whole
+    parent chain, so asking for two `PENDET` blocks produced two whole `PENA` sequences and
+    broke `PENA`'s own `1..1` cardinality. Reachable from the UI and from Excel's
+    `SequenceOccurrence` column long before import existed; MT import is simply what made it
+    visible. An ancestor repeats only where a field addresses that repeat directly. The rule
+    now lives once, in `plan_sequences`.
+12. **MT import must run the real planner, not a restatement of it.** The parser checks a
+    structure is expressible by running `plan_sequences` over what it read and comparing the
+    instance tree with the one the message had. A hand-derived rule looked right and was
+    wrong in two cases; this cannot drift.
+13. **This repository writes two different Block 2 conventions.** A real FIN envelope
+    (`{2:I541DEMOUS33XXXXN}`) and a demonstration one (`{1:DEMONSTRATION}{2:MT541}`) that the
+    golden fixtures and the samples screen use. An importer that only understands the first
+    refuses the repository's own output.
+
+**Persistence**
+
+14. **`StaticPool` hands one SQLite connection to every thread at the same time.** With
+    `check_same_thread=False` — which an in-memory database needs — nothing objects, and
+    FastAPI runs sync endpoints in a threadpool, so requests really do overlap. Eight
+    threads produced `InterfaceError: bad parameter or other API misuse` and, worse,
+    `NoResultFound`/`MultipleResultsFound` from a query that can only return one row:
+    threads reading each other's result sets. It surfaced as an e2e test failing about one
+    run in three, a different test each time. `sqlite://` now uses `QueuePool` with
+    `pool_size=1, max_overflow=0` — one connection, and the pool blocks the second caller
+    until the first returns it. `tests/unit/test_database_concurrency.py` fails if that is
+    ever reverted.
+
 **Middleware and HTTP**
 
-11. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
+15. **`app.add_middleware` prepends.** The last registration is the *outermost*. CORS was
     registered first and therefore ended up innermost, so every short-circuit response from
     the request-context middleware — 400, 413, 429 — reached the browser with no
     `Access-Control-Allow-Origin`. `fetch()` rejects such a response with a bare network
     error, so a throttled tester was told the backend was down. Keep the CORS registration
     last, and keep `tests/security/test_cors_and_throttling.py`.
-12. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
+16. **Do not rate-limit CORS preflight.** A preflight is browser overhead the caller never
     chose to send; throttling it fails the real request with an unexplainable CORS error and
     defends nothing, because a non-browser client never sends one.
 
 **Environment**
 
-13. Playwright's `reuseExistingServer` will happily reuse a **stale backend** started before
-    your change. Restart it before re-verifying a backend fix.
+17. **`next dev` writes its own `AGENTS.md`, and will write it here if `frontend/AGENTS.md`
+    is missing.** `node_modules/next/dist/server/lib/generate-agent-files.js` walks up to the
+    project root when it cannot find its file, and it **replaces** rather than merges — this
+    document was reduced to nine lines of Next boilerplate once. Keep `frontend/AGENTS.md`
+    committed; it is Next's target and it is what protects this file.
+18. **Playwright's `reuseExistingServer` will reuse whatever is on port 8000**, including a
+    backend you started by hand — which has a *different environment*. `playwright.config.ts`
+    passes `DATA_ENCRYPTION_KEY` and `SESSION_HMAC_SECRET`; a hand-started server reads
+    `.env` instead, and the encrypted-draft and guided specs then fail for reasons that have
+    nothing to do with the change under test. It will also happily reuse a **stale** backend
+    started before your change. Stop your own servers before `make e2e`.
+
+19. **`localhost` is not an address, and on a dual-stack machine it resolves to `::1`
+    first.** The backend binds `127.0.0.1`, so a browser `fetch()` to `http://localhost:8000`
+    occasionally died with `ECONNREFUSED ::1:8000` — which reaches `fetch()` as a bare
+    network error and reads as "the backend is down". It surfaced as an unrelated e2e test
+    failing about one run in three. macOS binds `--host ::` as IPv6-*only*, so listening on
+    both is not the fix; matching the address is. Everything the app and the tests call now
+    uses `127.0.0.1`, and CORS accepts both spellings of the origin.
 
 **Tests**
 
-14. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** One e2e
+20. **The demonstration rate limit is per process, and each suite shares one.** Whether a
+    run passed depended on how many requests it happened to make; growing either suite
+    eventually tipped it over and produced 429s in files with nothing to do with throttling.
+    `tests/conftest.py` and `playwright.config.ts` both raise the ambient limit. The
+    throttle is still tested — `tests/security/test_cors_and_throttling.py` installs its own
+    limiter, which is the only place the limit is the subject rather than the scenery.
+21. **A loose `getByRole("heading", {name})` can pass on the page `<h1>`.** One e2e
     assertion meant to check a generated MT537 was matching the page title instead, and only
     failed strict mode once the real heading also rendered — so it passed or failed on
     timing. Use `exact` and `level` when a page and its result share a word.
-15. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
+22. **Hardcoded catalogue counts turn "someone added a YAML file" into a failure that says
     nothing.** Derive counts from the registries.
+
+**Comparing two messages**
+
+23. **An expected difference presented as a fault trains the tester to ignore all of them.**
+    A regenerated message almost always differs from the pasted one, and almost always
+    harmlessly. Every difference therefore carries a reason, and only `UNEXPLAINED` and
+    `IMPORT_DROPPED` are counted as worth acting on. A Block 5 trailer or an MX `Sgntr` is
+    `NOT_REPRODUCED` and is never an application error.
+24. **Never label a difference you cannot account for as normalisation.** `UNEXPLAINED`
+    exists for exactly the case the comparison is there to surface; a comfortable-sounding
+    default would hide it.
+25. **MX must be compared on a canonical serialisation, MT on raw lines.** Re-indenting an
+    ISO 20022 document changes nothing about the message, but in FIN the line structure *is*
+    the message. Normalising MT before comparing would hide a real defect.
+
+**Coverage reporting**
+
+26. **A declared coverage figure reports the flag, not the truth.** The Excel reference
+    sheet was once hardcoded to three MX messages while the registry held seven, and a
+    `composer_supported`-style flag would have said 100%. Every figure in
+    `app/studio/coverage.py` is measured by asking the component what it produced.
+27. **The coverage document is gated by `make check`, so it must be deterministic.** Render
+    counts, never values: sample dates move with the clock and would fail the build on an
+    unrelated commit. A test renders it twice and compares.
 
 ---
 
@@ -390,14 +499,19 @@ Full list: [docs/limitations.md](docs/limitations.md).
   limitation: their version numbers, message root element names and element sets were
   modelled on the ISO 20022 idioms already in this repository, not reconciled against an
   authoritative message-definition report. Reconcile before any use beyond internal testing.
-- **MX import cannot represent a repeatable block nested inside another repeatable block.**
+- **A message over 3,000 lines, or with over 200 import problems, is not compared line by
+  line.** The comparison still answers whether the two messages are the same, and says why
+  it did not list the differences. Both bounds sit far above anything the studio itself can
+  produce.
+- **Import cannot represent a repeatable block nested inside another repeatable block.**
   The flat `(path, occurrence)` address has one index. Detected and refused
-  (`MX_IMPORT_NESTED_REPEAT_UNSUPPORTED`), never silently collapsed. No configured message
-  currently has such a structure.
-- **MT does not import back into the builder.** `/api/messages/validate-raw` checks MT text
-  but does not produce canonical values, so there is no MT round trip.
-- **`docs/generated/message-coverage.md` reports MT only.** It is built from the ISO 15022
-  specification registry; the MX registry has no equivalent report.
+  (`MT_IMPORT_NESTED_REPEAT_UNSUPPORTED`, `MX_IMPORT_NESTED_REPEAT_UNSUPPORTED`), never
+  silently collapsed. No configured message currently has such a structure in its samples.
+- **An MT text block does not say which message it is.** Where the `:16R:` skeleton fits
+  more than one configured message — MT540–MT543 share `GENL/TRADDET/FIAC/SETDET` — import
+  refuses and lists the candidates rather than picking one. A complete FIN message names
+  itself in Block 2 and needs no help. The browser reveals a message picker only after the
+  refusal, so the question is never asked of someone who does not need it.
 - **Not implemented:** payments (`pacs.*`), cash management (`camt.*`), reconciliation
   (`semt.*`).
 - **Documented domain-rule gap:** the configured MT subset renders `:22F::SETR//BUY` in
@@ -420,6 +534,7 @@ Full list: [docs/limitations.md](docs/limitations.md).
 | Add a validation rule | `MtGenerator._business_rules` / `._profile_rules`, or `MxGenerator._business_rules`. Prefer configuration (`requireOneOf`) where possible. |
 | Add an output format | `OutputMode` enum → produce in `StudioService` → extension in `routes.OUTPUT_FILE_TYPES`. |
 | Add an endpoint | `app/studio/routes.py` → `lib/studio-types.ts` → `lib/studio-api.ts`. |
+| Import a licensed spec, schema or client guideline | Drop the file in and point the matching setting at it. No code. [docs/authoritative-sources.md](docs/authoritative-sources.md) is the procedure; `GET /api/v1/sources` reports what is present. |
 
 **Golden files** (`backend/tests/golden/expected/*.txt`) fail on any byte change to MT
 output. That friction is deliberate: update the fixture in the same commit and say why.
@@ -431,20 +546,19 @@ output. That friction is deliberate: update the fixture in the same commit and s
 In value order on the current architecture:
 
 1. **Reconcile the four lifecycle specifications** against an authoritative ISO 20022
-   message-definition report. They are shipped and working but flagged `UNVERIFIED`; this is
-   the cheapest way to remove a caveat that currently applies to four of seven MX messages.
-2. **Import a licensed specification.** Everything else is gated on this; it is the only
-   thing that changes what the platform may claim. The YAML structure already fits.
-3. **Drop official ISO 20022 XSDs into `config/mx/xsd/official/`.** One folder, no code,
-   MX validation becomes authoritative. The folder and its README exist.
+   message-definition report. They are shipped, generating and round-tripping, but flagged
+   `UNVERIFIED`; this is the cheapest way to remove a caveat that applies to four of seven
+   MX messages. The procedure and what to re-run are in
+   [docs/authoritative-sources.md](docs/authoritative-sources.md).
+2. **Import a licensed MT specification.** Still the only thing that changes what the
+   platform may *claim*. The drop point and the setting exist; the YAML structure already
+   fits.
+3. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
+   code, MX validation becomes authoritative.
 4. **Fix `22F::SETR` placement** once §13's authoritative source exists.
-5. **MT import.** MX round-trips; MT does not. `mx/parser.py` is the shape to copy, but MT
-   is harder: tag options and sequence nesting have to be inferred from the text.
-6. **Extend the coverage report to MX**, so `make coverage` describes all 23 messages.
-7. **Shared state for rate limiter and circuit breaker** before running >1 instance.
-8. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
-
----
+5. **Shared state for rate limiter and circuit breaker** before running more than one
+   instance. Needs Redis or equivalent.
+6. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
 
 ## 16. Writing style expected in this repo
 

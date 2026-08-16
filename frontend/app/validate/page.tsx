@@ -7,7 +7,7 @@ export default function ValidatePage() {
   return (
     <Page
       title="Validate a message"
-      lede="Check field data or an existing MT message against the configured subset and your client profile. Nothing is saved and nothing is generated."
+      lede="Check field data, or paste an existing MT or ISO 20022 message, against the configured subset and your client profile. Nothing is saved and nothing is generated."
     >
       <ValidateStudio />
     </Page>

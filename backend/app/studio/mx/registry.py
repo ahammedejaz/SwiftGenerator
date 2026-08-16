@@ -6,15 +6,18 @@ from pathlib import Path
 
 import yaml
 
+from app.config import get_settings, source_path
 from app.studio.models import Presence
 from app.studio.mx.models import FlatElement, MxElement, MxMessageSpec
 
-CONFIG_DIRECTORY = Path(__file__).resolve().parents[3] / "config" / "mx"
+
+def _config_directory() -> Path:
+    return source_path(get_settings().mx_specification_directory, "mx")
 
 
 class MxRegistry:
     def __init__(self, directory: Path | None = None) -> None:
-        self._directory = directory or CONFIG_DIRECTORY
+        self._directory = directory or _config_directory()
         self._specs: dict[str, MxMessageSpec] = {}
         self._flat: dict[str, list[FlatElement]] = {}
         self._load()

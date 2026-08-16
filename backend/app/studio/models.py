@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.domain.models import ApiModel
 
@@ -502,43 +502,165 @@ class SampleMessage(ApiModel):
 # --------------------------------------------------------------------------------------
 
 
+class DiffKind(StrEnum):
+    UNCHANGED = "UNCHANGED"
+    ADDED = "ADDED"
+    REMOVED = "REMOVED"
+    CHANGED = "CHANGED"
+
+
+class DiffReason(StrEnum):
+    USER_EDIT = "USER_EDIT"
+    NORMALISATION = "NORMALISATION"
+    IMPORT_DROPPED = "IMPORT_DROPPED"
+    NOT_REPRODUCED = "NOT_REPRODUCED"
+    UNEXPLAINED = "UNEXPLAINED"
+
+
+class DiffBasis(StrEnum):
+    FIN_LINES = "FIN_LINES"
+    CANONICAL_XML = "CANONICAL_XML"
+
+
+class DiffLine(ApiModel):
+    kind: DiffKind
+    original_line: int | None = None
+    regenerated_line: int | None = None
+    original_text: str | None = None
+    regenerated_text: str | None = None
+    #: Absent on an unchanged line; always present otherwise.
+    reason: DiffReason | None = None
+    explanation: str | None = None
+    #: The business field, where the line carries one.
+    field: str | None = None
+    location: str | None = None
+
+
+class DiffSummary(ApiModel):
+    identical: bool
+    unchanged: int
+    added: int
+    removed: int
+    changed: int
+    #: Differences with a known, benign cause. Never a reason to investigate.
+    expected: int
+    #: Content the original held that the configured subset could not carry.
+    dropped: int
+    #: The only figure worth acting on.
+    unexplained: int
+    by_reason: dict[str, int]
+
+
+class MessageDiff(ApiModel):
+    format: MessageFormat
+    basis: DiffBasis
+    #: What was compared, in words — "the FIN message", "the Document without its header".
+    compared: str
+    #: False when the messages were too large, or too broken, to list the differences of.
+    #: ``summary.identical`` still answers the question that matters; ``lines`` is empty.
+    comparable: bool = True
+    not_compared_reason: str | None = None
+    summary: DiffSummary
+    lines: list[DiffLine]
+    #: One plain sentence per reason that actually occurs, in the order they occur.
+    notes: list[str] = []
+
+
 class ImportRequest(ApiModel):
     """Read an existing message back into canonical values.
 
-    Only the raw text is supplied: the message type is identified from the document itself,
-    because the namespace is the one part of an ISO 20022 document that is self-describing.
-    Trusting a caller-supplied type would let a mislabelled file be parsed against the wrong
+    Normally only the raw text is supplied: the format and the message type are worked out
+    from the message itself. An MX document names itself in its namespace, and a complete
+    FIN message names itself in its application header — both are more trustworthy than a
+    caller-supplied label, which would let a mislabelled file be parsed against the wrong
     specification.
+
+    ``messageType`` exists for the one case that genuinely cannot name itself: a pasted MT
+    text block. It is consulted only then. A header that disagrees with it is a refusal.
     """
 
-    xml: str = Field(min_length=1, max_length=1_000_000)
+    text: str = Field(default="", max_length=1_000_000)
+    #: Accepted for callers written against the MX-only import. Prefer ``text``.
+    xml: str | None = Field(default=None, max_length=1_000_000)
+    message_type: str | None = Field(default=None, max_length=16)
     profile_id: str = "BASE_DEMO_V1"
     scenario_id: str | None = Field(default=None, max_length=64)
     output_modes: list[OutputMode] | None = None
     #: Imports are a reading exercise by default; nothing is kept unless asked for.
     persist: bool = False
 
+    @property
+    def content(self) -> str:
+        return self.text or self.xml or ""
+
+    @model_validator(mode="after")
+    def require_content(self) -> ImportRequest:
+        if not self.content.strip():
+            raise ValueError("Supply the message to import in 'text'")
+        return self
+
 
 class ImportResult(ApiModel):
     """What the document turned out to contain, and what it regenerates to.
 
-    ``elements`` is the canonical form — exactly the shape accepted by
-    ``POST /api/v1/messages/generate``, so the round trip is closed: edit the values, send
-    them back, and the same composer that produced the original produces the new one.
+    ``elements`` (MX) and ``fields`` (MT) are the canonical form — exactly the shapes
+    accepted by ``POST /api/v1/messages/generate``, so the round trip is closed: edit the
+    values, send them back, and the same composer that produced the original produces the
+    new one.
     """
 
     format: MessageFormat
     message_type: str
     version: str | None
-    namespace: str
+    namespace: str | None
     profile_id: str
+    #: MX: whether the document carried a business application header.
     app_hdr_present: bool
+    #: MT: which FIN blocks the text carried, in order. ``["4"]`` for a pasted text block.
+    fin_blocks: list[str] = Field(default_factory=list)
+    #: How many values were read, whichever format they came from.
     element_count: int
     elements: list[ElementInput] = Field(default_factory=list)
+    fields: list[FieldInput] = Field(default_factory=list)
     envelope: EnvelopeOverride | None = None
     #: Anything the document contained that could not be imported. Never silently dropped.
     import_issues: list[ValidationIssue] = Field(default_factory=list)
     import_warnings: list[ValidationIssue] = Field(default_factory=list)
     #: The regenerated message, produced by the ordinary generation path.
     result: GenerateResult
+    #: The imported message compared with the one just regenerated from it. At import time
+    #: nothing has been edited yet, so every difference here is normalisation, content the
+    #: configured subset could not carry, or something the studio deliberately never writes.
+    diff: MessageDiff
+    disclaimer: str
+
+
+class DiffRequest(GenerateRequest):
+    """Regenerate from these values and compare the result with a message you already have.
+
+    Everything needed is in the request: ``original`` is re-read on the server to work out
+    which values came from the message and which the caller changed, so a difference can be
+    attributed without the caller having to remember what it imported.
+    """
+
+    original: str = Field(min_length=1, max_length=1_000_000)
+    persist: bool = False
+
+    def as_generate_request(self) -> GenerateRequest:
+        """The generation half of this request, so the diff endpoint calls exactly the same
+        path as `generate` rather than a lookalike of it."""
+        return GenerateRequest(
+            **self.model_dump(exclude={"original"}, by_alias=False),
+        )
+
+
+class DiffResult(ApiModel):
+    format: MessageFormat
+    message_type: str
+    #: The regenerated message, produced by the ordinary generation path.
+    result: GenerateResult
+    diff: MessageDiff
+    #: Anything the original held that could not be read back. Never silently dropped.
+    import_issues: list[ValidationIssue] = Field(default_factory=list)
+    import_warnings: list[ValidationIssue] = Field(default_factory=list)
     disclaimer: str

@@ -18,6 +18,7 @@ import {
   slotKey,
 } from "@/components/studio/FieldEditor";
 import { EnvelopeTable, ProofSheet } from "@/components/studio/ProofSheet";
+import { MessageDiffPanel } from "@/components/studio/MessageDiff";
 import { ValidationPanel } from "@/components/studio/ValidationPanel";
 import {
   Badge,
@@ -41,6 +42,7 @@ import type {
   GenerateRequest,
   GenerateResult,
   ImportResult,
+  MessageDiff,
   MessageFormat,
   MessageSpec,
   SampleMessage,
@@ -81,6 +83,12 @@ export function CreateMessage() {
 
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
+  // The text the tester actually pasted, kept so the regenerated message can be compared
+  // with it. The server re-reads it to work out which values were edited, so this is the
+  // only thing the browser has to remember.
+  const [importedText, setImportedText] = useState<string | null>(null);
+  const [diff, setDiff] = useState<MessageDiff | null>(null);
+  const [diffError, setDiffError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [focusedLocation, setFocusedLocation] = useState<string | null>(null);
@@ -202,6 +210,9 @@ export function CreateMessage() {
 
   function selectFormat(next: MessageFormat) {
     setImported(null);
+    setImportedText(null);
+    setDiff(null);
+    setDiffError(null);
     setFormat(next);
     setArea(null);
     setMessageType(null);
@@ -243,6 +254,9 @@ export function CreateMessage() {
   function applySample(sample: SampleMessage) {
     if (!spec) return;
     setImported(null);
+    setImportedText(null);
+    setDiff(null);
+    setDiffError(null);
     const next: FieldValues = {};
     const revealedNext = new Set<string>();
     const byAddress = new Map<string, SpecField>();
@@ -286,28 +300,53 @@ export function CreateMessage() {
    * the specification and the step all change in one commit; the effect would otherwise
    * clear the values it had just been given.
    */
-  async function applyImport(xml: string) {
+  async function applyImport(text: string, declaredType?: string | null) {
     setBusy(true);
     setActionError(null);
     try {
-      const response = await studioApi.importMessage(xml, profileId);
+      const response = await studioApi.importMessage(text, profileId, declaredType);
       const [loadedSpec, loadedSamples] = await Promise.all([
         studioApi.spec(response.format, response.messageType),
         studioApi.samples(response.format, response.messageType),
       ]);
 
-      const byPath = new Map(loadedSpec.fields.map((field) => [field.id, field]));
+      // Both formats address a field by the specification's own id — an element path for
+      // MX, a row id for MT — so the builder is filled the same way for either.
+      const imports: { id: string; occurrence: number; value: string }[] =
+        response.format === "MX"
+          ? response.elements.map((element) => ({
+              id: element.path,
+              occurrence: element.occurrence ?? 1,
+              value: element.value,
+            }))
+          : response.fields.map((item) => ({
+              id: item.id ?? "",
+              occurrence: item.occurrence ?? 1,
+              value: item.value,
+            }));
+
+      const byId = new Map(loadedSpec.fields.map((field) => [field.id, field]));
       const next: FieldValues = {};
       const revealedNext = new Set<string>();
+      // A repeated block has to be opened to the number of repeats that arrived, or the
+      // later ones are held in state, submitted on generate, and never shown — data the
+      // tester cannot see or correct.
+      const occurrencesNext: Record<string, number> = {};
       const unmapped: string[] = [];
-      for (const element of response.elements) {
-        const field = byPath.get(element.path);
+      for (const element of imports) {
+        const field = byId.get(element.id);
         if (!field) {
-          unmapped.push(element.path);
+          unmapped.push(element.id);
           continue;
         }
-        next[slotKey(field.id, element.occurrence ?? 1)] = element.value;
+        next[slotKey(field.id, element.occurrence)] = element.value;
         revealedNext.add(field.id);
+        if (element.occurrence > 1) {
+          occurrencesNext[field.groupId] = Math.max(
+            occurrencesNext[field.groupId] ?? 1,
+            element.occurrence,
+          );
+        }
       }
 
       loadedKey.current = `${response.format}:${response.messageType}`;
@@ -318,12 +357,15 @@ export function CreateMessage() {
       setSamples(loadedSamples);
       setValues(next);
       setRevealed(revealedNext);
-      setOccurrences({});
+      setOccurrences(occurrencesNext);
       setMode("GUIDED");
       setScenarioId(
         (current) => current || `TC-${response.messageType.replace(/\./g, "")}-IMPORTED`,
       );
       setImported(response);
+      setImportedText(text);
+      setDiff(null);
+      setDiffError(null);
       setResult(response.result);
       setStep(5);
       if (unmapped.length > 0) {
@@ -397,6 +439,20 @@ export function CreateMessage() {
         ? await studioApi.generate(request)
         : await studioApi.validate(request);
       setResult(response);
+      // Only when there is an original to compare against. Generating from scratch has
+      // nothing to diff, and showing an empty comparison would be a dead end.
+      if (importedText) {
+        try {
+          setDiff((await studioApi.diffMessage(importedText, request)).diff);
+        } catch {
+          // A failed comparison must not cost the tester the message they just generated.
+          // The proof sheet stands on its own; the diff says so rather than showing nothing.
+          setDiff(null);
+          setDiffError(
+            "The regenerated message is above, but it could not be compared with the one you imported.",
+          );
+        }
+      }
       if (persist && response.valid) {
         setStep(6);
         requestAnimationFrame(() =>
@@ -421,6 +477,9 @@ export function CreateMessage() {
 
   function startOver() {
     setImported(null);
+    setImportedText(null);
+    setDiff(null);
+    setDiffError(null);
     setResult(null);
     setValues({});
     setRevealed(new Set());
@@ -467,7 +526,12 @@ export function CreateMessage() {
         {step === 1 && catalogue && (
           <>
             <StepFormat catalogue={catalogue} onSelect={selectFormat} />
-            <ImportPanel busy={busy} error={actionError} onImport={applyImport} />
+            <ImportPanel
+              busy={busy}
+              error={actionError}
+              messages={catalogue.messages}
+              onImport={applyImport}
+            />
           </>
         )}
 
@@ -617,6 +681,18 @@ export function CreateMessage() {
               result.outputs.document) && (
               <>
                 <ProofSheet result={result} onGenerateAnother={startOver} />
+                {diffError && <ErrorNotice message={diffError} />}
+                {diff && (
+                  <MessageDiffPanel
+                    diff={diff}
+                    regenerated={regeneratedText(result)}
+                    filename={diffFilename(result)}
+                    onReturnToEdit={() => {
+                      setStep(5);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  />
+                )}
                 <EnvelopeTable result={result} />
               </>
             )}
@@ -625,6 +701,17 @@ export function CreateMessage() {
       </div>
     </div>
   );
+}
+
+/** The message the comparison is about — the same text the proof sheet shows first. */
+function regeneratedText(result: GenerateResult): string {
+  const outputs = result.outputs;
+  return outputs.fin ?? outputs.xml ?? outputs.block4 ?? outputs.document ?? "";
+}
+
+function diffFilename(result: GenerateResult): string {
+  const stem = (result.scenarioId || result.messageType).replace(/[^A-Za-z0-9._-]/g, "-");
+  return result.format === "MT" ? `${stem}.fin` : `${stem}.xml`;
 }
 
 /* ------------------------------------------------------------------- steps */
@@ -1051,17 +1138,29 @@ export { fieldAddress };
 function ImportPanel({
   busy,
   error,
+  messages,
   onImport,
 }: {
   busy: boolean;
   /** Reported here rather than by the wizard: the rest of the wizard's error surface only
    *  exists from the data-entry step onwards, so a failure on step one would be silent. */
   error: string | null;
-  onImport: (xml: string) => void | Promise<void>;
+  messages: CatalogueEntry[];
+  onImport: (text: string, messageType?: string | null) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
-  const [xml, setXml] = useState("");
+  const [text, setText] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState("");
+
+  // An MX document names itself in its namespace and a complete FIN message names itself
+  // in its header, so the message type is normally none of the tester's business. A pasted
+  // MT text block is the one thing that cannot name itself, so the picker appears only
+  // once the studio has actually said it could not tell — asked for at the moment it is
+  // needed rather than standing in everyone's way.
+  const needsType =
+    error !== null && /fits more than one message|could not be worked out/.test(error);
+  const mtMessages = messages.filter((entry) => entry.format === "MT");
 
   async function readFile(file: File | undefined) {
     if (!file) return;
@@ -1071,7 +1170,7 @@ function ImportPanel({
       return;
     }
     try {
-      setXml(await file.text());
+      setText(await file.text());
     } catch {
       setFileError("That file could not be read as text.");
     }
@@ -1080,7 +1179,7 @@ function ImportPanel({
   return (
     <Panel
       title="Already have a message?"
-      description="Paste or upload an ISO 20022 (MX) message and the studio reads it back into the builder, so you can change a value and generate it again."
+      description="Paste or upload an MT or ISO 20022 message and the studio reads it back into the builder, so you can change a value and generate it again."
       action={
         <Button variant="quiet" size="sm" onClick={() => setOpen(!open)} aria-expanded={open}>
           {open ? "Hide" : "Import a message"}
@@ -1091,14 +1190,14 @@ function ImportPanel({
         <div className="space-y-3">
           <Labelled
             label="The message"
-            hint="An AppHdr and Document, a Document on its own, or both pasted one after the other."
+            hint="A FIN message, an MT text block, an AppHdr and Document, or a Document on its own."
           >
             <TextArea
-              value={xml}
-              onChange={(event) => setXml(event.target.value)}
+              value={text}
+              onChange={(event) => setText(event.target.value)}
               rows={10}
               spellCheck={false}
-              placeholder={'<Document xmlns="urn:iso:std:iso:20022:tech:xsd:sese.023.001.11">…'}
+              placeholder={"{1:F01…}{2:I541…}{4:  or  <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:sese.023.001.11\">…"}
               aria-label="Message to import"
             />
           </Labelled>
@@ -1108,30 +1207,45 @@ function ImportPanel({
               message={fileError ?? error ?? ""}
             />
           )}
+          {needsType && (
+            <Labelled
+              label="Which message is it?"
+              hint="A text block on its own does not say which message it belongs to."
+            >
+              <Select
+                value={messageType}
+                onChange={(event) => setMessageType(event.target.value)}
+                aria-label="Message type of the pasted text block"
+              >
+                <option value="">Choose a message</option>
+                {mtMessages.map((entry) => (
+                  <option key={entry.messageType} value={entry.messageType}>
+                    {entry.messageType} — {entry.name}
+                  </option>
+                ))}
+              </Select>
+            </Labelled>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="primary"
               iconAfter="arrow-right"
               loading={busy}
-              disabled={!xml.trim()}
-              onClick={() => void onImport(xml)}
+              disabled={!text.trim() || (needsType && !messageType)}
+              onClick={() => void onImport(text, messageType || null)}
             >
               Read this message
             </Button>
             <label className="cursor-pointer text-[0.8125rem] text-accent underline decoration-line-2 underline-offset-2">
-              or choose an .xml file
+              or choose a file
               <input
                 type="file"
-                accept=".xml,text/xml,application/xml"
+                accept=".xml,.fin,.txt,text/xml,application/xml,text/plain"
                 className="sr-only"
                 onChange={(event) => void readFile(event.target.files?.[0])}
               />
             </label>
           </div>
-          <p className="text-xs leading-5 text-ink-3">
-            MT messages are not imported into the builder. To check an existing MT message,
-            use Validate.
-          </p>
         </div>
       ) : (
         <p className="text-sm leading-6 text-ink-2">
@@ -1143,10 +1257,19 @@ function ImportPanel({
   );
 }
 
-/** What the imported document turned out to contain — including what did not survive. */
+/** What the imported message turned out to contain — including what did not survive. */
 function ImportedNotice({ imported }: { imported: ImportResult }) {
   const problems = imported.importIssues.length;
   const notes = imported.importWarnings.length;
+  const source = imported.version ?? imported.messageType;
+  const header =
+    imported.format === "MX"
+      ? imported.appHdrPresent
+        ? ", including the business application header."
+        : ". The document had no business application header, so one is built from the client profile."
+      : imported.finBlocks.includes("1")
+        ? ", including the interface addresses from its header blocks."
+        : ". The message had no header blocks, so the envelope is built from the client profile.";
   return (
     <div className="rounded-lg border border-accent/25 bg-accent-sk px-5 py-4">
       <div className="flex items-start gap-3">
@@ -1157,12 +1280,10 @@ function ImportedNotice({ imported }: { imported: ImportResult }) {
           </p>
           <p className="mt-1 text-sm leading-6 text-ink-2">
             {imported.elementCount} value{imported.elementCount === 1 ? "" : "s"} read from{" "}
-            <span className="font-mono text-[0.8125rem]">{imported.version}</span>
-            {imported.appHdrPresent
-              ? ", including the business application header."
-              : ". The document had no business application header, so one is built from the client profile."}
+            <span className="font-mono text-[0.8125rem]">{source}</span>
+            {header}
             {problems > 0 &&
-              ` ${problems} part${problems === 1 ? "" : "s"} of the document could not be imported — see the issues below.`}
+              ` ${problems} part${problems === 1 ? "" : "s"} of the message could not be imported — see the issues below.`}
             {problems === 0 && notes > 0 && ` ${notes} note${notes === 1 ? "" : "s"} below.`}
           </p>
           <p className="mt-1 text-[0.8125rem] leading-5 text-ink-3">

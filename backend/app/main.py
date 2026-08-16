@@ -20,7 +20,7 @@ from app.api.errors import (
 )
 from app.api.routes import router
 from app.authoring.routes import router as authoring_router
-from app.config import get_settings
+from app.config import allowed_origins, get_settings
 from app.persistence.ai_audit import ai_audit_repository
 from app.persistence.ai_cache import ai_cache_repository
 from app.persistence.ai_usage import ai_usage_repository
@@ -146,7 +146,7 @@ async def request_context(request: Request, call_next):  # type: ignore[no-untyp
 # call below every other middleware registration.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=allowed_origins(settings.frontend_origin),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=[

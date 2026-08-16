@@ -2,7 +2,11 @@
 
 Drop authoritative `.xsd` files here to upgrade MX validation from
 `SUBSET_DERIVED` to `OFFICIAL`. No code change is needed — the schema is picked up on the
-next request.
+next request. Set `MX_OFFICIAL_XSD_DIRECTORY` to read them from somewhere outside the
+checkout instead.
+
+The full procedure for all four classes of authoritative artifact is in
+[docs/authoritative-sources.md](../../../../../docs/authoritative-sources.md).
 
 ## Naming
 

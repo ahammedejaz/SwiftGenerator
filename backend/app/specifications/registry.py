@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from app.config import get_settings, source_path
 from app.domain.enums import MessageType
 from app.knowledge.loader import KNOWN_MESSAGE_OWNERS, knowledge_repository
 from app.knowledge.models import PresenceRule
@@ -26,11 +27,10 @@ from app.specifications.models import (
 
 class MessageSpecificationRegistry:
     def __init__(self, path: Path | None = None) -> None:
-        self._path = path or (
-            Path(__file__).resolve().parents[2]
-            / "config"
-            / "specifications"
-            / "supported_subset_v1.yaml"
+        self._path = path or source_path(
+            get_settings().mt_specification_manifest,
+            "specifications",
+            "supported_subset_v1.yaml",
         )
         self._manifest, self._messages = self._load()
 

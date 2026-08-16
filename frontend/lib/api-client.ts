@@ -1,4 +1,8 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// 127.0.0.1, not localhost. The backend binds 127.0.0.1, but a browser resolves `localhost`
+// to ::1 first on a dual-stack machine and only then falls back — so an occasional request
+// died with ECONNREFUSED ::1:8000, which reaches fetch() as a bare network error and reads
+// to the tester as "the backend is down". An address needs no resolving.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;

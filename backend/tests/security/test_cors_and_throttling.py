@@ -92,3 +92,14 @@ def test_a_bare_options_request_still_counts(throttled: TestClient) -> None:
         throttled.options("/api/v1/catalogue")
 
     assert throttled.get("/api/v1/catalogue", headers={"Origin": ORIGIN}).status_code == 429
+
+
+def test_both_spellings_of_the_local_origin_are_allowed(client: TestClient) -> None:
+    """A tester who opened 127.0.0.1:3000 sends a different Origin from one who opened
+    localhost:3000. Refusing either is unexplainable from the browser, which reports only a
+    bare network error."""
+    for origin in ("http://localhost:3000", "http://127.0.0.1:3000"):
+        response = client.get("/api/v1/catalogue", headers={"Origin": origin})
+
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == origin

@@ -3,6 +3,7 @@
 import { apiUrl } from "@/lib/api-client";
 import type {
   ExcelGenerateResponse,
+  DiffResult,
   GenerateRequest,
   GenerateResult,
   ImportResult,
@@ -105,10 +106,24 @@ export const studioApi = {
     }),
 
   /** Read an existing ISO 20022 message back into canonical values. */
-  importMessage: (xml: string, profileId?: string) =>
+  /** `messageType` is only read when the message cannot name itself — a pasted MT text
+   *  block. An MT header that disagrees with it is a refusal, not a reconciliation. */
+  importMessage: (text: string, profileId?: string, messageType?: string | null) =>
     request<ImportResult>("/api/v1/messages/import", {
       method: "POST",
-      body: JSON.stringify({ xml, ...(profileId ? { profileId } : {}) }),
+      body: JSON.stringify({
+        text,
+        ...(profileId ? { profileId } : {}),
+        ...(messageType ? { messageType } : {}),
+      }),
+    }),
+
+  /** Regenerate from these values and compare the result with a message you already have.
+   *  Deterministic and server-side — the diff is part of the API, not a browser feature. */
+  diffMessage: (original: string, payload: GenerateRequest) =>
+    request<DiffResult>("/api/v1/messages/diff", {
+      method: "POST",
+      body: JSON.stringify({ ...payload, original, persist: false }),
     }),
 
   recent: (limit = 40, format?: MessageFormat) =>
