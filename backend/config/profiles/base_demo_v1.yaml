@@ -35,7 +35,11 @@ requiredFields:
     - command.original_instruction_reference
     - command.priority
   MT537: []
-  MT540: &fop_instruction
+  # A receipt requires the delivering side; a delivery requires the receiving side. The
+  # anchors used to pair MT540 with MT542 and MT541 with MT543, which required both agents
+  # on every instruction — so an MT541 demanded a receiving agent it does not need. The
+  # other chain remains available as an optional additional party.
+  MT540: &receive_instruction
     - direction
     - payment_type
     - sender_reference
@@ -47,8 +51,7 @@ requiredFields:
     - account.safekeeping_account
     - settlement.place_of_settlement
     - settlement.delivering_agent
-    - settlement.receiving_agent
-  MT541: &dvp_instruction
+  MT541:
     - direction
     - payment_type
     - sender_reference
@@ -62,10 +65,33 @@ requiredFields:
     - settlement.amount
     - settlement.place_of_settlement
     - settlement.delivering_agent
+  MT542: &deliver_instruction
+    - direction
+    - payment_type
+    - sender_reference
+    - trade.transaction_type
+    - trade.trade_date
+    - trade.settlement_date
+    - security.identifier
+    - security.quantity
+    - account.safekeeping_account
+    - settlement.place_of_settlement
     - settlement.receiving_agent
-  MT542: *fop_instruction
-  MT543: *dvp_instruction
-  MT544: &fop_confirmation
+  MT543:
+    - direction
+    - payment_type
+    - sender_reference
+    - trade.transaction_type
+    - trade.trade_date
+    - trade.settlement_date
+    - security.identifier
+    - security.quantity
+    - account.safekeeping_account
+    - settlement.currency
+    - settlement.amount
+    - settlement.place_of_settlement
+    - settlement.receiving_agent
+  MT544: &receive_confirmation
     - direction
     - payment_type
     - sender_reference
@@ -74,11 +100,10 @@ requiredFields:
     - account.safekeeping_account
     - settlement.place_of_settlement
     - settlement.delivering_agent
-    - settlement.receiving_agent
     - confirmation.actual_settlement_date
     - confirmation.settled_quantity
     - confirmation.settlement_result
-  MT545: &dvp_confirmation
+  MT545: &receive_dvp_confirmation
     - direction
     - payment_type
     - sender_reference
@@ -88,13 +113,36 @@ requiredFields:
     - settlement.currency
     - settlement.place_of_settlement
     - settlement.delivering_agent
+    - confirmation.actual_settlement_date
+    - confirmation.settled_quantity
+    - confirmation.settled_amount
+    - confirmation.settlement_result
+  MT546:
+    - direction
+    - payment_type
+    - sender_reference
+    - related_reference
+    - security.identifier
+    - account.safekeeping_account
+    - settlement.place_of_settlement
+    - settlement.receiving_agent
+    - confirmation.actual_settlement_date
+    - confirmation.settled_quantity
+    - confirmation.settlement_result
+  MT547:
+    - direction
+    - payment_type
+    - sender_reference
+    - related_reference
+    - security.identifier
+    - account.safekeeping_account
+    - settlement.currency
+    - settlement.place_of_settlement
     - settlement.receiving_agent
     - confirmation.actual_settlement_date
     - confirmation.settled_quantity
     - confirmation.settled_amount
     - confirmation.settlement_result
-  MT546: *fop_confirmation
-  MT547: *dvp_confirmation
   MT548:
     - sender_reference
     - related_reference

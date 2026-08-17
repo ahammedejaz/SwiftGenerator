@@ -88,7 +88,6 @@ ALLOWED_FIELDS: dict[str, set[tuple[str, str | None]]] = {
         ("98A", "SETT"),
         ("35B", None),
         ("36B", "SETT"),
-        ("22F", "SETR"),
     },
     "CONFDET": {
         ("98A", "ESET"),
@@ -100,8 +99,11 @@ ALLOWED_FIELDS: dict[str, set[tuple[str, str | None]]] = {
     "FIAC": {("97A", "SAFE")},
     "SETDET": {
         ("22F", "SETR"),
+        ("95P", "PSET"),
         ("95R", "PSET"),
+        ("95P", "DEAG"),
         ("95R", "DEAG"),
+        ("95P", "REAG"),
         ("95R", "REAG"),
         ("19A", "SETT"),
     },
@@ -183,7 +185,6 @@ FIELD_RANK: dict[str, dict[tuple[str, str | None], int]] = {
         ("98A", "SETT"): 1,
         ("35B", None): 2,
         ("36B", "SETT"): 3,
-        ("22F", "SETR"): 4,
     },
     "CONFDET": {
         ("98A", "ESET"): 0,
@@ -195,10 +196,13 @@ FIELD_RANK: dict[str, dict[tuple[str, str | None], int]] = {
     "FIAC": {("97A", "SAFE"): 0},
     "SETDET": {
         ("22F", "SETR"): 0,
-        ("95R", "PSET"): 1,
-        ("95R", "DEAG"): 2,
-        ("95R", "REAG"): 3,
-        ("19A", "SETT"): 4,
+        ("95P", "PSET"): 1,
+        ("95R", "PSET"): 2,
+        ("95P", "DEAG"): 3,
+        ("95R", "DEAG"): 4,
+        ("95P", "REAG"): 5,
+        ("95R", "REAG"): 6,
+        ("19A", "SETT"): 7,
     },
     "LINK": {("13A", "LINK"): 0, ("20C", "RELA"): 1},
     "STAT": {

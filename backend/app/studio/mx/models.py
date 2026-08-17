@@ -78,6 +78,10 @@ class MxElement(BaseModel):
     choice: bool = False
     data_type: MxDataType | None = Field(default=None, alias="dataType")
     codes: list[str] = Field(default_factory=list)
+    #: Optional name of a shared list in ``config/knowledge/code_lists.yaml``. Where an
+    #: ISO 20022 element and an ISO 15022 field carry the same business code list, both
+    #: name it, so the two formats offer one vocabulary rather than two.
+    code_list: str | None = Field(default=None, alias="codeList")
     currency_attribute: bool = Field(default=False, alias="currencyAttribute")
     business_path: str | None = Field(default=None, alias="businessPath")
 

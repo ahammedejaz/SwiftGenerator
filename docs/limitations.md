@@ -25,14 +25,22 @@ reconciled field by field.
 
 Exact numbers per message: [generated/message-coverage.md](generated/message-coverage.md).
 
-### One known domain-rule gap
+### One known domain-rule gap, now closed
 
-The configured MT subset renders `:22F::SETR//BUY` in Sequence B and `:22F::SETR//RECE` in
-Sequence E. In the authoritative ISO 15022 format, `22F::SETR` appears in Sequence E only,
-and receive-versus-deliver is implied by the message type rather than stated.
+The configured MT subset used to render `:22F::SETR//BUY` in Sequence B and
+`:22F::SETR//RECE` in Sequence E. Neither is a settlement transaction type, and the field
+belongs in Sequence E only — receive versus deliver is implied by the message type.
 
-This is recorded rather than silently corrected, because correcting it means deciding what
-the right qualifier is — and that decision needs an authoritative source, not a guess.
+It is corrected. The source that settled it was already in this repository:
+`backend/config/mx/sese.023.001.11.yaml` is the configured ISO 20022 definition of the same
+business message, and it separates the three concepts explicitly — `SctiesMvmntTp`
+(RECE/DELI) for direction, `Pmt` (APMT/FREE) for payment, and `SttlmParams/SctiesTxTp` for
+the transaction type, whose own guidance names using the direction codes as a transaction
+type as a mistake. Both formats now read one shared code list.
+
+**What still is not established** is whether that code list is *complete*. It is this
+repository's configured subset of the transaction types, not the authoritative one, and the
+usual caveat above applies to it unchanged.
 
 ---
 

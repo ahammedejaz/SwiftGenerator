@@ -14,8 +14,9 @@ records:
     missingImpact: The mandatory statement pagination information would be missing.
     presence: MANDATORY
     supportedOptions: [E]
-    allowedCodes: [ONLY]
-    formatExplanation: This subset emits page 1 with continuation code ONLY.
+    codeList: PAGE_CONTINUATION
+    allowedCodes: []
+    formatExplanation: A page number, a slash, then a continuation code — for example 1/ONLY.
     exampleValues: [{value: 1/ONLY, synthetic: true, explanation: One synthetic statement page.}]
     commonMistakes: [Treating pagination as a penalty reference]
     dependsOn: []
@@ -45,6 +46,7 @@ records:
     businessQuestion: What unique synthetic reference identifies this statement?
     missingImpact: The statement cannot be generated or audited.
     supportedOptions: [C]
+    codeList: null
     allowedCodes: []
     formatExplanation: Qualified option C reference, at most 16 characters in this subset.
     exampleValues: [{value: PENASTMT0001, synthetic: true, explanation: Synthetic statement reference.}]
@@ -60,7 +62,8 @@ records:
     businessQuestion: Is this a new penalty statement?
     missingImpact: The penalty structure would not be identified.
     supportedOptions: [G]
-    allowedCodes: [PENA]
+    codeList: PENALTY_FUNCTION
+    allowedCodes: []
     formatExplanation: Four-character PENA function code.
     exampleValues: [{value: PENA, synthetic: true, explanation: Penalty statement function.}]
     searchTerms: [23G, PENA, function]
@@ -76,6 +79,7 @@ records:
     businessQuestion: What is the statement date?
     missingImpact: The reporting date would be unknown.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: YYYYMMDD statement date.
     exampleValues: [{value: '20260805', synthetic: true, explanation: Synthetic statement date.}]
@@ -92,7 +96,8 @@ records:
     businessQuestion: Does this statement report penalties?
     missingImpact: The penalties sequence would conflict with the selected structure.
     supportedOptions: [H]
-    allowedCodes: [PENA]
+    codeList: STATEMENT_STRUCTURE
+    allowedCodes: []
     formatExplanation: Qualified option H indicator with PENA.
     exampleValues: [{value: PENA, synthetic: true, explanation: Penalty structure code.}]
     searchTerms: [22H, STST, PENA, structure]
@@ -108,6 +113,7 @@ records:
     businessQuestion: Which synthetic safekeeping account does this statement cover?
     missingImpact: The statement account scope would be missing.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: Option A SAFE account. Secure authoring accepts user-entered values; client format validation remains profile-specific.
     exampleValues: [{value: SYNTHSAFE01, synthetic: true, explanation: Synthetic account.}]
@@ -125,7 +131,8 @@ records:
     businessQuestion: Are there penalties to report?
     missingImpact: The presence of penalty details would not be declared.
     supportedOptions: [B]
-    allowedCodes: ['Y']
+    codeList: ACTIVITY_FLAG
+    allowedCodes: []
     formatExplanation: Single Y value for the non-empty subset.
     exampleValues: [{value: 'Y', synthetic: true, explanation: Penalties are present.}]
     searchTerms: [17B, ACTI, activity]
@@ -143,7 +150,8 @@ records:
     businessQuestion: Does the list contain current, new, or amended penalties?
     missingImpact: New versus changed penalty semantics would be ambiguous.
     supportedOptions: [F]
-    allowedCodes: [CURR, FWIS, FWAM]
+    codeList: PENALTY_LIST_TYPE
+    allowedCodes: []
     formatExplanation: CODE indicator using one controlled ISO code.
     exampleValues: [{value: FWIS, synthetic: true, explanation: New penalties only.}]
     searchTerms: [22F, CODE, CURR, FWIS, FWAM]
@@ -160,7 +168,8 @@ records:
     businessQuestion: In which currency are the penalties reported?
     missingImpact: Amount currency would be unclear.
     supportedOptions: [A]
-    allowedCodes: [USD, EUR, GBP]
+    codeList: PENALTY_CURRENCY
+    allowedCodes: []
     formatExplanation: Three-letter profile-allowed ISO currency.
     exampleValues: [{value: EUR, synthetic: true, explanation: Synthetic penalty currency.}]
     searchTerms: [11A, PECU, penalty currency]
@@ -177,6 +186,7 @@ records:
     businessQuestion: On which date was this penalty detected?
     missingImpact: The penalty reporting day would be missing.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: Valid YYYYMMDD date.
     exampleValues: [{value: '20260804', synthetic: true, explanation: Synthetic detection date.}]
@@ -195,6 +205,7 @@ records:
     businessQuestion: Which synthetic party services this account?
     missingImpact: The servicing-party context would be absent.
     supportedOptions: [R]
+    codeList: null
     allowedCodes: []
     formatExplanation: Fixed demonstration data-source scheme plus a synthetic proprietary identifier.
     exampleValues: [{value: BFSDEMO1/SYNTHSERVICER, synthetic: true, explanation: Synthetic party.}]
@@ -214,7 +225,8 @@ records:
     businessQuestion: What configured capacity applies to this party?
     missingImpact: The party role would be incomplete.
     supportedOptions: [F]
-    allowedCodes: [CSDP]
+    codeList: PENALTY_PARTY_CAPACITY
+    allowedCodes: []
     formatExplanation: Controlled CSD Participant code in this bounded profile.
     exampleValues: [{value: CSDP, synthetic: true, explanation: Demonstration capacity.}]
     searchTerms: [22F, TRCA, capacity]
@@ -229,11 +241,14 @@ records:
     whyUsed: Correlates the penalty entries to the relevant synthetic party.
     businessQuestion: Which synthetic party is related to these penalties?
     searchTerms: [95R, REPA, related party]
+    codeList: null
 
   - <<: *trca
     sequencePath: D1a
     businessPath: relatedPartyCapacity
     displayName: Related Party Capacity
+    codeList: PENALTY_PARTY_CAPACITY
+    allowedCodes: []
 
   - <<: *code
     sequencePath: D1a
@@ -247,6 +262,7 @@ records:
     businessQuestion: What is the net of the supplied penalty amounts?
     missingImpact: The counterparty penalty group would be incomplete.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: Currency amount; N marks a net payable amount.
     exampleValues: [{value: 'NEUR25,00', synthetic: true, explanation: Synthetic net payable amount.}]
@@ -265,6 +281,7 @@ records:
     businessQuestion: What is the penalty reference?
     missingImpact: The penalty detail cannot be identified.
     supportedOptions: [C]
+    codeList: null
     allowedCodes: []
     formatExplanation: Supported option C reference of at most 16 characters.
     exampleValues: [{value: PENALTY0001, synthetic: true, explanation: Synthetic penalty reference.}]
@@ -282,6 +299,7 @@ records:
     presence: OPTIONAL
     exampleValues: [{value: COMMON0001, synthetic: true, explanation: Synthetic common reference.}]
     searchTerms: [20C, PCOM, common reference]
+    codeList: null
 
   - <<: *pref
     qualifier: PPRF
@@ -295,6 +313,7 @@ records:
     presence: OPTIONAL
     exampleValues: [{value: PREVPENA0001, synthetic: true, explanation: Synthetic prior reference.}]
     searchTerms: [20C, PPRF, previous penalty]
+    codeList: null
 
   - <<: *code
     sequencePath: D1a1
@@ -308,7 +327,8 @@ records:
     businessQuestion: Is this a settlement fail or late matching fail penalty?
     missingImpact: The penalty category would be unknown.
     supportedOptions: [H]
-    allowedCodes: [SEFP, LMFP]
+    codeList: PENALTY_TYPE
+    allowedCodes: []
     formatExplanation: Controlled four-character penalty type.
     exampleValues: [{value: SEFP, synthetic: true, explanation: Settlement fail penalty.}]
     searchTerms: [22H, PNTP, SEFP, LMFP]
@@ -325,7 +345,8 @@ records:
     businessQuestion: What is the current penalty status?
     missingImpact: The supported subset cannot state the penalty state.
     supportedOptions: [D]
-    allowedCodes: [ACTV, NCOM, REMO]
+    codeList: PENALTY_STATUS
+    allowedCodes: []
     formatExplanation: Controlled penalty status code.
     exampleValues: [{value: ACTV, synthetic: true, explanation: Active penalty.}]
     searchTerms: [25D, PNST, ACTV, NCOM, REMO]
@@ -342,6 +363,7 @@ records:
     businessQuestion: What penalty amount was supplied, and is it payable or receivable?
     missingImpact: The penalty cannot be reported; the application never guesses it.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: Currency and decimal amount with N sign for payable.
     exampleValues: [{value: 'EUR25,00', synthetic: true, explanation: Synthetic receivable amount.}]
@@ -359,6 +381,7 @@ records:
     businessQuestion: How many days were supplied for this penalty?
     missingImpact: The penalty detail would be incomplete.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: Non-negative integer from 0 to 999 in this subset.
     exampleValues: [{value: '1', synthetic: true, explanation: One supplied day.}]
@@ -377,3 +400,4 @@ records:
     presence: OPTIONAL
     exampleValues: [{value: ORIGSETTLE001, synthetic: true, explanation: Synthetic settlement reference.}]
     searchTerms: [20C, RELA, related settlement]
+    codeList: null

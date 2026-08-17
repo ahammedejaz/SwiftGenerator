@@ -70,6 +70,7 @@ structure:
         presence: MANDATORY
         dataType: Code
         codes: [RECE, DELI]
+        codeList: SECURITIES_MOVEMENT_TYPE
         businessPath: direction
         businessMeaning: >-
           Whether the account owner receives securities into the account or delivers them out.
@@ -89,6 +90,7 @@ structure:
         presence: MANDATORY
         dataType: Code
         codes: [APMT, FREE]
+        codeList: PAYMENT_TYPE
         businessPath: paymentType
         businessMeaning: Whether the securities movement is settled against a cash payment.
         technicalMeaning: DeliveryReceiptType2Code.
@@ -208,7 +210,7 @@ structure:
         whyUsed: The globally recognised identifier for the security being moved.
         businessQuestion: What is the ISIN of the security?
         examples:
-          - value: XS0000000001
+          - value: XS0000000009
             explanation: A synthetic ISIN used for demonstration only.
         commonMistakes:
           - Including the literal prefix "ISIN " that the MT format uses in field 35B.
@@ -316,6 +318,7 @@ structure:
             presence: MANDATORY
             dataType: Code
             codes: [TRAD, COLI, COLO, PLAC, PORT, REDM, SUBS, TURN, NETT, OWNE, OWNI]
+            codeList: SETTLEMENT_TRANSACTION_TYPE
             businessPath: trade.transactionType
             businessMeaning: The configured code describing the underlying transaction.
             technicalMeaning: SecuritiesTransactionType code.

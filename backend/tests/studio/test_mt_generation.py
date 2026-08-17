@@ -105,10 +105,29 @@ def test_unknown_sequence_lists_the_valid_ones(mt541_fields: list[FieldInput]) -
 
 
 def test_ambiguous_tag_without_a_sequence_is_reported() -> None:
-    result = generate(
-        "MT541",
-        [FieldInput(tag="22F", qualifier="SETR", value="TRAD")],
+    """A tag that appears in two sequences of one message cannot be addressed by tag alone.
+
+    The message and tag are derived from the registry rather than named, so this keeps
+    testing the behaviour rather than a particular configuration. It used to use MT541's
+    22F/SETR, which appeared in both Trade Details and Settlement Details — an ambiguity
+    that only existed because the field was configured twice, and one of the two was not a
+    settlement transaction type at all.
+    """
+    from collections import Counter
+
+    from app.specifications.registry import specification_registry
+
+    ambiguous = next(
+        (spec.message_type.value, tag, qualifier)
+        for spec in specification_registry.list()
+        for (tag, qualifier), count in Counter(
+            (item.tag, item.qualifier) for item in spec.fields
+        ).items()
+        if count > 1
     )
+    message_type, tag, qualifier = ambiguous
+
+    result = generate(message_type, [FieldInput(tag=tag, qualifier=qualifier, value="TRAD")])
 
     assert any(item.rule_id == "MT_AMBIGUOUS_FIELD" for item in result.validation.errors)
 

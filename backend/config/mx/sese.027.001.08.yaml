@@ -163,7 +163,7 @@ structure:
             whyUsed: The unambiguous identifier for the instrument.
             businessQuestion: What is the ISIN?
             examples:
-              - value: XS0000000001
+              - value: XS0000000009
                 explanation: A synthetic test ISIN.
             commonMistakes:
               - Prefixing the value with 'ISIN ' as MT does; MX carries the code alone.

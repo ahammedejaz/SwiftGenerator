@@ -34,7 +34,7 @@ A real message:
 :16R:TRADDET                       ← "Trade Details section starts here"
 :98A::TRAD//20260814               ← trade date
 :98A::SETT//20260818               ← settlement date
-:35B:ISIN XS0000000001             ← which security
+:35B:ISIN XS0000000009             ← which security
 :16S:TRADDET
 -}                                 ← the content ends
 ```
@@ -85,7 +85,7 @@ MX is the newer format (ISO 20022). Same information, different shape:
       <SttlmDt><Dt><Dt>2026-08-18</Dt></Dt></SttlmDt>
     </TradDtls>
     <FinInstrmId>
-      <ISIN>XS0000000001</ISIN>
+      <ISIN>XS0000000009</ISIN>
     </FinInstrmId>
     <SttlmAmt>
       <Amt Ccy="USD">25000.00</Amt>
@@ -132,7 +132,7 @@ from the message you chose, so it cannot drift.
 | Receiving or delivering | implied by the message type | `<SctiesMvmntTp>RECE</SctiesMvmntTp>` |
 | Against payment? | implied by the message type | `<Pmt>APMT</Pmt>` |
 | Settlement date | `:98A::SETT//20260818` | `<SttlmDt><Dt><Dt>2026-08-18</Dt></Dt></SttlmDt>` |
-| The security | `:35B:ISIN XS0000000001` | `<ISIN>XS0000000001</ISIN>` |
+| The security | `:35B:ISIN XS0000000009` | `<ISIN>XS0000000009</ISIN>` |
 | Quantity | `:36B::SETT//UNIT/1000` | `<SttlmQty><Qty><Unit>1000</Unit></Qty></SttlmQty>` |
 | Amount | `:19A::SETT//USD25000,00` | `<Amt Ccy="USD">25000.00</Amt>` |
 | Where it settles | `:95a::PSET//` | `<Dpstry><Id><AnyBIC>…</AnyBIC></Id></Dpstry>` |
@@ -142,7 +142,9 @@ Three differences that catch people out:
 1. **Dates.** MT: `20260818`. MX: `2026-08-18`. The tool detects the wrong one and suggests
    the right one.
 2. **Decimals.** MT: `25000,00` (comma). MX: `25000.00` (full stop). Genuinely opposite.
-3. **ISIN.** MT writes `ISIN XS0000000001` with the literal word. MX writes the code alone.
+3. **ISIN.** You supply `XS0000000009` in both formats. MT renders it as
+   `ISIN XS0000000009` — the composer writes the literal, never you — and MX writes the
+   identifier alone. One business value, two renderings.
 
 MT541 and MT543 are separate message types because direction is baked into the type. MX has
 one message type and puts direction in a field.

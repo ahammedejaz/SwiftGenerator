@@ -52,7 +52,7 @@ def valid_mt541_payload() -> dict[str, object]:
         },
         "security": {
             "identifierType": "ISIN",
-            "identifier": "XS0000000001",
+            "identifier": "XS0000000009",
             "quantityType": "UNIT",
             "quantity": "1000",
         },

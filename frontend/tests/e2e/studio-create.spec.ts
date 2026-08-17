@@ -25,7 +25,7 @@ test.describe("Create Message", () => {
     await page.getByRole("button", { name: /MT541/ }).click();
 
     // Loading a sample is the fastest honest path for a tester with no data of their own.
-    await page.getByRole("button", { name: /^Typical/ }).click();
+    await page.getByRole("button", { name: /Load typical sample/ }).click();
 
     await expect(page.getByText(/required fields filled/)).toBeVisible();
     await page.getByRole("button", { name: "Generate message" }).click();
@@ -94,7 +94,7 @@ test.describe("Create Message", () => {
     await page.getByRole("button", { name: /Choose MX/ }).click();
     await page.getByRole("button", { name: /Securities Settlement/ }).click();
     await page.getByRole("button", { name: /sese\.023/ }).click();
-    await page.getByRole("button", { name: /^Typical/ }).click();
+    await page.getByRole("button", { name: /Load typical sample/ }).click();
     await page.getByRole("button", { name: "Generate message" }).click();
 
     await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });
@@ -112,7 +112,7 @@ test.describe("Create Message", () => {
     await page.getByRole("button", { name: /Choose MT/ }).click();
     await page.getByRole("button", { name: /Securities Settlement/ }).click();
     await page.getByRole("button", { name: /MT541/ }).click();
-    await page.getByRole("button", { name: /^Typical/ }).click();
+    await page.getByRole("button", { name: /Load typical sample/ }).click();
     await page.getByRole("button", { name: "Generate message" }).click();
     await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });
 
@@ -128,7 +128,7 @@ test.describe("Create Message", () => {
     await page.getByRole("button", { name: /Choose MT/ }).click();
     await page.getByRole("button", { name: /Securities Settlement/ }).click();
     await page.getByRole("button", { name: /MT541/ }).click();
-    await page.getByRole("button", { name: /^Typical/ }).click();
+    await page.getByRole("button", { name: /Load typical sample/ }).click();
     await page.getByRole("button", { name: "Generate message" }).click();
     await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });
 

@@ -19,14 +19,12 @@ curl -s -X POST http://localhost:8000/api/v1/messages/generate \
       { "sequence": "GENL",    "tag": "23G",                      "value": "NEWM" },
       { "sequence": "TRADDET", "tag": "98A", "qualifier": "TRAD", "value": "20260814" },
       { "sequence": "TRADDET", "tag": "98A", "qualifier": "SETT", "value": "20260818" },
-      { "sequence": "TRADDET", "tag": "35B",                      "value": "ISIN XS0000000001" },
+      { "sequence": "TRADDET", "tag": "35B",                      "value": "XS0000000009" },
       { "sequence": "TRADDET", "tag": "36B", "qualifier": "SETT", "value": "UNIT/1000" },
-      { "sequence": "TRADDET", "tag": "22F", "qualifier": "SETR", "value": "BUY" },
       { "sequence": "FIAC",    "tag": "97A", "qualifier": "SAFE", "value": "SAFE0000001" },
-      { "sequence": "SETDET",  "tag": "22F", "qualifier": "SETR", "value": "RECE" },
-      { "sequence": "SETDET",  "tag": "95R", "qualifier": "PSET", "value": "CSD/DEMOPSET01" },
-      { "sequence": "SETDET",  "tag": "95R", "qualifier": "DEAG", "value": "AGT/DEMODEAG01" },
-      { "sequence": "SETDET",  "tag": "95R", "qualifier": "REAG", "value": "AGT/DEMOREAG01" },
+      { "sequence": "SETDET",  "tag": "22F", "qualifier": "SETR", "value": "TRAD" },
+      { "sequence": "SETDET",  "tag": "95P", "qualifier": "PSET", "value": "DEMOGB2LXXX" },
+      { "sequence": "SETDET",  "tag": "95P", "qualifier": "DEAG", "value": "DEMODEAGXXX" },
       { "sequence": "SETDET",  "tag": "19A", "qualifier": "SETT", "value": "USD25000,00" }
     ]
   }' | jq -r '.outputs.fin'
@@ -107,7 +105,7 @@ curl -s -X POST http://localhost:8000/api/v1/messages/generate \
       { "path": "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/SctiesMvmntTp", "value": "RECE" },
       { "path": "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/Pmt", "value": "APMT" },
       { "path": "/Document/SctiesSttlmTxInstr/TradDtls/SttlmDt/Dt/Dt", "value": "2026-08-18" },
-      { "path": "/Document/SctiesSttlmTxInstr/FinInstrmId/ISIN", "value": "XS0000000001" },
+      { "path": "/Document/SctiesSttlmTxInstr/FinInstrmId/ISIN", "value": "XS0000000009" },
       { "path": "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SttlmQty/Qty/Unit", "value": "1000" },
       { "path": "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SfkpgAcct/Id", "value": "SAFE0000001" },
       { "path": "/Document/SctiesSttlmTxInstr/SttlmParams/SctiesTxTp/Cd", "value": "TRAD" },

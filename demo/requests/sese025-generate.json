@@ -32,7 +32,7 @@
     {
       "path": "/Document/SctiesSttlmTxConf/FinInstrmId/ISIN",
       "occurrence": 1,
-      "value": "XS0000000001"
+      "value": "XS0000000009"
     },
     {
       "path": "/Document/SctiesSttlmTxConf/QtyAndAcctDtls/SttlmQty/Qty/Unit",
@@ -53,11 +53,6 @@
       "path": "/Document/SctiesSttlmTxConf/DlvrgSttlmPties/Dpstry/Id/AnyBIC",
       "occurrence": 1,
       "value": "DEMOGB2LXXX"
-    },
-    {
-      "path": "/Document/SctiesSttlmTxConf/DlvrgSttlmPties/Pty1/Id/AnyBIC",
-      "occurrence": 1,
-      "value": "DEMODEAGXXX"
     },
     {
       "path": "/Document/SctiesSttlmTxConf/SttlmAmt/Amt",

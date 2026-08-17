@@ -238,6 +238,15 @@ def _detail(field: SpecField, message_types: list[str]) -> IntelligenceDetail:
         why_used=field.why_used,
         format_explanation=field.format_explanation,
         allowed_codes=field.allowed_codes,
+        # The same controlled vocabulary the form and the workbook use, so looking a code up
+        # in Message Intelligence and choosing it in the builder cannot disagree.
+        allowed_values=field.allowed_values,
+        code_list=field.code_list,
+        input_kind=field.input_kind,
+        literal_prefix=field.literal_prefix,
+        user_enters_literal_prefix=field.user_enters_literal_prefix,
+        identifier_types=field.identifier_types,
+        max_length=field.max_length,
         examples=field.examples or _fallback_examples(field),
         common_mistakes=field.common_mistakes,
         depends_on=field.depends_on,
@@ -255,8 +264,11 @@ def _fallback_examples(field: SpecField) -> list[FieldExample]:
     if not field.allowed_codes:
         return []
     return [
-        FieldExample(value=code, explanation="A supported code for this field.")
-        for code in field.allowed_codes[:4]
+        FieldExample(
+            value=item.code,
+            explanation=item.description or f"{item.label}. A supported code for this field.",
+        )
+        for item in field.allowed_values[:4]
     ]
 
 

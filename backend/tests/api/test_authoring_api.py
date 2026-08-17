@@ -1,19 +1,24 @@
 from app.persistence.database import SessionLocal
 from app.persistence.models import DraftFieldRecord
 
+#: A complete MT541 as a tester would now enter it.
+#:
+#: The identifier is supplied on its own — the composer writes the ``ISIN`` literal — and
+#: carries a valid ISO 6166 check digit. 22F::SETR appears once, in Settlement Details,
+#: carrying a transaction type rather than a direction. The counterparty is the delivering
+#: agent, because this is a receipt, and it is identified by BIC under option P rather than
+#: written into the proprietary option.
 MT541_VALUES = {
     "MT541-A-20C-SEME": "CLIENTREF000001",
     "MT541-A-23G-NONE": "NEWM",
     "MT541-B-98A-TRAD": "20260803",
     "MT541-B-98A-SETT": "20260806",
-    "MT541-B-35B-NONE": "ISIN XS0000000001",
+    "MT541-B-35B-NONE": "XS0000000009",
     "MT541-B-36B-SETT": "UNIT/1000,",
-    "MT541-B-22F-SETR": "BUY",
     "MT541-C-97A-SAFE": "REALSAFEACCOUNT001",
-    "MT541-E-22F-SETR": "RECE",
-    "MT541-E-95R-PSET": "CLIENTPSET01",
-    "MT541-E-95R-DEAG": "ZZZZUS00DEMO",
-    "MT541-E-95R-REAG": "YYYYGB00DEMO",
+    "MT541-E-22F-SETR": "TRAD",
+    "MT541-E-95R-PSET": "CSD/CLIENTPSET01",
+    "MT541-E-95P-DEAG": "ZZZZUS00XXX",
     "MT541-E-19A-SETT": "USD25000,00",
 }
 

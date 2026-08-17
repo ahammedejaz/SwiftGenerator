@@ -3,6 +3,15 @@ from app.domain.enums import Direction, GenerationMode, MessageType, NegativeMut
 from app.domain.models import RenderedField, SettlementScenario
 from app.profiles.loader import ClientProfile
 
+#: The transaction type an ordinary settlement of a trade carries in 22F::SETR.
+#:
+#: Reconciled against this repository's own ISO 20022 definition of the same business
+#: message — sese.023.001.11 SttlmParams/SctiesTxTp/Cd — whose configured code list is the
+#: authority for this field. Receive versus deliver is carried by the message type, and a
+#: buy/sell classification is not a settlement transaction type at all.
+SETTLEMENT_TRANSACTION_TYPE_CODE = "TRAD"
+
+
 
 class FopInstructionComposer(MessageComposer):
     def compose(self, scenario: SettlementScenario, profile: ClientProfile) -> CompositionResult:
@@ -117,14 +126,6 @@ class FopInstructionComposer(MessageComposer):
             "security.quantity",
             "Settlement quantity",
         )
-        add(
-            "B",
-            "22F",
-            "SETR",
-            scenario.trade.transaction_type.value,
-            "trade.transactionType",
-            "Transaction type",
-        )
         lines.append(":16S:TRADDET")
 
         lines.append(":16R:FIAC")
@@ -139,14 +140,17 @@ class FopInstructionComposer(MessageComposer):
         lines.append(":16S:FIAC")
 
         lines.append(":16R:SETDET")
-        direction_code = "RECE" if scenario.direction == Direction.RECEIVE else "DELI"
+        # 22F::SETR states the *type* of settlement transaction, not the direction. The
+        # message type already carries receive versus deliver — that is what selected
+        # MT540..MT543 in the first place — and BUY/SELL is not a transaction-type code.
+        # Reconciled against this repository's own sese.023 definition of the same message.
         add(
             "E",
             "22F",
             "SETR",
-            direction_code,
-            "direction",
-            f"{scenario.direction.value.title()} direction",
+            SETTLEMENT_TRANSACTION_TYPE_CODE,
+            "trade.transactionType",
+            "Settlement transaction type",
         )
         if scenario.settlement.place_of_settlement is not None:
             add(
@@ -157,22 +161,26 @@ class FopInstructionComposer(MessageComposer):
                 "settlement.placeOfSettlement",
                 "Synthetic place of settlement",
             )
-        add(
-            "E",
-            "95R",
-            "DEAG",
-            f"SYNTH/{scenario.settlement.delivering_agent}",
-            "settlement.deliveringAgent",
-            "Synthetic delivering agent",
-        )
-        add(
-            "E",
-            "95R",
-            "REAG",
-            f"SYNTH/{scenario.settlement.receiving_agent}",
-            "settlement.receivingAgent",
-            "Synthetic receiving agent",
-        )
+        # A receipt names the chain that delivers; a delivery names the chain that
+        # receives. Emitting both made every instruction require its own counterparty twice.
+        if scenario.direction == Direction.RECEIVE:
+            add(
+                "E",
+                "95R",
+                "DEAG",
+                f"SYNTH/{scenario.settlement.delivering_agent}",
+                "settlement.deliveringAgent",
+                "Synthetic delivering agent",
+            )
+        else:
+            add(
+                "E",
+                "95R",
+                "REAG",
+                f"SYNTH/{scenario.settlement.receiving_agent}",
+                "settlement.receivingAgent",
+                "Synthetic receiving agent",
+            )
         lines.append(":16S:SETDET")
         lines.append("-}")
         return CompositionResult(raw_message="\n".join(lines), field_map=fields)

@@ -17,11 +17,18 @@ from decimal import Decimal, InvalidOperation
 from app.authoring.composer import (
     ComposeField,
     ComposeSequence,
-    _format_valid,
+    canonical_field_value,
+    row_format_valid,
     specification_composer,
 )
 from app.authoring.models import DataClassification, FieldValueSource
 from app.domain.enums import MessageType
+from app.domain.identifiers import IsinProblem, validate_isin
+from app.knowledge.presentation import (
+    DIRECT_CODE_TAG_PREFIXES,
+    choice_key,
+    is_direct_code_field,
+)
 from app.profiles.loader import ClientProfile
 from app.specifications.models import FieldSpecification, MessageSpecification
 from app.specifications.registry import specification_registry
@@ -37,8 +44,9 @@ from app.studio.models import (
 )
 from app.studio.mt.fin import FinEnvelopeUnavailable, build_fin_message
 
-#: Tags whose value is a controlled code taken directly from the row's code list.
-DIRECT_CODE_TAG_PREFIXES = frozenset({"11", "17", "22", "23", "24", "25"})
+#: Re-exported: the definition lives beside the rest of the presentation rules, which is
+#: what the composer and the catalogue read.
+__all__ = ["DIRECT_CODE_TAG_PREFIXES", "MtGenerator", "mt_generator", "plan_sequences"]
 
 
 @dataclass
@@ -299,8 +307,15 @@ class MtGenerator:
                 )
                 continue
             seen.add(key)
+            # Every entry point — the browser, the JSON API, Excel and MT import — reaches
+            # a value through here, so "what does this field actually hold?" is answered in
+            # one place rather than four.
             resolved.append(
-                ResolvedField(row=row, occurrence=item.occurrence, value=item.value.strip())
+                ResolvedField(
+                    row=row,
+                    occurrence=item.occurrence,
+                    value=canonical_field_value(row, item.value.strip()),
+                )
             )
         return resolved, issues
 
@@ -319,6 +334,12 @@ class MtGenerator:
         by_business_path = {item.row.business_path: item for item in resolved}
 
         # Mandatory rows, per sequence occurrence that the caller actually used.
+        #
+        # A row that belongs to a choice group is satisfied by any member of that group: a
+        # settlement party identified by its BIC and the same party identified by a
+        # proprietary scheme are two field options carrying one business value, not two
+        # required fields.
+        alternatives = _choice_members(specification)
         for row in specification.fields:
             if row.presence.value != "MANDATORY":
                 continue
@@ -329,8 +350,17 @@ class MtGenerator:
                     if item.row.sequence_path == row.sequence_path
                 }
             ) or ([1] if any(o == 1 for o in occurrences) else [])
+            group = choice_key(row.choice_group)
             for occurrence in sequence_occurrences or [1]:
                 if (row.row_id, occurrence) in supplied:
+                    continue
+                if group and any(
+                    (member.row_id, occurrence) in supplied for member in alternatives[group]
+                ):
+                    continue
+                if group and row.row_id != alternatives[group][0].row_id:
+                    # One message per missing business value, reported against the option
+                    # the form offers first, rather than one per field option.
                     continue
                 errors.append(
                     _error(
@@ -344,10 +374,38 @@ class MtGenerator:
                     )
                 )
 
+        # Two field options for one business value cannot both be present.
+        for members in alternatives.values():
+            for occurrence in sorted(occurrences):
+                present = [
+                    member for member in members if (member.row_id, occurrence) in supplied
+                ]
+                if len(present) > 1:
+                    errors.append(
+                        _error(
+                            "MT_FIELD_OPTION_CONFLICT",
+                            f"{present[0].business_name} was identified in more than one way.",
+                            layer=ValidationLayer.STRUCTURE,
+                            field_name=present[0].business_name,
+                            location=present[1].row_id,
+                            expected=" or ".join(
+                                f"{item.tag} ({_option_label(item)})" for item in members
+                            ),
+                            suggestion=(
+                                "Identify the party once. Remove "
+                                f"{present[1].tag} or {present[0].tag}."
+                            ),
+                        )
+                    )
+
         for item in resolved:
             row = item.row
             value = item.value
-            if not _format_valid(row.tag, value):
+            identifier_issue = _identifier_issue(row, value)
+            if identifier_issue is not None:
+                errors.append(identifier_issue)
+                continue
+            if not row_format_valid(row, value):
                 errors.append(
                     _error(
                         "MT_FORMAT_INVALID",
@@ -362,11 +420,7 @@ class MtGenerator:
                     )
                 )
                 continue
-            if (
-                row.tag[:2] in DIRECT_CODE_TAG_PREFIXES
-                and row.allowed_codes
-                and value not in row.allowed_codes
-            ):
+            if is_direct_code_field(row.tag, row.allowed_codes) and value not in row.allowed_codes:
                 errors.append(
                     _error(
                         "MT_CODE_NOT_ALLOWED",
@@ -374,7 +428,7 @@ class MtGenerator:
                         layer=ValidationLayer.FORMAT,
                         field_name=row.business_name,
                         location=row.row_id,
-                        expected=", ".join(row.allowed_codes),
+                        expected=_code_expectation(row),
                         current=value,
                         suggestion=f"Use {row.allowed_codes[0]}.",
                     )
@@ -623,6 +677,118 @@ class MtGenerator:
                     )
                 )
         return lines
+
+
+def _choice_members(
+    specification: MessageSpecification,
+) -> dict[str, list[FieldSpecification]]:
+    groups: dict[str, list[FieldSpecification]] = {}
+    for row in specification.fields:
+        key = choice_key(row.choice_group)
+        if key:
+            groups.setdefault(key, []).append(row)
+    for members in groups.values():
+        members.sort(key=lambda item: item.row_number)
+    return groups
+
+
+def _option_label(row: FieldSpecification) -> str:
+    """The business words for a field option, so an error never says "95P or 95R" alone."""
+    if row.tag == "95P":
+        return "BIC"
+    if row.tag == "95R":
+        return "proprietary identifier"
+    return f"option {row.option}"
+
+
+def _code_expectation(row: FieldSpecification) -> str:
+    """Allowed codes with the words for them, from the shared code list."""
+    from app.knowledge.code_lists import code_lists
+
+    values = code_lists.describe(row.code_list, row.allowed_codes)
+    return ", ".join(
+        f"{item.code} ({item.label})" if item.label != item.code else item.code
+        for item in values
+    )
+
+
+#: What to say for each way an identifier can be wrong. Naming the actual defect is the
+#: whole point: "does not match the expected format" sent a tester to re-read a regex.
+_ISIN_MESSAGES: dict[IsinProblem, tuple[str, str, str]] = {
+    IsinProblem.EMPTY: (
+        "MT_ISIN_LENGTH",
+        "{name} needs an identifier.",
+        "Enter the twelve-character identifier, for example XS0000000009.",
+    ),
+    IsinProblem.LENGTH: (
+        "MT_ISIN_LENGTH",
+        "An ISIN must contain exactly 12 characters.",
+        "Enter only the 12-character identifier. You do not need to type \u201cISIN\u201d.",
+    ),
+    IsinProblem.PREFIX_NOT_ALPHABETIC: (
+        "MT_ISIN_PREFIX",
+        "An ISIN must start with two letters.",
+        "The first two characters are the country or issuing prefix, for example XS or US.",
+    ),
+    IsinProblem.INVALID_CHARACTER: (
+        "MT_ISIN_CHARACTER",
+        "An ISIN may contain only letters and digits.",
+        "Remove spaces, punctuation and any other character.",
+    ),
+    IsinProblem.CHECK_DIGIT_NOT_NUMERIC: (
+        "MT_ISIN_CHECK_DIGIT_NOT_NUMERIC",
+        "The final ISIN character must be a numeric check digit.",
+        "Check you have copied a real ISIN rather than another kind of identifier.",
+    ),
+}
+
+
+def _identifier_issue(row: FieldSpecification, value: str) -> ValidationIssue | None:
+    """Verify an identifier field, keeping two different claims apart.
+
+    Shape is an ISO 15022 field-format question and is reported in the FORMAT layer. The
+    check digit is an ISO 6166 identifier-quality question — the FIN network does not
+    compute it — so it is reported in the CLIENT_PROFILE layer, where a counterparty's own
+    requirements live. Collapsing the two would claim a SWIFT rule that does not exist.
+    """
+    if not (row.literal_prefix and "ISIN" in row.identifier_types):
+        return None
+    verdict = validate_isin(value)
+    if verdict.format_valid and verdict.check_digit_valid:
+        return None
+    example = _first_example(row) or "For example: XS0000000009"
+    if not verdict.format_valid:
+        rule_id, message, suggestion = _ISIN_MESSAGES[
+            verdict.problem or IsinProblem.INVALID_CHARACTER
+        ]
+        return _error(
+            rule_id,
+            message.format(name=row.business_name),
+            layer=ValidationLayer.FORMAT,
+            field_name=row.business_name,
+            location=row.row_id,
+            expected="12 characters: two letters, nine letters or digits, one check digit",
+            current=value,
+            suggestion=f"{suggestion} {example}",
+        )
+    return _error(
+        "MT_ISIN_CHECK_DIGIT_INVALID",
+        "The ISIN check digit is not valid.",
+        layer=ValidationLayer.CLIENT_PROFILE,
+        field_name=row.business_name,
+        location=row.row_id,
+        expected=(
+            f"A final check digit of {verdict.expected_check_digit} for identifier "
+            f"{value[:11]}"
+        ),
+        current=value,
+        suggestion=(
+            "The last character is derived from the other eleven by the ISO 6166 "
+            "calculation, so a mistyped character usually shows up here. Check the "
+            f"identifier, or use {value[:11]}{verdict.expected_check_digit}. This is an "
+            "identifier-quality rule, not a SWIFT field-format rule."
+        ),
+    )
 
 
 def _first_example(row: FieldSpecification) -> str | None:

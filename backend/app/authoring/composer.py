@@ -12,6 +12,13 @@ from app.authoring.models import (
     ValidationLevel,
     ValidationLevelState,
 )
+from app.domain.identifiers import (
+    bic_format_valid,
+    normalise_isin,
+    proprietary_party_valid,
+    validate_isin,
+)
+from app.knowledge.presentation import choice_key, is_direct_code_field
 from app.specifications.models import FieldSpecification, MessageSpecification
 
 
@@ -117,31 +124,32 @@ class SpecificationComposer:
                     format_findings.append(
                         f"Field {field.row.row_id} has an unsafe continuation line."
                     )
-            direct_code_field = field.row.tag[:2] in {
-                "11",
-                "17",
-                "22",
-                "23",
-                "24",
-                "25",
-            }
             if (
-                direct_code_field
-                and field.row.allowed_codes
+                is_direct_code_field(field.row.tag, field.row.allowed_codes)
                 and field.value not in field.row.allowed_codes
             ):
                 format_findings.append(
                     f"Field {field.row.row_id} requires one of its configured controlled codes."
                 )
-            if not _format_valid(field.row.tag, field.value):
+            if not row_format_valid(field.row, field.value):
                 format_findings.append(
                     f"Field {field.row.row_id} does not match its configured local format."
                 )
             fields_by_sequence.setdefault(field.sequence_id, []).append(field)
 
+        # A row in a choice group is satisfied by any member of that group: the BIC form and
+        # the proprietary form of a settlement party are two field options carrying one
+        # business value, so requiring both would demand the party twice.
+        group_members: dict[str, set[str]] = {}
+        for row in specification.fields:
+            group = choice_key(row.choice_group)
+            if group:
+                group_members.setdefault(group, set()).add(row.row_id)
         for row in specification.fields:
             if row.min_occurs == 0:
                 continue
+            group = choice_key(row.choice_group)
+            satisfying = group_members.get(group, {row.row_id}) if group else {row.row_id}
             matching_instances = [
                 item for item in sequences if item.sequence_path == row.sequence_path
             ]
@@ -149,7 +157,7 @@ class SpecificationComposer:
                 matching = [
                     field
                     for field in fields_by_sequence.get(instance.sequence_id, [])
-                    if field.row.row_id == row.row_id
+                    if field.row.row_id in satisfying
                 ]
                 if len(matching) < row.min_occurs:
                     structure_findings.append(
@@ -182,6 +190,12 @@ class SpecificationComposer:
                 prefix = f":{field.row.tag}:"
                 if field.row.qualifier:
                     prefix += f":{field.row.qualifier}//"
+                # The one place a field's literal is written. A caller supplies the
+                # identifier alone — `XS0000000009`, never `ISIN XS0000000009` — so the
+                # canonical value stays a business value and exactly one component turns it
+                # into SWIFT syntax. The importer strips the same literal on the way back.
+                if field.row.literal_prefix:
+                    prefix += field.row.literal_prefix
                 value_lines = field.value.replace("\r\n", "\n").replace("\r", "\n").split("\n")
                 lines.append(prefix + value_lines[0])
                 lines.extend(value_lines[1:])
@@ -264,6 +278,24 @@ class SpecificationComposer:
 specification_composer = SpecificationComposer()
 
 
+def row_format_valid(row: FieldSpecification, value: str) -> bool:
+    """Whether a **canonical** value fits the field it is addressed to.
+
+    Canonical means the business value alone: the identifier without the ``ISIN`` literal,
+    because the composer writes that. Checking the rendered form instead is what previously
+    forced testers to type SWIFT syntax into a business field.
+    """
+    if row.literal_prefix and "ISIN" in row.identifier_types:
+        return validate_isin(value).format_valid
+    if row.tag == "95P":
+        return bic_format_valid(value)
+    if row.tag == "95R":
+        # Option R is a data source scheme and an identifier. Without the scheme it is not
+        # an option-R value at all, and the field silently accepted BIC-shaped values.
+        return proprietary_party_valid(value)
+    return _format_valid(row.tag, value)
+
+
 def _format_valid(tag: str, value: str) -> bool:
     if not value or "\x00" in value:
         return False
@@ -290,7 +322,10 @@ def _format_valid(tag: str, value: str) -> bool:
         "19A": r"N?[A-Z]{3}\d+(?:,\d+)?",
         "19B": r"N?[A-Z]{3}\d+(?:,\d+)?",
         "28E": r"\d{1,5}/[A-Z]{4}",
-        "35B": r"ISIN [A-Z]{2}[A-Z0-9]{9}\d",
+        # 35B carries the identifier alone; the ISIN literal is added at render time and is
+        # never part of the value. Kept for any caller that still addresses the tag without
+        # a specification row.
+        "35B": r"[A-Z]{2}[A-Z0-9]{9}\d",
         "36B": r"[A-Z]{4}/\d+(?:,\d*)?",
         "93B": r"[A-Z]{4}/\d+(?:,\d*)?",
         "99A": r"\d{1,3}",
@@ -299,10 +334,27 @@ def _format_valid(tag: str, value: str) -> bool:
         return re.fullmatch(patterns[tag], value) is not None
     if tag == "97A":
         return len(value) <= 35 and "\n" not in value
+    if tag == "95P":
+        return bic_format_valid(value)
     if tag == "95R":
-        return len(value) <= 70 and re.fullmatch(r"[A-Z0-9._/-]+", value) is not None
+        return proprietary_party_valid(value)
     if tag in {"70D", "70E"}:
         return len(value) <= 350 and all(
             ord(character) >= 32 or character == "\n" for character in value
         )
     return len(value) <= 1_000
+
+
+def canonical_field_value(row: FieldSpecification, value: str) -> str:
+    """Normalise presentation before anything judges the value.
+
+    One place, reached by the browser, the JSON API, Excel and MT import alike, so a value
+    pasted with the field's own literal in front of it — ``ISIN XS0000000009`` — is accepted
+    and stored the same way as one typed without it. Only spacing, case and the literal are
+    touched; the identifier's characters are never rewritten.
+    """
+    if row.literal_prefix and "ISIN" in row.identifier_types:
+        return normalise_isin(value)
+    if row.tag in {"95P", "95R"}:
+        return value.strip().upper()
+    return value

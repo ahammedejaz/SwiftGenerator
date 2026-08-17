@@ -37,7 +37,7 @@
     {
       "path": "/Document/SctiesSttlmTxInstr/FinInstrmId/ISIN",
       "occurrence": 1,
-      "value": "XS0000000001"
+      "value": "XS0000000009"
     },
     {
       "path": "/Document/SctiesSttlmTxInstr/FinInstrmId/Desc",
@@ -63,11 +63,6 @@
       "path": "/Document/SctiesSttlmTxInstr/DlvrgSttlmPties/Dpstry/Id/AnyBIC",
       "occurrence": 1,
       "value": "DEMOGB2LXXX"
-    },
-    {
-      "path": "/Document/SctiesSttlmTxInstr/DlvrgSttlmPties/Pty1/Id/AnyBIC",
-      "occurrence": 1,
-      "value": "DEMODEAGXXX"
     },
     {
       "path": "/Document/SctiesSttlmTxInstr/SttlmAmt/Amt",

@@ -54,7 +54,7 @@
       "occurrence": 1,
       "tag": "35B",
       "option": "B",
-      "value": "ISIN XS0000000001"
+      "value": "XS0000000009"
     },
     {
       "id": "MT545-B-36B-ESTT",
@@ -93,31 +93,22 @@
       "value": "SAFE0000001"
     },
     {
-      "id": "MT545-E-95R-PSET",
+      "id": "MT545-E-95P-PSET",
       "sequence": "SETDET",
       "occurrence": 1,
-      "tag": "95R",
+      "tag": "95P",
       "qualifier": "PSET",
-      "option": "R",
-      "value": "CSD/DEMOPSET01"
+      "option": "P",
+      "value": "DEMOGB2LXXX"
     },
     {
-      "id": "MT545-E-95R-DEAG",
+      "id": "MT545-E-95P-DEAG",
       "sequence": "SETDET",
       "occurrence": 1,
-      "tag": "95R",
+      "tag": "95P",
       "qualifier": "DEAG",
-      "option": "R",
-      "value": "AGT/DEMODEAG01"
-    },
-    {
-      "id": "MT545-E-95R-REAG",
-      "sequence": "SETDET",
-      "occurrence": 1,
-      "tag": "95R",
-      "qualifier": "REAG",
-      "option": "R",
-      "value": "AGT/DEMOREAG01"
+      "option": "P",
+      "value": "DEMODEAGXXX"
     }
   ],
   "persist": false

@@ -25,6 +25,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 
+from app.domain.identifiers import synthetic_isin
 from app.studio.catalogue import message_spec
 from app.studio.models import (
     ElementInput,
@@ -40,6 +41,17 @@ from app.studio.models import (
 #: Fixed dates keep samples deterministic, which keeps golden tests and demos stable.
 TRADE_DATE = date(2026, 8, 14)
 SETTLEMENT_DATE = date(2026, 8, 18)
+
+#: The sample instrument, with its ISO 6166 check digit computed rather than typed.
+#:
+#: The previous value, ``XS0000000001``, was checksum-invalid — its correct final digit is
+#: 9 — so every sample, every golden fixture and both Excel templates shipped an identifier
+#: the studio itself now rejects. Deriving it means that cannot happen again.
+#:
+#: STRUCTURALLY_VALID_SYNTHETIC: the shape and the check digit are right. It is not
+#: registered with any national numbering agency and must never be presented as though it
+#: were.
+SAMPLE_ISIN = synthetic_isin("XS000000000")
 
 #: Values chosen per business path so the MT and MX samples describe the same trade.
 BUSINESS_VALUES: dict[str, dict[MessageFormat, str]] = {
@@ -59,9 +71,12 @@ BUSINESS_VALUES: dict[str, dict[MessageFormat, str]] = {
         MessageFormat.MT: SETTLEMENT_DATE.strftime("%Y%m%d"),
         MessageFormat.MX: SETTLEMENT_DATE.isoformat(),
     },
+    # One value for both formats. MT used to need its own entry carrying "ISIN " because
+    # the caller owned that literal; the composer owns it now, so the business value is the
+    # same in ISO 15022 and ISO 20022.
     "security.identifier": {
-        MessageFormat.MT: "ISIN XS0000000001",
-        MessageFormat.MX: "XS0000000001",
+        MessageFormat.MT: SAMPLE_ISIN,
+        MessageFormat.MX: SAMPLE_ISIN,
     },
     "security.description": {MessageFormat.MX: "SYNTHETIC TEST BOND 2030"},
     "security.quantity": {MessageFormat.MT: "UNIT/1000", MessageFormat.MX: "1000"},
@@ -76,44 +91,55 @@ BUSINESS_VALUES: dict[str, dict[MessageFormat, str]] = {
         MessageFormat.MX: "USD 25000.00",
     },
     "settlement.cashDirection": {MessageFormat.MX: "DBIT"},
+    # Settlement parties are identified by BIC in both formats now that MT offers option
+    # P, so the two samples describe the same counterparties rather than parallel ones.
+    # Structurally valid, deliberately synthetic, not registered with SWIFT.
     "settlement.placeOfSettlement": {
-        MessageFormat.MT: "CSD/DEMOPSET01",
+        MessageFormat.MT: "DEMOGB2LXXX",
         MessageFormat.MX: "DEMOGB2LXXX",
     },
     "settlement.deliveringAgent": {
-        MessageFormat.MT: "AGT/DEMODEAG01",
+        MessageFormat.MT: "DEMODEAGXXX",
         MessageFormat.MX: "DEMODEAGXXX",
     },
     "settlement.receivingAgent": {
-        MessageFormat.MT: "AGT/DEMOREAG01",
+        MessageFormat.MT: "DEMOREAGXXX",
         MessageFormat.MX: "DEMOREAGXXX",
     },
     "direction": {MessageFormat.MX: "RECE"},
     "paymentType": {MessageFormat.MX: "APMT"},
-    "trade.transactionType": {MessageFormat.MX: "TRAD"},
+    # An ordinary settlement of a trade, in both formats. MT no longer carries direction in
+    # a field at all — the message type states it.
+    "trade.transactionType": {MessageFormat.MT: "TRAD", MessageFormat.MX: "TRAD"},
 }
 
-#: MT direction and transaction-type codes vary by message type.
-MT_DIRECTION_BY_TYPE: dict[str, tuple[str, str]] = {
-    "MT540": ("RECE", "BUY"),
-    "MT541": ("RECE", "BUY"),
-    "MT542": ("DELI", "SELL"),
-    "MT543": ("DELI", "SELL"),
-    "MT544": ("RECE", "BUY"),
-    "MT545": ("RECE", "BUY"),
-    "MT546": ("DELI", "SELL"),
-    "MT547": ("DELI", "SELL"),
+#: Which securities movement each MT describes. Used only to choose the MX direction
+#: value; in MT the message type carries it and no field restates it.
+MT_MOVEMENT_BY_TYPE: dict[str, str] = {
+    "MT540": "RECE",
+    "MT541": "RECE",
+    "MT542": "DELI",
+    "MT543": "DELI",
+    "MT544": "RECE",
+    "MT545": "RECE",
+    "MT546": "DELI",
+    "MT547": "DELI",
 }
 
 #: The optional fields a TYPICAL message normally carries, by business path.
+#:
+#: The settlement agents are deliberately absent. Whichever agent the message actually needs
+#: is MANDATORY for that message type — the delivering agent on a receipt, the receiving
+#: agent on a delivery — so it is always included. Listing both here put the *other* chain
+#: into every typical sample, which is what taught a tester that an MT541 names a receiving
+#: agent. The FULL variant still shows both, because showing the whole configured subset is
+#: what it is for.
 TYPICAL_OPTIONAL_PATHS = frozenset(
     {
         "clientReference",
         "trade.tradeDate",
         "security.description",
         "settlement.placeOfSettlement",
-        "settlement.deliveringAgent",
-        "settlement.receivingAgent",
     }
 )
 
@@ -121,10 +147,11 @@ TYPICAL_OPTIONAL_PATHS = frozenset(
 MT_TAG_FALLBACKS: dict[str, str] = {
     "20C": "TESTREF001",
     "98A": SETTLEMENT_DATE.strftime("%Y%m%d"),
-    "35B": "ISIN XS0000000001",
+    "35B": SAMPLE_ISIN,
     "36B": "UNIT/1000",
     "93B": "UNIT/1000",
     "97A": "SAFE0000001",
+    "95P": "DEMOGB2LXXX",
     "95R": "AGT/DEMOPARTY1",
     "19A": "USD25000,00",
     "19B": "USD25000,00",
@@ -142,7 +169,7 @@ MX_TYPE_FALLBACKS: dict[str, str] = {
     "ISODateTime": f"{SETTLEMENT_DATE.isoformat()}T00:00:00Z",
     "DecimalNumber": "1000",
     "ActiveCurrencyAndAmount": "USD 25000.00",
-    "ISINOct2015Identifier": "XS0000000001",
+    "ISINOct2015Identifier": SAMPLE_ISIN,
     "AnyBICDec2014Identifier": "DEMOGB2LXXX",
     "LEIIdentifier": "DEMO00000000000000XX",
     "YesNoIndicator": "true",
@@ -161,11 +188,8 @@ def _candidates(field: SpecField, message_type: str) -> list[str]:
     """Every plausible value for one field, best first."""
     options: list[str] = []
     path = field.business_path
-    if path and field.format is MessageFormat.MT:
-        if path == "direction":
-            options.append(MT_DIRECTION_BY_TYPE.get(message_type, ("RECE", "BUY"))[0])
-        elif path == "trade.transactionType":
-            options.append(MT_DIRECTION_BY_TYPE.get(message_type, ("RECE", "BUY"))[1])
+    if path == "direction" and field.format is MessageFormat.MX:
+        options.append(MT_MOVEMENT_BY_TYPE.get(message_type, "RECE"))
     # A field that declares its own example knows more than the cross-message table. This
     # matters where one message carries both a sender's own reference and a reference to a
     # previous message: the generic table gives both the same value, so the sample would
@@ -191,13 +215,38 @@ def _candidates(field: SpecField, message_type: str) -> list[str]:
     return list(dict.fromkeys(option for option in options if option))
 
 
-def _mt_acceptable(field: SpecField, value: str) -> bool:
-    from app.authoring.composer import _format_valid
+def _mt_acceptable(field: SpecField, message_type: str, value: str) -> bool:
+    """Whether the platform's own validation accepts this value for this field.
 
-    if not _format_valid(field.tag or "", value):
+    Runs against the real specification row, so a candidate that would fail the identifier
+    check digit or the option-R data source scheme is rejected here rather than shipped in
+    a sample and then refused at generation.
+    """
+    from app.authoring.composer import row_format_valid
+    from app.domain.enums import MessageType
+    from app.knowledge.presentation import is_direct_code_field
+    from app.specifications.registry import specification_registry
+
+    row = next(
+        (
+            item
+            for item in specification_registry.get(MessageType(message_type)).fields
+            if item.row_id == field.id
+        ),
+        None,
+    )
+    if row is None:
+        return True
+    if not row_format_valid(row, value):
         return False
-    direct_code = (field.tag or "")[:2] in {"11", "17", "22", "23", "24", "25"}
-    return not (direct_code and field.allowed_codes and value not in field.allowed_codes)
+    if row.literal_prefix and "ISIN" in row.identifier_types:
+        from app.domain.identifiers import validate_isin
+
+        if not validate_isin(value).check_digit_valid:
+            return False
+    return not (
+        is_direct_code_field(row.tag, row.allowed_codes) and value not in row.allowed_codes
+    )
 
 
 def _mx_acceptable(field: SpecField, message_type: str, value: str) -> bool:
@@ -216,7 +265,7 @@ def _sample_value(field: SpecField, message_type: str) -> str | None:
     candidates = _candidates(field, message_type)
     for candidate in candidates:
         acceptable = (
-            _mt_acceptable(field, candidate)
+            _mt_acceptable(field, message_type, candidate)
             if field.format is MessageFormat.MT
             else _mx_acceptable(field, message_type, candidate)
         )
