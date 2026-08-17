@@ -37,7 +37,9 @@ def test_knowledge_filters_and_safe_errors(client) -> None:  # type: ignore[no-u
         params={"messageType": "MT541", "qualifier": "PSET"},
     )
     assert response.status_code == 200
-    assert len(response.json()) == 1
+    # One business party, two ways to identify it: a BIC under option P and a proprietary
+    # scheme identifier under option R.
+    assert {item["record"]["fieldTag"] for item in response.json()} == {"95P", "95R"}
 
     dependencies = client.get("/api/knowledge/dependencies/MT541-E-95R-PSET")
     assert dependencies.status_code == 200

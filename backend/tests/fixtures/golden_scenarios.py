@@ -53,7 +53,7 @@ def golden_scenario(message_type: MessageType) -> SettlementScenario:
                 trade_date=date(2026, 8, 3),
                 settlement_date=date(2026, 8, 6),
             ),
-            security=Security(identifier="XS0000000001", quantity=Decimal("1000")),
+            security=Security(identifier="XS0000000009", quantity=Decimal("1000")),
             account=Account(safekeeping_account="SYNTHSAFE01"),
             settlement=Settlement(
                 currency="USD" if payment == PaymentType.AGAINST_PAYMENT else None,
@@ -74,7 +74,7 @@ def golden_scenario(message_type: MessageType) -> SettlementScenario:
             function=MessageFunction.NEWM,
             sender_reference=f"GOLDEN{message_type.value[2:]}",
             related_reference=f"GOLDEN{int(message_type.value[2:]) - 4}",
-            security=Security(identifier="XS0000000001", quantity=Decimal("1000")),
+            security=Security(identifier="XS0000000009", quantity=Decimal("1000")),
             account=Account(safekeeping_account="SYNTHSAFE01"),
             settlement=Settlement(
                 currency="USD" if payment == PaymentType.AGAINST_PAYMENT else None,

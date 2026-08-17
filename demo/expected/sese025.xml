@@ -41,7 +41,7 @@
         </FctvSttlmDt>
       </TradDtls>
       <FinInstrmId>
-        <ISIN>XS0000000001</ISIN>
+        <ISIN>XS0000000009</ISIN>
       </FinInstrmId>
       <QtyAndAcctDtls>
         <SttlmQty>
@@ -64,11 +64,6 @@
             <AnyBIC>DEMOGB2LXXX</AnyBIC>
           </Id>
         </Dpstry>
-        <Pty1>
-          <Id>
-            <AnyBIC>DEMODEAGXXX</AnyBIC>
-          </Id>
-        </Pty1>
       </DlvrgSttlmPties>
       <SttlmAmt>
         <Amt Ccy="USD">25000.00</Amt>

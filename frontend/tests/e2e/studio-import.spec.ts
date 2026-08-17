@@ -236,7 +236,7 @@ test.describe("Cancellation and modification lifecycle", () => {
       await page.getByRole("button", { name: /Choose MX/ }).click();
       await page.getByRole("button", { name: /Settlement Commands/ }).click();
       await page.getByRole("button", { name: new RegExp(type.replace(".", "\\.")) }).click();
-      await page.getByRole("button", { name: /^Minimal valid/ }).click();
+      await page.getByRole("button", { name: /^Load .* sample/ }).click();
       await page.getByRole("button", { name: "Generate message" }).click();
 
       await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });

@@ -10,6 +10,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from app.domain.enums import MessageType
+from app.knowledge.code_lists import code_lists
 from app.knowledge.loader import knowledge_repository
 from app.knowledge.models import WorkflowModuleId
 from app.profiles.loader import profiles
@@ -18,11 +19,13 @@ from app.studio.models import (
     BUSINESS_AREA_LABELS,
     MT_OUTPUT_MODES,
     MX_OUTPUT_MODES,
+    AllowedValue,
     BusinessArea,
     CatalogueBusinessArea,
     CatalogueEntry,
     CatalogueFormat,
     FieldExample,
+    InputKind,
     MessageFormat,
     MessageSpec,
     Presence,
@@ -124,6 +127,16 @@ def _mt_spec(message_type: str) -> MessageSpec:
                 missing_impact=knowledge.missing_impact if knowledge else None,
                 format_explanation=row.format,
                 allowed_codes=row.allowed_codes,
+                allowed_values=_allowed_values(row.code_list, row.allowed_codes),
+                code_list=row.code_list,
+                input_kind=InputKind(row.input_kind.value),
+                literal_prefix=row.literal_prefix,
+                # False everywhere, and stated rather than implied: the composer writes the
+                # literal. A client that puts "ISIN " in the value gets it normalised away.
+                user_enters_literal_prefix=False,
+                identifier_types=row.identifier_types,
+                max_length=row.max_length,
+                choice_group=row.choice_group,
                 examples=[
                     FieldExample(value=example.value, explanation=example.explanation)
                     for example in (knowledge.example_values if knowledge else [])
@@ -219,6 +232,9 @@ def _mx_spec(message_type: str) -> MessageSpec:
                 business_question=element.business_question,
                 format_explanation=element.format_text(),
                 allowed_codes=element.codes,
+                allowed_values=_allowed_values(element.code_list, element.codes),
+                code_list=element.code_list,
+                input_kind=InputKind.SELECT if element.codes else _mx_input_kind(element),
                 examples=[
                     FieldExample(value=example.value, explanation=example.explanation)
                     for example in element.examples
@@ -250,6 +266,32 @@ def _mx_spec(message_type: str) -> MessageSpec:
         standards_release=spec.standards_release,
         limitations=spec.limitations,
     )
+
+
+def _allowed_values(code_list: str | None, codes: list[str]) -> list[AllowedValue]:
+    """Codes with their words. A field with codes but no named list still gets a select."""
+    return [
+        AllowedValue(code=item.code, label=item.label, description=item.description)
+        for item in code_lists.describe(code_list, codes)
+    ]
+
+
+def _mx_input_kind(element) -> InputKind:  # type: ignore[no-untyped-def]
+    """The control for an ISO 20022 leaf, from its representation class."""
+    data_type = element.data_type.value if element.data_type else ""
+    if data_type.startswith("ISIN"):
+        return InputKind.IDENTIFIER
+    if data_type.startswith("AnyBIC"):
+        return InputKind.PARTY_BIC
+    if data_type == "ISODate":
+        return InputKind.DATE
+    if data_type in {"ActiveCurrencyAndAmount", "RestrictedFINActiveCurrencyAndAmount"}:
+        return InputKind.AMOUNT
+    if data_type in {"DecimalNumber", "RestrictedFINDecimalNumber"}:
+        return InputKind.QUANTITY
+    if data_type == "YesNoIndicator":
+        return InputKind.INDICATOR
+    return InputKind.TEXT
 
 
 def _inherited_condition(path: str, spec) -> str | None:  # type: ignore[no-untyped-def]

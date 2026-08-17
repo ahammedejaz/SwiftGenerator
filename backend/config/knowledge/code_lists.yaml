@@ -1,0 +1,573 @@
+# Controlled code lists, with the words a person uses for them.
+#
+# One list, read by the MT knowledge records, the MX element definitions, the JSON API, the
+# browser dropdowns and the Excel Codes sheet. A code list defined in only one of those
+# places is how a tester ends up being shown `TRAD` on screen and `Trade` in a spreadsheet,
+# or being offered a code the server then rejects.
+#
+# A record references a list by id (`codeList:`) instead of restating `allowedCodes`, so the
+# codes and the words for them cannot drift apart. Where a record still declares its own
+# `allowedCodes` as well, the loader asserts the two agree.
+#
+# `source` records where each list came from. A list marked APPROVED_INTERNAL_RULE_PACK is a
+# demonstration taxonomy: it is not claimed to be the authoritative code list for that field.
+
+lists:
+  - id: MESSAGE_FUNCTION_INSTRUCTION
+    name: Function of the Message
+    description: What the message does to the instruction it identifies.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-23G-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: NEWM
+        label: New Message
+        description: A new instruction. This is the ordinary case.
+      - code: CANC
+        label: Cancellation
+        description: Cancels an instruction sent earlier, which must be identified.
+      - code: REVR
+        label: Reversal
+        description: Reverses an instruction sent earlier.
+
+  - id: MESSAGE_FUNCTION_CONFIRMATION
+    name: Function of the Confirmation
+    description: What the confirmation does.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-23G-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: NEWM
+        label: New Message
+        description: A new confirmation of a settlement that took place.
+      - code: REVR
+        label: Reversal
+        description: Reverses a confirmation sent earlier.
+
+  - id: MESSAGE_FUNCTION_NEW_ONLY
+    name: Function of the Message
+    description: >-
+      The only function this configured subset emits for the message. Preselected, because
+      there is nothing else to choose.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-23G-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: NEWM
+        label: New Message
+        description: A new message rather than a cancellation or a reversal.
+
+  # Reconciled against this repository's own ISO 20022 definition of the same business
+  # message: sese.023.001.11 SttlmParams/SctiesTxTp/Cd. Its `commonMistakes` names the very
+  # error this list replaces — using the direction codes RECE or DELI as a transaction type.
+  # Direction is carried by the message type in MT, and by SctiesMvmntTp in MX.
+  - id: SETTLEMENT_TRANSACTION_TYPE
+    name: Settlement Transaction Type
+    description: >-
+      What kind of transaction is being settled. It never states whether securities are
+      received or delivered — the message type does that.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-22F-SETR-RECONCILED-AGAINST-SESE023-SCTIESTXTP-2026-08-17
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-17
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: TRAD
+        label: Trade
+        description: Settlement of an ordinary secondary-market trade. The usual choice.
+      - code: COLI
+        label: Collateral In
+        description: Securities received as collateral.
+      - code: COLO
+        label: Collateral Out
+        description: Securities delivered as collateral.
+      - code: PLAC
+        label: Placement
+        description: Placement of securities.
+      - code: PORT
+        label: Portfolio Move
+        description: Movement of a portfolio between accounts or account servicers.
+      - code: REDM
+        label: Redemption
+        description: Redemption of a fund holding or a maturing instrument.
+      - code: SUBS
+        label: Subscription
+        description: Subscription to a fund or a new issue.
+      - code: TURN
+        label: Turnaround
+        description: Securities bought and sold for settlement on the same day.
+      - code: NETT
+        label: Netting
+        description: Settlement of a netted position rather than of each trade.
+      - code: OWNE
+        label: External Account Transfer
+        description: Transfer between accounts with different account servicers.
+      - code: OWNI
+        label: Internal Account Transfer
+        description: Transfer between accounts with the same account servicer.
+
+  - id: SECURITIES_MOVEMENT_TYPE
+    name: Securities Movement Type
+    description: Whether securities enter or leave the safekeeping account.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO20022-SESE023-SCTIESMVMNTTP-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: RECE
+        label: Receive
+        description: Securities are received into the account.
+      - code: DELI
+        label: Deliver
+        description: Securities are delivered out of the account.
+
+  - id: PAYMENT_TYPE
+    name: Payment
+    description: Whether cash moves against the securities.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO20022-SESE023-PMT-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: APMT
+        label: Against Payment
+        description: Cash is paid against the securities. A settlement amount is required.
+      - code: FREE
+        label: Free of Payment
+        description: Securities move with no cash leg. No settlement amount is carried.
+
+  - id: QUANTITY_TYPE
+    name: Quantity Type
+    description: The unit the settlement quantity is expressed in.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-36B-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: UNIT
+        label: Units
+        description: A number of securities, rather than a face or nominal amount.
+
+  - id: SETTLEMENT_RESULT
+    name: Settlement Result
+    description: Whether the confirmed movement settled in full.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-CONFIRMATION-RESULT-TAXONOMY-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: FULL
+        label: Fully Settled
+        description: The whole instructed quantity settled.
+      - code: PARTIAL
+        label: Partially Settled
+        description: Less than the instructed quantity settled.
+
+  - id: SETTLEMENT_STATUS
+    name: Settlement Processing Status
+    description: The processing state of the instruction the status refers to.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: PEND
+        label: Pending
+        description: Accepted and waiting to settle.
+      - code: REJT
+        label: Rejected
+        description: Refused, and will not settle.
+      - code: MACH
+        label: Matched
+        description: Matched against the counterparty's instruction.
+      - code: NMAT
+        label: Unmatched
+        description: No counterparty instruction has matched it yet.
+      - code: CAND
+        label: Cancellation Accepted
+        description: A cancellation request was accepted.
+      - code: CANR
+        label: Cancellation Rejected
+        description: A cancellation request was refused.
+
+  - id: LINKED_MESSAGE_TYPE
+    name: Linked Message Type
+    description: The settlement instruction the status refers to.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-13A-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: "540"
+        label: MT540 — Receive Free
+        description: The status refers to a receive free-of-payment instruction.
+      - code: "541"
+        label: MT541 — Receive Against Payment
+        description: The status refers to a receive against-payment instruction.
+      - code: "542"
+        label: MT542 — Deliver Free
+        description: The status refers to a deliver free-of-payment instruction.
+      - code: "543"
+        label: MT543 — Deliver Against Payment
+        description: The status refers to a deliver against-payment instruction.
+
+  - id: PENDING_REASON
+    name: Pending Reason
+    description: Why the instruction has not settled yet.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: AWAITING_CASH
+        label: Awaiting Cash
+        description: The cash side is not yet available.
+      - code: AWAITING_SECURITIES
+        label: Awaiting Securities
+        description: The securities are not yet available.
+
+  - id: REJECTION_REASON
+    name: Rejection Reason
+    description: Why the instruction was refused.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: INVALID_REFERENCE
+        label: Invalid Reference
+        description: The reference it carries does not identify a known instruction.
+      - code: UNSUPPORTED_SECURITY
+        label: Unsupported Security
+        description: The instrument is not eligible in this configuration.
+
+  - id: MATCHED_REASON
+    name: Matched Reason
+    description: What matched.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: DETAILS_MATCHED
+        label: Details Matched
+        description: The instruction details agree with the counterparty's.
+
+  - id: UNMATCHED_REASON
+    name: Unmatched Reason
+    description: What did not match.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: COUNTERPARTY_MISMATCH
+        label: Counterparty Mismatch
+        description: The counterparty details do not agree.
+
+  - id: CANCELLATION_ACCEPTED_REASON
+    name: Cancellation Accepted Reason
+    description: Why the cancellation succeeded.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: CANCELLATION_PROCESSED
+        label: Cancellation Processed
+        description: The instruction was cancelled before it settled.
+
+  - id: CANCELLATION_REJECTED_REASON
+    name: Cancellation Rejected Reason
+    description: Why the cancellation failed.
+    source:
+      sourceType: APPROVED_INTERNAL_RULE_PACK
+      sourceReference: SMS-DEMO-SETTLEMENT-STATUS-RULE-PACK-V1
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: SETTLEMENT_ALREADY_FINAL
+        label: Settlement Already Final
+        description: The instruction had already settled, so it could not be cancelled.
+
+  - id: PARTY_IDENTIFICATION_METHOD
+    name: How the party is identified
+    description: >-
+      Which field option carries the party. Chosen from the business question rather than
+      from the option letter.
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-95A-CONFIGURED-SUBSET-REVIEWED-2026-08-17
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-17
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: P
+        label: BIC
+        description: >-
+          The party has a Business Identifier Code. Rendered as option P, which carries the
+          BIC on its own.
+      - code: R
+        label: Proprietary Identifier
+        description: >-
+          The party is identified by a code from a named scheme. Rendered as option R, which
+          carries the data source scheme and the identifier.
+
+  # ---------------------------------------------------------------------------------
+  # Corporate actions (MT564–MT568)
+  # ---------------------------------------------------------------------------------
+
+  - id: CORPORATE_ACTION_MESSAGE_FUNCTION
+    name: Message Function
+    description: What this corporate-action message does.
+    source: &corporate_action_source
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-CORPORATE-ACTIONS-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: NEWM
+        label: New Message
+        description: A new notification, instruction, confirmation or advice.
+      - code: INST
+        label: Instruction
+        description: Carries an election on a corporate action option.
+      - code: CAST
+        label: Status
+        description: Reports the status of an instruction sent earlier.
+
+  - id: CORPORATE_ACTION_EVENT
+    name: Corporate Action Event
+    description: The kind of corporate action the message is about.
+    source: *corporate_action_source
+    codes:
+      - code: DVOP
+        label: Dividend Option
+        description: >-
+          A cash dividend with an option to take securities instead. The only event this
+          configured subset covers.
+
+  - id: CORPORATE_ACTION_MANDATORY_VOLUNTARY
+    name: Mandatory or Voluntary
+    description: Whether the account owner has to choose anything.
+    source: *corporate_action_source
+    codes:
+      - code: VOLU
+        label: Voluntary
+        description: The account owner elects an option; doing nothing has a default outcome.
+
+  - id: CORPORATE_ACTION_OPTION
+    name: Corporate Action Option
+    description: What the account owner receives if this option is elected.
+    source: *corporate_action_source
+    codes:
+      - code: CASH
+        label: Cash
+        description: The proceeds are paid in cash.
+      - code: SECU
+        label: Securities
+        description: The proceeds are paid in securities.
+
+  - id: EVENT_PROCESSING_STATUS
+    name: Event Processing Status
+    description: How far the event itself has progressed.
+    source: *corporate_action_source
+    codes:
+      - code: COMP
+        label: Complete
+        description: The event details are complete.
+
+  - id: INSTRUCTION_PROCESSING_STATUS
+    name: Instruction Processing Status
+    description: What happened to the corporate-action instruction.
+    source: *corporate_action_source
+    codes:
+      - code: PACK
+        label: Accepted
+        description: The instruction was accepted for processing.
+      - code: PEND
+        label: Pending
+        description: The instruction is accepted and waiting.
+      - code: REJT
+        label: Rejected
+        description: The instruction was refused.
+
+  - id: CANCELLATION_PROCESSING_STATUS
+    name: Cancellation Processing Status
+    description: What happened to a cancellation of a corporate-action instruction.
+    source: *corporate_action_source
+    codes:
+      - code: PACK
+        label: Accepted
+        description: The cancellation was accepted.
+      - code: REJT
+        label: Rejected
+        description: The cancellation was refused.
+
+  - id: CREDIT_DEBIT
+    name: Credit or Debit
+    description: Which way the cash moves.
+    source: *corporate_action_source
+    codes:
+      - code: CRED
+        label: Credit
+        description: Cash is credited to the account.
+
+  - id: DEFAULT_OPTION_FLAG
+    name: Default Option
+    description: Whether this option applies when the account owner does not elect.
+    source: *corporate_action_source
+    codes:
+      - code: "Y"
+        label: "Yes"
+        description: This option is taken if no election is made.
+      - code: "N"
+        label: "No"
+        description: This option applies only if it is elected.
+
+  # ---------------------------------------------------------------------------------
+  # Settlement-discipline penalties (MT537)
+  # ---------------------------------------------------------------------------------
+
+  - id: PENALTY_FUNCTION
+    name: Statement Function
+    description: What this statement reports.
+    source: &penalty_source
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-UHB-CATEGORY5-MT537-PENALTIES-CONFIGURED-SUBSET-REVIEWED-2026-08-05
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-05
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    codes:
+      - code: PENA
+        label: Penalties
+        description: A statement of settlement-discipline penalties.
+
+  - id: STATEMENT_STRUCTURE
+    name: Statement Structure
+    description: How the statement is laid out.
+    source: *penalty_source
+    codes:
+      - code: PENA
+        label: Penalty Structure
+        description: Organised by currency, then counterparty, then penalty.
+
+  - id: PENALTY_LIST_TYPE
+    name: Penalty List Type
+    description: Which set of penalties this section reports.
+    source: *penalty_source
+    codes:
+      - code: CURR
+        label: Current
+        description: Penalties for the current period.
+      - code: FWIS
+        label: Forward, Issued
+        description: Penalties already issued for a later period.
+      - code: FWAM
+        label: Forward, Amended
+        description: Penalties for a later period that have since been amended.
+
+  - id: PENALTY_TYPE
+    name: Penalty Type
+    description: Why the penalty was charged.
+    source: *penalty_source
+    codes:
+      - code: SEFP
+        label: Settlement Fail Penalty
+        description: Charged because the transaction failed to settle on time.
+      - code: LMFP
+        label: Late Matching Fail Penalty
+        description: Charged because the instruction was matched late.
+
+  - id: PENALTY_STATUS
+    name: Penalty Status
+    description: Whether the penalty still stands.
+    source: *penalty_source
+    codes:
+      - code: ACTV
+        label: Active
+        description: The penalty applies.
+      - code: NCOM
+        label: Not Computed
+        description: The penalty has not been calculated yet.
+      - code: REMO
+        label: Removed
+        description: The penalty has been withdrawn.
+
+  - id: PENALTY_PARTY_CAPACITY
+    name: Party Capacity
+    description: The role the party plays in the penalty.
+    source: *penalty_source
+    codes:
+      - code: CSDP
+        label: Central Securities Depository Participant
+        description: The party takes part in settlement as a CSD participant.
+
+  - id: PENALTY_CURRENCY
+    name: Penalty Currency
+    description: The currency the penalty amounts are expressed in.
+    source: *penalty_source
+    codes:
+      - code: USD
+        label: US Dollar
+        description: United States dollar.
+      - code: EUR
+        label: Euro
+        description: Euro.
+      - code: GBP
+        label: Pound Sterling
+        description: Pound sterling.
+
+  - id: PAGE_CONTINUATION
+    name: Continuation Indicator
+    description: >-
+      Whether more pages of the statement follow. It is the second half of the page field —
+      the value is a page number, a slash, then this code.
+    source: *penalty_source
+    codes:
+      - code: ONLY
+        label: Only Page
+        description: This is the whole statement; no further pages follow.
+
+  - id: ACTIVITY_FLAG
+    name: Activity Flag
+    description: Whether the statement reports any activity.
+    source: *penalty_source
+    codes:
+      - code: "Y"
+        label: "Yes"
+        description: There is activity to report in this statement.

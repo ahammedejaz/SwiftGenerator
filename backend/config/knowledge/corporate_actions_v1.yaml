@@ -57,7 +57,8 @@ records:
     businessQuestion: What lifecycle operation is being performed?
     missingImpact: The receiver could not determine the message function.
     supportedOptions: [G]
-    allowedCodes: [NEWM, INST, CAST]
+    codeList: CORPORATE_ACTION_MESSAGE_FUNCTION
+    allowedCodes: []
     formatExplanation: Four-character function code selected by the workflow composer.
     lifecycleImpact: Separates notification and confirmation creation from instruction status handling.
     searchTerms: [23G, function, NEWM, INST]
@@ -73,7 +74,8 @@ records:
     businessQuestion: Which supported corporate-action event is this?
     missingImpact: Event-specific validation could not be applied.
     supportedOptions: [F]
-    allowedCodes: [DVOP]
+    codeList: CORPORATE_ACTION_EVENT
+    allowedCodes: []
     formatExplanation: Qualified option F indicator with controlled code DVOP.
     lifecycleImpact: Must remain DVOP across all correlated messages.
     searchTerms: [CAEV, DVOP, dividend options]
@@ -107,7 +109,8 @@ records:
     businessQuestion: Is this event voluntary?
     missingImpact: Election requirements could not be determined.
     supportedOptions: [F]
-    allowedCodes: [VOLU]
+    codeList: CORPORATE_ACTION_MANDATORY_VOLUNTARY
+    allowedCodes: []
     lifecycleImpact: Requires an MT565 election before confirmation.
     searchTerms: [CAMV, VOLU, voluntary]
 
@@ -122,7 +125,8 @@ records:
     businessQuestion: Are the event details complete?
     missingImpact: Notification completeness would be unknown.
     supportedOptions: [D]
-    allowedCodes: [COMP]
+    codeList: EVENT_PROCESSING_STATUS
+    allowedCodes: []
     lifecycleImpact: Allows election processing to begin.
     searchTerms: [PROC, COMP, complete]
 
@@ -137,11 +141,17 @@ records:
     businessMeaning: Identifies the synthetic security to which the event applies.
     technicalMeaning: Financial-instrument identification restricted to an ISIN-shaped value.
     whyUsed: Correlates eligibility, election, and confirmation to one security.
-    businessQuestion: Which synthetic ISIN is affected by this event?
+    businessQuestion: Which security is affected by this event?
     missingImpact: Security-level correlation would fail.
     supportedOptions: [B]
+    codeList: null
     allowedCodes: []
-    formatExplanation: ISIN followed by a 12-character synthetic identifier.
+    identifierTypes: [ISIN]
+    literalPrefix: 'ISIN '
+    maxLength: 12
+    formatExplanation: >-
+      Enter the twelve-character identifier only, for example XS0000000009. The studio adds
+      the ISIN keyword when it writes the field.
     lifecycleImpact: Must remain unchanged throughout the lifecycle.
     searchTerms: [35B, ISIN, security]
 
@@ -159,6 +169,7 @@ records:
     businessQuestion: Which synthetic safekeeping account is involved?
     missingImpact: Account-level correlation would fail.
     supportedOptions: [A]
+    codeList: null
     formatExplanation: Configured account identifier. Secure authoring accepts user-entered values; client format validation remains profile-specific.
     lifecycleImpact: Must match across notification, instruction, and confirmation.
     searchTerms: [97A, SAFE, account]
@@ -166,6 +177,7 @@ records:
   - <<: *account
     messageTypes: [MT566]
     sequencePath: B
+    codeList: null
 
   - &eligible
     <<: *notification
@@ -181,6 +193,7 @@ records:
     businessQuestion: How many units are eligible?
     missingImpact: Quantity eligibility validation could not run.
     supportedOptions: [B]
+    codeList: null
     formatExplanation: UNIT followed by a positive SWIFT decimal quantity.
     lifecycleImpact: Bounds election and confirmation quantities.
     searchTerms: [93B, ELIG, eligible balance]
@@ -197,6 +210,7 @@ records:
     businessQuestion: What is the payment date?
     missingImpact: Expected movement timing would be missing.
     supportedOptions: [A]
+    codeList: null
     formatExplanation: Valid YYYYMMDD date.
     lifecycleImpact: Used to validate a later cash confirmation date.
     searchTerms: [98A, PAYD, payment date]
@@ -214,6 +228,7 @@ records:
     businessQuestion: Which offered option number applies?
     missingImpact: The election could not identify an offered option.
     supportedOptions: [A]
+    codeList: null
     formatExplanation: Three-digit option number from 001 through 999.
     lifecycleImpact: Must match in MT565 and MT566.
     searchTerms: [13A, CAON, option number]
@@ -222,11 +237,13 @@ records:
     messageTypes: [MT565]
     sequencePath: D
     businessPath: optionNumber
+    codeList: null
 
   - <<: *option_number
     messageTypes: [MT566]
     sequencePath: D
     businessPath: optionNumber
+    codeList: null
 
   - &option_code
     <<: *notification
@@ -241,7 +258,8 @@ records:
     businessQuestion: Is this a cash or securities option?
     missingImpact: Option-specific validation could not be applied.
     supportedOptions: [F]
-    allowedCodes: [CASH, SECU]
+    codeList: CORPORATE_ACTION_OPTION
+    allowedCodes: []
     formatExplanation: Qualified controlled option indicator.
     lifecycleImpact: Must match the selected option throughout the lifecycle.
     searchTerms: [22F, CAOP, cash, securities]
@@ -250,6 +268,7 @@ records:
     messageTypes: [MT565]
     sequencePath: D
     businessPath: optionCode
+    codeList: CORPORATE_ACTION_OPTION
 
   - <<: *option_code
     messageTypes: [MT566]
@@ -257,6 +276,7 @@ records:
     fieldTag: 22H
     businessPath: optionCode
     supportedOptions: [H]
+    codeList: CORPORATE_ACTION_OPTION
 
   - <<: *notification
     sequencePath: E
@@ -270,7 +290,8 @@ records:
     businessQuestion: Is this the default option?
     missingImpact: Default-option handling would be ambiguous.
     supportedOptions: [B]
-    allowedCodes: ['Y', 'N']
+    codeList: DEFAULT_OPTION_FLAG
+    allowedCodes: []
     formatExplanation: Single controlled Y or N flag.
     lifecycleImpact: Used if no valid election is available by the deadline.
     searchTerms: [17B, DFLT, default option]
@@ -287,6 +308,7 @@ records:
     businessQuestion: By what date must the election be submitted?
     missingImpact: Deadline validation could not be performed.
     supportedOptions: [A]
+    codeList: null
     formatExplanation: Valid YYYYMMDD date.
     lifecycleImpact: MT565 generation is blocked after this date.
     searchTerms: [98A, RDDT, response deadline]
@@ -304,6 +326,7 @@ records:
     businessQuestion: How many eligible units are you instructing?
     missingImpact: The election quantity would be missing.
     supportedOptions: [B]
+    codeList: null
     formatExplanation: UNIT followed by a positive SWIFT decimal quantity.
     lifecycleImpact: Bounds the later confirmation quantity.
     searchTerms: [36B, QINS, instructed quantity]
@@ -322,7 +345,8 @@ records:
     businessQuestion: What is the instruction processing status?
     missingImpact: The election outcome would be unknown.
     supportedOptions: [D]
-    allowedCodes: [PACK, PEND, REJT]
+    codeList: INSTRUCTION_PROCESSING_STATUS
+    allowedCodes: []
     formatExplanation: Qualified controlled status code.
     lifecycleImpact: Provides an auditable processing state between election and confirmation.
     searchTerms: [25D, IPRC, PACK, PEND, REJT]
@@ -332,7 +356,8 @@ records:
     displayName: Cancellation Processing Status
     businessMeaning: Reports whether a supported election-cancellation request was accepted or rejected.
     technicalMeaning: CPRC processing status restricted to PACK or REJT.
-    allowedCodes: [PACK, REJT]
+    codeList: CANCELLATION_PROCESSING_STATUS
+    allowedCodes: []
     searchTerms: [25D, CPRC, cancellation status]
 
   - &reason
@@ -348,6 +373,7 @@ records:
     businessQuestion: Which configured reason explains this outcome?
     missingImpact: A rejected instruction would lack the required controlled reason.
     supportedOptions: [B]
+    codeList: null
     allowedCodes: []
     formatExplanation: Four-character reason from the active rule pack.
     lifecycleImpact: Explains but does not override the deterministic status.
@@ -358,6 +384,7 @@ records:
     displayName: Cancellation Status Reason
     technicalMeaning: CPRC cancellation status-reason field.
     searchTerms: [24B, CPRC, cancellation reason]
+    codeList: null
 
   - &cash
     <<: *notification
@@ -373,7 +400,8 @@ records:
     businessQuestion: Is the cash movement a credit or debit?
     missingImpact: The cash movement direction would be unknown.
     supportedOptions: [H]
-    allowedCodes: [CRED]
+    codeList: CREDIT_DEBIT
+    allowedCodes: []
     formatExplanation: Controlled CRED code in the supported dividend cash confirmation.
     lifecycleImpact: Applies to the confirmed cash posting.
     searchTerms: [22H, CRDB, credit]
@@ -389,6 +417,7 @@ records:
     businessQuestion: What explicit cash amount was posted?
     missingImpact: A cash confirmation could not be generated.
     supportedOptions: [B]
+    codeList: null
     allowedCodes: []
     formatExplanation: Three-letter profile currency followed by a positive SWIFT decimal.
     lifecycleImpact: Records the cash result of the election.
@@ -405,6 +434,7 @@ records:
     businessQuestion: On what date was the cash posted?
     missingImpact: The cash confirmation would lack its required posting date.
     supportedOptions: [A]
+    codeList: null
     allowedCodes: []
     formatExplanation: Valid YYYYMMDD posting date.
     lifecycleImpact: Completes the cash movement record.
@@ -423,6 +453,7 @@ records:
     businessQuestion: What supplementary synthetic text should accompany this event?
     missingImpact: The narrative message would contain no additional information.
     supportedOptions: [E]
+    codeList: null
     allowedCodes: []
     formatExplanation: At most 350 supported characters; raw-message fragments and controls are rejected.
     lifecycleImpact: Associates supplementary text with the event without changing structured data.

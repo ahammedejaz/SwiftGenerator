@@ -25,12 +25,14 @@ from zipfile import is_zipfile
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
 from app.studio.catalogue import message_spec
 from app.studio.models import (
     ElementInput,
     FieldInput,
+    InputKind,
     IssueSeverity,
     MessageFormat,
     Presence,
@@ -165,11 +167,13 @@ def build_template(format_: MessageFormat, message_types: list[str] | None = Non
                     ]
                 )
     _style_header(scenarios)
+    _apply_code_dropdowns(scenarios, format_)
 
     # The Scenarios sheet stays a small, usable set of worked examples. The Reference
     # sheet is the field dictionary a tester actually looks things up in, so it covers
     # every configured message — otherwise a message is generatable but undiscoverable.
     _write_reference_sheet(workbook, format_, message_types or _all_message_types(format_))
+    _write_codes_sheet(workbook, format_, message_types or _all_message_types(format_))
     _write_readme_sheet(workbook, format_)
 
     output = BytesIO()
@@ -227,8 +231,11 @@ def _write_reference_sheet(
                 "Option",
                 "Presence",
                 "Field",
+                "Input kind",
                 "Format",
                 "Example",
+                "Literal written by the studio",
+                "Max length",
                 "Allowed codes",
             ]
         )
@@ -239,6 +246,7 @@ def _write_reference_sheet(
                 "XPath",
                 "Presence",
                 "Field",
+                "Input kind",
                 "Data type",
                 "Format",
                 "Example",
@@ -259,8 +267,13 @@ def _write_reference_sheet(
                 item.option,
                 item.presence.value,
                 item.display_name,
+                item.input_kind.value,
                 item.format_explanation,
                 _safe_cell(example),
+                # Stated so an automation tester knows what NOT to type. 35B carries
+                # "ISIN " here and nowhere in the Value column.
+                item.literal_prefix or "",
+                item.max_length or "",
                 codes,
             ]
         else:
@@ -269,6 +282,7 @@ def _write_reference_sheet(
                 item.xpath,
                 item.presence.value,
                 item.display_name,
+                item.input_kind.value,
                 item.data_type,
                 item.format_explanation,
                 _safe_cell(example),
@@ -280,6 +294,120 @@ def _write_reference_sheet(
             for cell in sheet[sheet.max_row]:
                 cell.fill = MANDATORY_FILL
     _style_header(sheet)
+
+
+#: Excel refuses an inline validation list longer than this, so a long code list gets a
+#: pointer to the Codes sheet rather than a dropdown that silently fails to appear.
+EXCEL_INLINE_LIST_LIMIT = 255
+
+
+def _apply_code_dropdowns(sheet: Worksheet, format_: MessageFormat) -> None:
+    """Put a real dropdown on the Value cell of every row whose field has a code list.
+
+    The Scenarios sheet is one field per row, so the list has to be attached per cell rather
+    than per column. Without this, a spreadsheet user is left guessing at TRAD, PAIR and
+    TURN — which is exactly the position the browser used to leave a tester in.
+    """
+    if format_ is not MessageFormat.MT:
+        return
+    value_column = get_column_letter(len(MT_HEADERS))
+    by_list: dict[str, list[str]] = {}
+    for row_number in range(2, sheet.max_row + 1):
+        message_type = sheet.cell(row_number, 1).value
+        tag = sheet.cell(row_number, 6).value
+        raw_qualifier = sheet.cell(row_number, 7).value
+        if not message_type or not tag:
+            continue
+        qualifier = str(raw_qualifier) if raw_qualifier else None
+        field = _lookup_field(str(message_type), str(tag), qualifier)
+        if field is None or not field.allowed_codes:
+            continue
+        if field.input_kind is not InputKind.SELECT:
+            # A code that is only part of the value — a quantity type such as UNIT/1000 —
+            # would be broken by a whole-cell dropdown.
+            continue
+        formula = '"' + ",".join(field.allowed_codes) + '"'
+        if len(formula) > EXCEL_INLINE_LIST_LIMIT:
+            continue
+        by_list.setdefault(formula, []).append(f"{value_column}{row_number}")
+    for formula, cells in by_list.items():
+        validation = DataValidation(
+            type="list", formula1=formula, allow_blank=False, showDropDown=False
+        )
+        validation.error = "Choose one of the codes this field allows. See the Codes sheet."
+        validation.errorTitle = "Not an allowed code"
+        sheet.add_data_validation(validation)
+        for cell in cells:
+            validation.add(cell)
+
+
+def _lookup_field(message_type: str, tag: str, qualifier: str | None) -> SpecField | None:
+    try:
+        spec = message_spec(MessageFormat.MT, message_type)
+    except (KeyError, ValueError):
+        return None
+    return next(
+        (
+            item
+            for item in spec.fields
+            if item.tag == tag and (item.qualifier or None) == (qualifier or None)
+        ),
+        None,
+    )
+
+
+def _write_codes_sheet(workbook: Workbook, format_: MessageFormat, targets: list[str]) -> None:
+    """Every controlled code, with the words for it.
+
+    The same vocabulary the browser dropdown and the JSON API's `allowedValues` use, so a
+    spreadsheet user and a UI user are never offered different codes for one field.
+    """
+    sheet = workbook.create_sheet("Codes")
+    if format_ is MessageFormat.MT:
+        sheet.append(
+            [
+                "MessageType",
+                "Sequence",
+                "Tag",
+                "Qualifier",
+                "Option",
+                "Field",
+                "Code",
+                "Means",
+                "Description",
+            ]
+        )
+    else:
+        sheet.append(["MessageType", "XPath", "Field", "Code", "Means", "Description"])
+    for entry in reference_rows(format_, targets):
+        item = entry.field
+        for value in item.allowed_values:
+            if format_ is MessageFormat.MT:
+                sheet.append(
+                    [
+                        entry.message_type,
+                        item.sequence_code,
+                        item.tag,
+                        item.qualifier,
+                        item.option,
+                        item.display_name,
+                        _safe_cell(value.code),
+                        value.label,
+                        value.description,
+                    ]
+                )
+            else:
+                sheet.append(
+                    [
+                        entry.message_type,
+                        item.xpath,
+                        item.display_name,
+                        _safe_cell(value.code),
+                        value.label,
+                        value.description,
+                    ]
+                )
+    _style_header(sheet, width_hint={len(sheet[1]): 60})
 
 
 def _write_readme_sheet(workbook: Workbook, format_: MessageFormat) -> None:
@@ -335,10 +463,42 @@ def _write_readme_sheet(workbook: Workbook, format_: MessageFormat) -> None:
         "1. Edit the Scenarios sheet. Each ScenarioID becomes one generated message.",
         "2. Add rows for optional fields using the Reference sheet as your guide.",
         "3. Rows shaded in the Reference sheet are mandatory.",
-        "4. Upload the workbook to POST /api/v1/messages/generate-from-excel.",
-        "5. The response contains the generated message and per-scenario validation.",
+        "4. Cells with a dropdown accept only the codes on the Codes sheet.",
+        "5. Upload the workbook to POST /api/v1/messages/generate-from-excel.",
+        "6. The response contains the generated message and per-scenario validation.",
     ]:
         sheet.append([step, ""])
+    sheet.append([])
+    sheet.append(["What goes in the Value column", ""])
+    for note in [
+        (
+            "Business values, not SWIFT syntax",
+            "Enter what the field means. The studio writes the SWIFT rendering.",
+        ),
+        (
+            "Financial instrument (35B)",
+            "Enter the 12-character identifier only, for example XS0000000009. Do NOT type "
+            "the word ISIN — the studio writes it. A value that arrives with the prefix "
+            "already on it is accepted and normalised, so an older sheet keeps working.",
+        ),
+        (
+            "Settlement parties (95a)",
+            "Use tag 95P and a BIC to identify a party by its Business Identifier Code. Use "
+            "95R and a data source scheme with the identifier, such as CSD/DEMOPSET01, for "
+            "a proprietary code. Do not put a BIC in a 95R value.",
+        ),
+        (
+            "Controlled codes",
+            "Use the Code column on the Codes sheet. The Means column is there to read, not "
+            "to enter.",
+        ),
+        (
+            "Same values, same message",
+            "This workbook, the JSON API and the browser produce byte-identical output for "
+            "equivalent values, because all three call the same composer.",
+        ),
+    ]:
+        sheet.append(list(note))
     for cell in sheet["A"]:
         # Rows with no second column are section headings, so make them stand out.
         if cell.row > 1 and not sheet.cell(cell.row, 2).value:

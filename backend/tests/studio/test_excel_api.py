@@ -45,10 +45,12 @@ def upload(client, content: bytes, name: str = "scenarios.xlsx", **params: objec
 
 
 @pytest.mark.parametrize("format_", [MessageFormat.MT, MessageFormat.MX])
-def test_template_has_the_three_sheets(format_: MessageFormat) -> None:
+def test_template_has_the_four_sheets(format_: MessageFormat) -> None:
     workbook = load_workbook(BytesIO(build_template(format_)))
 
-    assert workbook.sheetnames == ["Scenarios", "Reference", "Read me"]
+    # Codes joined the workbook so a spreadsheet user is never left guessing at TRAD,
+    # PAIR and TURN — the same vocabulary the browser dropdowns read.
+    assert workbook.sheetnames == ["Scenarios", "Reference", "Codes", "Read me"]
 
 
 def test_mt_template_uses_tag_level_columns() -> None:

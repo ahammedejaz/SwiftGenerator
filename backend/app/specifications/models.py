@@ -7,7 +7,13 @@ from pydantic import ConfigDict, Field
 
 from app.domain.enums import MessageType
 from app.domain.models import ApiModel
-from app.knowledge.models import PresenceRule, RuleLayer, SourceType, WorkflowModuleId
+from app.knowledge.models import (
+    InputKind,
+    PresenceRule,
+    RuleLayer,
+    SourceType,
+    WorkflowModuleId,
+)
 
 
 class CapabilityState(StrEnum):
@@ -74,6 +80,14 @@ class FieldSpecification(ApiModel):
     format: str
     allowed_options: list[str]
     allowed_codes: list[str]
+    code_list: str | None = None
+    input_kind: InputKind = InputKind.TEXT
+    #: The literal the composer writes in front of the value. Callers never supply it.
+    literal_prefix: str | None = None
+    identifier_types: list[str] = Field(default_factory=list)
+    #: Rows sharing a group are alternative field options for the same business value.
+    choice_group: str | None = None
+    max_length: int | None = None
     condition_expression: str | None = None
     condition_explanation: str | None = None
     rule_layer: RuleLayer

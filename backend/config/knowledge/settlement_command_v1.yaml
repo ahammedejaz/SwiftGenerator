@@ -45,7 +45,8 @@ records:
     businessQuestion: Is this a new supported processing command?
     missingImpact: The command operation is undefined.
     supportedOptions: [G]
-    allowedCodes: [NEWM]
+    codeList: MESSAGE_FUNCTION_NEW_ONLY
+    allowedCodes: []
     formatExplanation: Four-character NEWM function in the bounded subset.
     exampleValues: [{value: NEWM, synthetic: true, explanation: Synthetic new command.}]
     commonMistakes: [Using MT530 as a universal trade amendment]

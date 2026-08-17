@@ -27,6 +27,28 @@ class RuleLayer(StrEnum):
     INTERNAL_RULE_PACK = "INTERNAL_RULE_PACK"
 
 
+class InputKind(StrEnum):
+    """The control a field deserves, decided by configuration rather than by the browser.
+
+    Kept here so the browser, the JSON API and the Excel template all read one answer. The
+    previous arrangement inferred it in React from whether an example happened to appear in
+    the code list, which is why a quantity such as ``UNIT/1000`` silently became a free-text
+    box while ``NEWM`` became a dropdown.
+    """
+
+    TEXT = "TEXT"
+    SELECT = "SELECT"
+    DATE = "DATE"
+    AMOUNT = "AMOUNT"
+    QUANTITY = "QUANTITY"
+    NARRATIVE = "NARRATIVE"
+    REFERENCE = "REFERENCE"
+    IDENTIFIER = "IDENTIFIER"
+    PARTY_BIC = "PARTY_BIC"
+    PARTY_PROPRIETARY = "PARTY_PROPRIETARY"
+    INDICATOR = "INDICATOR"
+
+
 class SourceType(StrEnum):
     OFFICIAL_ISO_15022 = "OFFICIAL_ISO_15022"
     AUTHORISED_SWIFT = "AUTHORISED_SWIFT"
@@ -88,6 +110,18 @@ class TagKnowledgeDefinition(BaseModel):
     )
     supported_options: list[str] = Field(alias="supportedOptions", min_length=1)
     allowed_codes: list[str] = Field(default_factory=list, alias="allowedCodes")
+    #: Name of a shared list in ``code_lists.yaml``. Supplies both the codes and the words
+    #: for them, so a code list is never restated per field.
+    code_list: str | None = Field(default=None, alias="codeList", max_length=64)
+    input_kind: InputKind = Field(default=InputKind.TEXT, alias="inputKind")
+    #: A literal the **composer** writes in front of the value, such as ``ISIN ``. The
+    #: caller supplies the value alone; exactly one component adds this.
+    literal_prefix: str | None = Field(default=None, alias="literalPrefix", max_length=12)
+    identifier_types: list[str] = Field(default_factory=list, alias="identifierTypes")
+    #: Rows sharing a group are alternatives — different field options carrying the same
+    #: business party. Exactly one of them satisfies the group.
+    choice_group: str | None = Field(default=None, alias="choiceGroup", max_length=64)
+    max_length: int | None = Field(default=None, alias="maxLength", ge=1, le=2000)
     format_explanation: str = Field(alias="formatExplanation", min_length=5, max_length=500)
     example_values: list[TagExample] = Field(default_factory=list, alias="exampleValues")
     common_mistakes: list[str] = Field(default_factory=list, alias="commonMistakes")
@@ -129,6 +163,12 @@ class TagKnowledge(ApiModel):
     condition_explanation: str | None = None
     supported_options: list[str]
     allowed_codes: list[str]
+    code_list: str | None = None
+    input_kind: InputKind = InputKind.TEXT
+    literal_prefix: str | None = None
+    identifier_types: list[str] = Field(default_factory=list)
+    choice_group: str | None = None
+    max_length: int | None = None
     format_explanation: str
     example_values: list[TagExample]
     common_mistakes: list[str]

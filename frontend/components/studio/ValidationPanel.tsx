@@ -129,7 +129,9 @@ function IssueRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             {issue.field && (
-              <span className="text-sm font-semibold text-ink">{issue.field}</span>
+              <span className="text-sm font-semibold text-ink">
+                {issue.field} needs attention
+              </span>
             )}
             <Badge tone={isError ? "bad" : "warn"}>{isError ? "Error" : "Note"}</Badge>
           </div>
@@ -156,25 +158,44 @@ function IssueRow({
               )}
             </dl>
           )}
-          <p className="mt-1.5 font-mono text-[0.6875rem] text-ink-3">
-            {issue.ruleId}
-            {issue.location && (
-              <>
-                {" · "}
-                {onFocusField ? (
-                  <button
-                    type="button"
-                    onClick={() => onFocusField(issue.location as string)}
-                    className="rounded-sm underline decoration-line-2 underline-offset-2 hover:text-accent"
-                  >
-                    {issue.location}
-                  </button>
-                ) : (
-                  issue.location
-                )}
-              </>
-            )}
-          </p>
+          {issue.location && onFocusField && (
+            <button
+              type="button"
+              onClick={() => onFocusField(issue.location as string)}
+              className="mt-1.5 inline-flex items-center gap-1 rounded-sm text-[0.8125rem] font-medium text-accent underline decoration-accent/30 underline-offset-2 transition-colors duration-150 hover:text-accent-2"
+            >
+              <Icon name="arrow-left" className="h-3.5 w-3.5 rotate-180" />
+              Go to this field
+            </button>
+          )}
+          {/* The rule id and the layer stay available for an automation tester filing a
+              defect, and stay out of the way of a manual tester fixing one. `ruleId` is a
+              stable API value and is never the sentence a person is asked to decode. */}
+          <details className="mt-1.5 group">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[0.6875rem] text-ink-3 transition-colors duration-150 hover:text-ink-2">
+              <Icon
+                name="chevron-down"
+                className="h-3 w-3 transition-transform duration-200 group-open:rotate-180"
+              />
+              Technical details
+            </summary>
+            <dl className="mt-1 flex flex-wrap gap-x-5 gap-y-0.5 font-mono text-[0.6875rem] text-ink-3">
+              <div className="flex gap-1.5">
+                <dt>Rule</dt>
+                <dd className="text-ink-2">{issue.ruleId}</dd>
+              </div>
+              {issue.location && (
+                <div className="flex gap-1.5">
+                  <dt>Field</dt>
+                  <dd className="text-ink-2">{issue.location}</dd>
+                </div>
+              )}
+              <div className="flex gap-1.5">
+                <dt>Layer</dt>
+                <dd className="text-ink-2">{issue.layer}</dd>
+              </div>
+            </dl>
+          </details>
         </div>
       </div>
     </li>

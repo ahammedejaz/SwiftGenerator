@@ -76,7 +76,8 @@ records:
     missingImpact: The deterministic composer cannot select the correct lifecycle semantics without it.
     presence: MANDATORY
     supportedOptions: [G]
-    allowedCodes: [NEWM, CANC, REVR]
+    codeList: MESSAGE_FUNCTION_INSTRUCTION
+    allowedCodes: []
     formatExplanation: Four-character function code; only the configured subset is accepted.
     relatedFields: [PREV]
     searchTerms: [23G, function, NEWM, CANC]
@@ -133,17 +134,26 @@ records:
     qualifier: null
     businessPath: security.identifier
     displayName: Financial Instrument Identification
-    businessMeaning: Identifies the security being received or delivered.
+    businessMeaning: >-
+      Identifies the security being received or delivered. An ISIN is the twelve-character
+      international identifier a security carries everywhere, so both sides of a settlement
+      can agree on which instrument moved without exchanging names or descriptions.
     technicalMeaning: Financial instrument field carrying an ISIN in the supported subset.
     whyUsed: Ensures the instruction and its responses refer to the same instrument.
-    businessQuestion: What synthetic ISIN identifies the security?
+    businessQuestion: Which security is being settled?
     missingImpact: The movement cannot be identified or correlated.
     presence: MANDATORY
     supportedOptions: [B]
     allowedCodes: []
-    formatExplanation: The subset renders the literal ISIN followed by a validated 12-character identifier.
-    exampleValues: [{value: XS0000000001, synthetic: true, explanation: Synthetic ISIN-format value.}]
-    commonMistakes: [Supplying an invalid ISIN-format value, Confusing an account with the security]
+    identifierTypes: [ISIN]
+    literalPrefix: 'ISIN '
+    maxLength: 12
+    formatExplanation: >-
+      Enter the twelve-character identifier only, for example XS0000000009. The studio adds
+      the ISIN keyword when it writes the field. Two letters, nine letters or digits, then a
+      numeric check digit.
+    exampleValues: [{value: XS0000000009, synthetic: true, explanation: 'Synthetic identifier: the shape and the ISO 6166 check digit are valid, but it is not registered with any numbering agency.'}]
+    commonMistakes: [Typing the word ISIN in front of the identifier, Using a security name or an internal code instead of the ISIN, Changing a character and leaving the check digit alone, Confusing the safekeeping account with the security]
     dependsOn: []
     requiredWith: [SETT]
     conflictsWith: []
@@ -170,10 +180,11 @@ records:
     missingImpact: The movement size is unknown and generation is blocked.
     presence: MANDATORY
     supportedOptions: [B]
-    allowedCodes: [UNIT]
-    formatExplanation: Positive decimal quantity rendered as SETT//UNIT/value.
+    codeList: QUANTITY_TYPE
+    allowedCodes: []
+    formatExplanation: A quantity type followed by a positive amount, rendered as UNIT/1000.
     exampleValues: [{value: UNIT/1000, synthetic: true, explanation: Synthetic unit quantity.}]
-    commonMistakes: [Using a zero or negative quantity]
+    commonMistakes: [Using a zero or negative quantity, Omitting the quantity type in front of the number]
     dependsOn: []
     requiredWith: []
     conflictsWith: []
@@ -184,41 +195,6 @@ records:
     knowledgeVersion: KB_2026_08_05_V1
     source: *settlement_source
     searchTerms: [36B, quantity, units]
-
-  - &transaction_type
-    messageTypes: [MT540, MT541, MT542, MT543]
-    workflowModule: SETTLEMENT
-    sequencePath: B
-    fieldTag: 22F
-    qualifier: SETR
-    businessPath: trade.transactionType
-    displayName: Settlement Transaction Type
-    businessMeaning: Describes the supported business transaction classification for this instruction.
-    technicalMeaning: Indicator field using the configured SETR code subset in trade details.
-    whyUsed: Provides business context for the securities movement.
-    businessQuestion: Is the synthetic transaction a buy or a sell?
-    missingImpact: The configured profile cannot classify the transaction.
-    presence: MANDATORY
-    supportedOptions: [F]
-    allowedCodes: [BUY, SELL]
-    formatExplanation: Four-character controlled indicator in the supported demonstration taxonomy.
-    exampleValues: [{value: BUY, synthetic: true, explanation: Demonstration transaction classification.}]
-    commonMistakes: [Assuming BUY alone determines receive and payment involvement]
-    dependsOn: []
-    requiredWith: []
-    conflictsWith: []
-    relatedFields: [SETR]
-    lifecycleImpact: Direction and payment type remain separate deterministic decisions.
-    ruleLayer: INTERNAL_RULE_PACK
-    standardsRelease: DEMO_SR2026
-    knowledgeVersion: KB_2026_08_05_V1
-    source:
-      sourceType: APPROVED_INTERNAL_RULE_PACK
-      sourceReference: SMS-DEMO-SETTLEMENT-TRANSACTION-TAXONOMY-V1
-      reviewStatus: VERIFIED
-      reviewedAt: 2026-08-05
-      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
-    searchTerms: [SETR, transaction type, buy, sell]
 
   - &safe_account
     messageTypes: [MT540, MT541, MT542, MT543]
@@ -250,112 +226,249 @@ records:
     source: *settlement_source
     searchTerms: [97A, SAFE, safekeeping account]
 
-  - &direction
+  - &transaction_type
     messageTypes: [MT540, MT541, MT542, MT543]
     workflowModule: SETTLEMENT
     sequencePath: E
     fieldTag: 22F
     qualifier: SETR
-    businessPath: direction
-    displayName: Receive or Deliver Direction
-    businessMeaning: States whether securities enter or leave the safekeeping account.
-    technicalMeaning: Direction indicator rendered in settlement details using the configured subset.
-    whyUsed: Keeps the securities movement consistent with the resolved instruction message type.
-    businessQuestion: Are the securities being received or delivered?
-    missingImpact: The deterministic resolver cannot select MT540–MT543.
+    businessPath: trade.transactionType
+    displayName: Settlement Transaction Type
+    businessMeaning: >-
+      What kind of transaction is being settled — an ordinary trade, a collateral movement,
+      a portfolio transfer and so on. It does not say whether securities are received or
+      delivered: the message type already does that.
+    technicalMeaning: Type of settlement transaction indicator in the settlement-details sequence.
+    whyUsed: >-
+      Settlement systems process a trade, a collateral movement and a portfolio transfer
+      differently, so the receiving system needs to know which it is looking at.
+    businessQuestion: What kind of transaction is being settled?
+    missingImpact: The receiving system cannot tell how the movement should be processed.
     presence: MANDATORY
     supportedOptions: [F]
-    allowedCodes: [RECE, DELI]
-    formatExplanation: Controlled four-character direction indicator.
-    exampleValues: [{value: RECE, synthetic: true, explanation: Synthetic receive instruction.}]
-    commonMistakes: [Inferring direction solely from informal buy or sell wording]
+    codeList: SETTLEMENT_TRANSACTION_TYPE
+    allowedCodes: []
+    formatExplanation: A four-letter transaction-type code. TRAD covers the ordinary settlement of a trade.
+    exampleValues: [{value: TRAD, synthetic: true, explanation: The ordinary settlement of a trade.}]
+    commonMistakes: [Using RECE or DELI here — those state direction, which the message type already carries, Using BUY or SELL here — neither is a settlement transaction type, Repeating this field in Trade Details]
+    dependsOn: []
+    requiredWith: []
+    conflictsWith: []
+    relatedFields: [PSET, DEAG, REAG]
+    lifecycleImpact: Confirmations and statuses describe the same transaction type as the instruction.
+    ruleLayer: BASE_STANDARD
+    standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+    knowledgeVersion: KB_2026_08_05_V1
+    source:
+      sourceType: OFFICIAL_ISO_15022
+      sourceReference: ISO15022-22F-SETR-RECONCILED-AGAINST-SESE023-SCTIESTXTP-2026-08-17
+      reviewStatus: VERIFIED
+      reviewedAt: 2026-08-17
+      reviewedBy: SYSTEM_IMPORT_OR_APPROVED_ROLE
+    searchTerms: [SETR, 22F, transaction type, TRAD, trade, settlement transaction]
+
+  # Settlement parties.
+  #
+  # Two decisions are configured here, and both were previously wrong.
+  #
+  # 1. Which agent is *required*. Reconciled against this repository's own ISO 20022
+  #    definition of the same business message, sese.023.001.11, which states it plainly:
+  #    DlvrgSttlmPties is "required when the account owner is receiving securities", and
+  #    RcvgSttlmPties is "required when the account owner is delivering securities". So a
+  #    receive instruction names the delivering agent and a delivery names the receiving
+  #    agent. The other chain is not forbidden — sese.023 marks both CONDITIONAL — so it
+  #    stays available as an optional additional party rather than being removed.
+  #
+  # 2. How a party is identified. Option P carries a BIC on its own; option R carries a
+  #    data source scheme and a proprietary identifier. They are alternatives for the same
+  #    business party, which is what `choiceGroup` says, and writing a BIC into option R is
+  #    the specific mistake this pairing exists to prevent.
+
+  - &pset_bic
+    messageTypes: [MT540, MT541, MT542, MT543]
+    workflowModule: SETTLEMENT
+    sequencePath: E
+    fieldTag: 95P
+    qualifier: PSET
+    businessPath: settlement.placeOfSettlement
+    displayName: Place of Settlement
+    businessMeaning: >-
+      Where the securities actually settle — normally the central securities depository that
+      holds them. Both sides must name the same place or the instructions cannot match.
+    technicalMeaning: Settlement party field carrying the place of settlement as a BIC, option P.
+    whyUsed: Routes the instruction to the settlement location and lets the two sides match.
+    businessQuestion: Where should the securities settle?
+    missingImpact: The instruction cannot be routed to a settlement location.
+    presence: CONDITIONAL
+    conditionExpression: PROFILE_SETTLEMENT_PARTY_RULE
+    conditionExplanation: Both demonstration profiles require a place of settlement on a generated settlement instruction. Identify it by BIC, or switch to the proprietary form.
+    supportedOptions: [P]
+    allowedCodes: []
+    choiceGroup: SETTLEMENT-E-PSET/95P
+    maxLength: 11
+    formatExplanation: A BIC — eight or eleven characters. The format is checked; whether the BIC is registered is not.
+    exampleValues: [{value: DEMOGB2LXXX, synthetic: true, explanation: 'Synthetic depository BIC: correctly shaped, not registered with SWIFT.'}]
+    commonMistakes: [Entering a proprietary code here instead of a BIC, Treating the place of settlement as a counterparty account]
     dependsOn: []
     requiredWith: []
     conflictsWith: []
     relatedFields: [DEAG, REAG]
-    lifecycleImpact: Confirmations and statuses must correlate to the original direction.
+    lifecycleImpact: Reused when correlating settlement responses.
     ruleLayer: BASE_STANDARD
     standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
     knowledgeVersion: KB_2026_08_05_V1
     source: *settlement_source
-    searchTerms: [receive, deliver, RECE, DELI]
+    searchTerms: [PSET, 95P, place of settlement, settlement venue, CSD, depository, BIC]
 
-  - &pset
-    messageTypes: [MT540, MT541, MT542, MT543]
-    workflowModule: SETTLEMENT
-    sequencePath: E
+  - <<: *pset_bic
     fieldTag: 95R
-    qualifier: PSET
-    businessPath: settlement.placeOfSettlement
-    displayName: Place of Settlement
-    businessMeaning: Identifies the requested securities settlement location or venue.
-    technicalMeaning: Qualified party field identifying the place of settlement using option R in this demonstration profile.
-    whyUsed: Helps route and interpret the instruction against the applicable settlement location and configured market practice.
-    businessQuestion: Where should the securities settle?
-    missingImpact: The configured settlement-party rule blocks generation when the settlement place is absent.
-    presence: CONDITIONAL
-    conditionExpression: PROFILE_SETTLEMENT_PARTY_RULE
-    conditionExplanation: The exact requirement depends on the selected message, market representation, format option, and client profile; both demo profiles currently require it for generated settlement instructions.
     supportedOptions: [R]
-    allowedCodes: []
-    formatExplanation: Depending on authorised rules, PSET may use a CSD, settlement institution, country, or another approved representation; this subset emits a synthetic proprietary option R value.
-    exampleValues: [{value: SYNTH/SYNTHPSET01, synthetic: true, explanation: Synthetic place-of-settlement representation only.}]
-    commonMistakes: [Treating PSET as a generic counterparty account, Reusing an unapproved party format]
-    dependsOn: []
-    requiredWith: [DEAG]
-    conflictsWith: []
-    relatedFields: [DEAG, REAG]
-    lifecycleImpact: May be reused when correlating settlement responses under the selected profile.
-    ruleLayer: BASE_STANDARD
-    standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
-    knowledgeVersion: KB_2026_08_05_V1
-    source: *settlement_source
-    searchTerms: [PSET, place of settlement, settlement venue, CSD]
+    choiceGroup: SETTLEMENT-E-PSET/95R
+    maxLength: 43
+    technicalMeaning: Settlement party field carrying the place of settlement as a proprietary identifier, option R.
+    conditionExplanation: Use this instead of the BIC form when the place of settlement is identified by a scheme code rather than a BIC.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example CSD/DEMOPSET01.
+    exampleValues: [{value: CSD/DEMOPSET01, synthetic: true, explanation: Synthetic place of settlement under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    searchTerms: [PSET, 95R, place of settlement, settlement venue, CSD, depository, proprietary, data source scheme]
 
-  - &deag
-    messageTypes: [MT540, MT541, MT542, MT543]
+  # ---- Delivering agent: required on a receive instruction, optional on a delivery. ----
+
+  - &deag_bic
+    messageTypes: [MT540, MT541]
     workflowModule: SETTLEMENT
     sequencePath: E
-    fieldTag: 95R
+    fieldTag: 95P
     qualifier: DEAG
     businessPath: settlement.deliveringAgent
     displayName: Delivering Agent
-    businessMeaning: Identifies the synthetic agent on the delivering side of settlement.
-    technicalMeaning: Qualified settlement-party field using DEAG and proprietary option R in this subset.
-    whyUsed: Identifies the delivering side in the configured settlement chain.
-    businessQuestion: Which synthetic agent delivers the securities?
-    missingImpact: The configured settlement-party chain is incomplete.
+    businessMeaning: >-
+      The party delivering the securities — the counterparty side of a receipt. Naming it is
+      how the receiving side's instruction finds the delivering side's instruction to match
+      against.
+    technicalMeaning: Settlement party field carrying the delivering agent as a BIC, option P.
+    whyUsed: Identifies where the securities are coming from so the two sides can match.
+    businessQuestion: Which agent is delivering the securities?
+    missingImpact: The instruction names no counterparty chain, so nothing can match it.
     presence: MANDATORY
-    supportedOptions: [R]
+    supportedOptions: [P]
     allowedCodes: []
-    formatExplanation: Configured proprietary party identifier in option R; client validation remains profile-specific.
-    exampleValues: [{value: SYNTH/SYNTHDEAG01, synthetic: true, explanation: Synthetic delivering agent.}]
-    commonMistakes: [Providing the settlement venue instead of the delivering agent]
+    choiceGroup: SETTLEMENT-E-DEAG/95P
+    maxLength: 11
+    conditionExplanation: Required on a receive instruction, because the chain that delivers the securities has to be identified.
+    formatExplanation: A BIC — eight or eleven characters. The format is checked; whether the BIC is registered is not.
+    exampleValues: [{value: DEMODEAGXXX, synthetic: true, explanation: 'Synthetic delivering agent BIC: correctly shaped, not registered with SWIFT.'}]
+    commonMistakes: [Entering a proprietary code here instead of a BIC, Giving the place of settlement instead of the delivering agent]
     dependsOn: []
-    requiredWith: [PSET]
+    requiredWith: []
     conflictsWith: []
     relatedFields: [PSET, REAG]
-    lifecycleImpact: Settlement responses must remain consistent with the original party chain.
+    lifecycleImpact: Settlement responses stay consistent with the original party chain.
     ruleLayer: BASE_STANDARD
     standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
     knowledgeVersion: KB_2026_08_05_V1
     source: *settlement_source
-    searchTerms: [DEAG, delivering agent]
+    searchTerms: [DEAG, 95P, delivering agent, counterparty, BIC]
 
-  - <<: *deag
+  - <<: *deag_bic
+    fieldTag: 95R
+    supportedOptions: [R]
+    choiceGroup: SETTLEMENT-E-DEAG/95R
+    maxLength: 43
+    technicalMeaning: Settlement party field carrying the delivering agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMODEAG01.
+    exampleValues: [{value: AGT/DEMODEAG01, synthetic: true, explanation: Synthetic delivering agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    searchTerms: [DEAG, 95R, delivering agent, proprietary, data source scheme]
+
+  - <<: *deag_bic
+    messageTypes: [MT542, MT543]
+    presence: OPTIONAL
+    conditionExplanation: Not required on a delivery — the receiving agent is the required counterparty here. Add it only when the delivering chain also has to be stated.
+    relatedFields: [PSET, REAG]
+
+  - <<: *deag_bic
+    messageTypes: [MT542, MT543]
+    fieldTag: 95R
+    supportedOptions: [R]
+    presence: OPTIONAL
+    choiceGroup: SETTLEMENT-E-DEAG/95R
+    maxLength: 43
+    conditionExplanation: Not required on a delivery — the receiving agent is the required counterparty here.
+    technicalMeaning: Settlement party field carrying the delivering agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMODEAG01.
+    exampleValues: [{value: AGT/DEMODEAG01, synthetic: true, explanation: Synthetic delivering agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    searchTerms: [DEAG, 95R, delivering agent, proprietary, data source scheme]
+
+  # ---- Receiving agent: required on a delivery, optional on a receive instruction. ----
+
+  - &reag_bic
+    messageTypes: [MT542, MT543]
+    workflowModule: SETTLEMENT
+    sequencePath: E
+    fieldTag: 95P
     qualifier: REAG
     businessPath: settlement.receivingAgent
     displayName: Receiving Agent
-    businessMeaning: Identifies the synthetic agent on the receiving side of settlement.
-    technicalMeaning: Qualified settlement-party field using REAG and proprietary option R in this subset.
-    whyUsed: Identifies the receiving side in the configured settlement chain.
-    businessQuestion: Which synthetic agent receives the securities?
-    missingImpact: The configured settlement-party chain is incomplete.
-    exampleValues: [{value: SYNTH/SYNTHREAG01, synthetic: true, explanation: Synthetic receiving agent.}]
-    commonMistakes: [Providing the settlement venue instead of the receiving agent]
-    requiredWith: [PSET]
+    businessMeaning: >-
+      The party receiving the securities — the counterparty side of a delivery. Naming it is
+      how the delivering side's instruction finds the receiving side's instruction to match
+      against.
+    technicalMeaning: Settlement party field carrying the receiving agent as a BIC, option P.
+    whyUsed: Identifies where the securities are going so the two sides can match.
+    businessQuestion: Which agent is receiving the securities?
+    missingImpact: The instruction names no counterparty chain, so nothing can match it.
+    presence: MANDATORY
+    supportedOptions: [P]
+    allowedCodes: []
+    choiceGroup: SETTLEMENT-E-REAG/95P
+    maxLength: 11
+    conditionExplanation: Required on a delivery, because the chain that receives the securities has to be identified.
+    formatExplanation: A BIC — eight or eleven characters. The format is checked; whether the BIC is registered is not.
+    exampleValues: [{value: DEMOREAGXXX, synthetic: true, explanation: 'Synthetic receiving agent BIC: correctly shaped, not registered with SWIFT.'}]
+    commonMistakes: [Entering a proprietary code here instead of a BIC, Giving the place of settlement instead of the receiving agent]
+    dependsOn: []
+    requiredWith: []
+    conflictsWith: []
     relatedFields: [PSET, DEAG]
-    searchTerms: [REAG, receiving agent]
+    lifecycleImpact: Settlement responses stay consistent with the original party chain.
+    ruleLayer: BASE_STANDARD
+    standardsRelease: PUBLIC_UHB_REVIEW_2026_08_05
+    knowledgeVersion: KB_2026_08_05_V1
+    source: *settlement_source
+    searchTerms: [REAG, 95P, receiving agent, counterparty, BIC]
+
+  - <<: *reag_bic
+    fieldTag: 95R
+    supportedOptions: [R]
+    choiceGroup: SETTLEMENT-E-REAG/95R
+    maxLength: 43
+    technicalMeaning: Settlement party field carrying the receiving agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMOREAG01.
+    exampleValues: [{value: AGT/DEMOREAG01, synthetic: true, explanation: Synthetic receiving agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    searchTerms: [REAG, 95R, receiving agent, proprietary, data source scheme]
+
+  - <<: *reag_bic
+    messageTypes: [MT540, MT541]
+    presence: OPTIONAL
+    conditionExplanation: Not required on a receive instruction — the delivering agent is the required counterparty here. Add it only when the receiving chain also has to be stated.
+    relatedFields: [PSET, DEAG]
+
+  - <<: *reag_bic
+    messageTypes: [MT540, MT541]
+    fieldTag: 95R
+    supportedOptions: [R]
+    presence: OPTIONAL
+    choiceGroup: SETTLEMENT-E-REAG/95R
+    maxLength: 43
+    conditionExplanation: Not required on a receive instruction — the delivering agent is the required counterparty here.
+    technicalMeaning: Settlement party field carrying the receiving agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMOREAG01.
+    exampleValues: [{value: AGT/DEMOREAG01, synthetic: true, explanation: Synthetic receiving agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    searchTerms: [REAG, 95R, receiving agent, proprietary, data source scheme]
 
   - &settlement_amount
     messageTypes: [MT541, MT543]
@@ -438,7 +551,8 @@ records:
     businessQuestion: Is this a new confirmation or a supported reversal?
     missingImpact: Confirmation semantics cannot be validated without it.
     supportedOptions: [G]
-    allowedCodes: [NEWM, REVR]
+    codeList: MESSAGE_FUNCTION_CONFIRMATION
+    allowedCodes: []
     formatExplanation: Four-character controlled function code.
     relatedFields: [RELA]
     searchTerms: [23G, confirmation function]
@@ -493,6 +607,7 @@ records:
     relatedFields: [ESET, STCO]
     lifecycleImpact: Must not exceed the linked instruction quantity in valid mode.
     searchTerms: [ESTT, settled quantity]
+    codeList: null
 
   - &settlement_result
     messageTypes: [MT544, MT545, MT546, MT547]
@@ -509,7 +624,8 @@ records:
     missingImpact: The confirmation outcome cannot be interpreted.
     presence: MANDATORY
     supportedOptions: [F]
-    allowedCodes: [FULL, PARTIAL]
+    codeList: SETTLEMENT_RESULT
+    allowedCodes: []
     formatExplanation: Demonstration rule-pack values mapped deterministically into the supported field.
     exampleValues: [{value: FULL, synthetic: true, explanation: Demonstration full-settlement result.}]
     commonMistakes: [Marking a lower quantity as full]
@@ -533,29 +649,114 @@ records:
     messageTypes: [MT544, MT545, MT546, MT547]
     lifecycleImpact: Must remain consistent with the linked instruction account context.
 
-  - <<: *pset
-    messageTypes: [MT544, MT545, MT546, MT547]
-    lifecycleImpact: May be reused to validate settlement confirmation context.
+  # The confirmation party chain mirrors the instruction it confirms: a receipt confirmation
+  # names who delivered, a delivery confirmation names who received.
 
-  - <<: *deag
+  - <<: *pset_bic
     messageTypes: [MT544, MT545, MT546, MT547]
-    lifecycleImpact: Must remain consistent with the linked instruction party chain.
+    lifecycleImpact: Reused to check the confirmation describes the same settlement context.
 
-  - <<: *deag
+  - <<: *pset_bic
     messageTypes: [MT544, MT545, MT546, MT547]
-    qualifier: REAG
-    businessPath: settlement.receivingAgent
-    displayName: Receiving Agent
-    businessMeaning: Identifies the synthetic agent on the receiving side of settlement.
-    technicalMeaning: Qualified settlement-party field using REAG and option R.
-    whyUsed: Identifies the receiving side of the confirmed settlement chain.
-    businessQuestion: Which synthetic agent receives the securities?
-    missingImpact: The confirmation party chain is incomplete.
-    exampleValues: [{value: SYNTH/SYNTHREAG01, synthetic: true, explanation: Synthetic receiving agent.}]
-    commonMistakes: [Providing the settlement venue instead of the receiving agent]
-    requiredWith: [PSET]
+    fieldTag: 95R
+    supportedOptions: [R]
+    choiceGroup: SETTLEMENT-E-PSET/95R
+    maxLength: 43
+    technicalMeaning: Settlement party field carrying the place of settlement as a proprietary identifier, option R.
+    conditionExplanation: Use this instead of the BIC form when the place of settlement is identified by a scheme code rather than a BIC.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example CSD/DEMOPSET01.
+    exampleValues: [{value: CSD/DEMOPSET01, synthetic: true, explanation: Synthetic place of settlement under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    lifecycleImpact: Reused to check the confirmation describes the same settlement context.
+    searchTerms: [PSET, 95R, place of settlement, settlement venue, CSD, depository, proprietary, data source scheme]
+
+  - <<: *deag_bic
+    messageTypes: [MT544, MT545]
+    businessQuestion: Which agent delivered the securities?
+    conditionExplanation: Required on a receipt confirmation, because the chain that delivered the securities has to be identified.
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+
+  - <<: *deag_bic
+    messageTypes: [MT544, MT545]
+    fieldTag: 95R
+    supportedOptions: [R]
+    choiceGroup: SETTLEMENT-E-DEAG/95R
+    maxLength: 43
+    businessQuestion: Which agent delivered the securities?
+    technicalMeaning: Settlement party field carrying the delivering agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMODEAG01.
+    exampleValues: [{value: AGT/DEMODEAG01, synthetic: true, explanation: Synthetic delivering agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+    searchTerms: [DEAG, 95R, delivering agent, proprietary, data source scheme]
+
+  - <<: *deag_bic
+    messageTypes: [MT546, MT547]
+    presence: OPTIONAL
+    businessQuestion: Which agent delivered the securities?
+    conditionExplanation: Not required on a delivery confirmation — the receiving agent is the required counterparty here.
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+    relatedFields: [PSET, REAG]
+
+  - <<: *deag_bic
+    messageTypes: [MT546, MT547]
+    fieldTag: 95R
+    supportedOptions: [R]
+    presence: OPTIONAL
+    choiceGroup: SETTLEMENT-E-DEAG/95R
+    maxLength: 43
+    businessQuestion: Which agent delivered the securities?
+    conditionExplanation: Not required on a delivery confirmation — the receiving agent is the required counterparty here.
+    technicalMeaning: Settlement party field carrying the delivering agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMODEAG01.
+    exampleValues: [{value: AGT/DEMODEAG01, synthetic: true, explanation: Synthetic delivering agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+    searchTerms: [DEAG, 95R, delivering agent, proprietary, data source scheme]
+
+  - <<: *reag_bic
+    messageTypes: [MT546, MT547]
+    businessQuestion: Which agent received the securities?
+    conditionExplanation: Required on a delivery confirmation, because the chain that received the securities has to be identified.
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+
+  - <<: *reag_bic
+    messageTypes: [MT546, MT547]
+    fieldTag: 95R
+    supportedOptions: [R]
+    choiceGroup: SETTLEMENT-E-REAG/95R
+    maxLength: 43
+    businessQuestion: Which agent received the securities?
+    technicalMeaning: Settlement party field carrying the receiving agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMOREAG01.
+    exampleValues: [{value: AGT/DEMOREAG01, synthetic: true, explanation: Synthetic receiving agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+    searchTerms: [REAG, 95R, receiving agent, proprietary, data source scheme]
+
+  - <<: *reag_bic
+    messageTypes: [MT544, MT545]
+    presence: OPTIONAL
+    businessQuestion: Which agent received the securities?
+    conditionExplanation: Not required on a receipt confirmation — the delivering agent is the required counterparty here.
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
     relatedFields: [PSET, DEAG]
-    searchTerms: [REAG, receiving agent]
+
+  - <<: *reag_bic
+    messageTypes: [MT544, MT545]
+    fieldTag: 95R
+    supportedOptions: [R]
+    presence: OPTIONAL
+    choiceGroup: SETTLEMENT-E-REAG/95R
+    maxLength: 43
+    businessQuestion: Which agent received the securities?
+    conditionExplanation: Not required on a receipt confirmation — the delivering agent is the required counterparty here.
+    technicalMeaning: Settlement party field carrying the receiving agent as a proprietary identifier, option R.
+    formatExplanation: A data source scheme, then a slash, then the identifier — for example AGT/DEMOREAG01.
+    exampleValues: [{value: AGT/DEMOREAG01, synthetic: true, explanation: Synthetic receiving agent under a demonstration scheme.}]
+    commonMistakes: [Entering a BIC here — use the BIC form instead, Omitting the data source scheme in front of the identifier]
+    lifecycleImpact: Stays consistent with the party chain of the instruction being confirmed.
+    searchTerms: [REAG, 95R, receiving agent, proprietary, data source scheme]
 
   - <<: *settlement_amount
     messageTypes: [MT545, MT547]
@@ -608,7 +809,8 @@ records:
     businessQuestion: Is this a new status advice?
     missingImpact: The message function cannot be validated.
     supportedOptions: [G]
-    allowedCodes: [NEWM]
+    codeList: MESSAGE_FUNCTION_NEW_ONLY
+    allowedCodes: []
     formatExplanation: Four-character function code in the supported subset.
     relatedFields: [RELA]
 
@@ -627,7 +829,8 @@ records:
     missingImpact: Lifecycle correlation cannot verify the related instruction type.
     presence: MANDATORY
     supportedOptions: [A]
-    allowedCodes: ['540', '541', '542', '543']
+    codeList: LINKED_MESSAGE_TYPE
+    allowedCodes: []
     formatExplanation: Three-digit message type number in the supported linkage field.
     exampleValues: [{value: '541', synthetic: true, explanation: Synthetic linkage to MT541.}]
     commonMistakes: [Linking a status to a confirmation type]
@@ -657,7 +860,8 @@ records:
     missingImpact: The status advice has no deterministic business state.
     presence: MANDATORY
     supportedOptions: [D]
-    allowedCodes: [PEND, REJT, MACH, NMAT, CAND, CANR]
+    codeList: SETTLEMENT_STATUS
+    allowedCodes: []
     formatExplanation: Controlled status code selected from versioned configuration.
     exampleValues: [{value: PEND, synthetic: true, explanation: Synthetic pending status.}]
     commonMistakes: [Using an invented code, Combining a status with an unrelated reason]
@@ -688,7 +892,8 @@ records:
     businessQuestion: Which configured pending reason applies?
     missingImpact: The demo status rule requires a controlled reason.
     supportedOptions: [B]
-    allowedCodes: [AWAITING_CASH, AWAITING_SECURITIES]
+    codeList: PENDING_REASON
+    allowedCodes: []
     formatExplanation: Controlled demonstration reason value associated with PEND.
     relatedFields: [SETT, REAS]
     searchTerms: [24B, PEND, pending reason]
@@ -704,7 +909,8 @@ records:
     businessQuestion: Which configured rejection reason applies?
     missingImpact: The demo status rule requires a controlled reason.
     supportedOptions: [B]
-    allowedCodes: [INVALID_REFERENCE, UNSUPPORTED_SECURITY]
+    codeList: REJECTION_REASON
+    allowedCodes: []
     formatExplanation: Controlled demonstration reason value associated with REJT.
     relatedFields: [SETT, REAS]
     searchTerms: [24B, REJT, rejected reason]
@@ -720,7 +926,8 @@ records:
     businessQuestion: Which configured matched reason applies?
     missingImpact: The demo status rule requires a controlled reason.
     supportedOptions: [B]
-    allowedCodes: [DETAILS_MATCHED]
+    codeList: MATCHED_REASON
+    allowedCodes: []
     formatExplanation: Controlled demonstration reason associated with MACH.
     relatedFields: [SETT, REAS]
 
@@ -735,7 +942,8 @@ records:
     businessQuestion: Which configured unmatched reason applies?
     missingImpact: The demo status rule requires a controlled reason.
     supportedOptions: [B]
-    allowedCodes: [COUNTERPARTY_MISMATCH]
+    codeList: UNMATCHED_REASON
+    allowedCodes: []
     formatExplanation: Controlled demonstration reason associated with NMAT.
     relatedFields: [SETT, REAS]
 
@@ -750,7 +958,8 @@ records:
     businessQuestion: Which configured cancellation-accepted reason applies?
     missingImpact: The demo status rule requires a controlled reason.
     supportedOptions: [B]
-    allowedCodes: [CANCELLATION_PROCESSED]
+    codeList: CANCELLATION_ACCEPTED_REASON
+    allowedCodes: []
     formatExplanation: Controlled demonstration reason associated with CAND.
     relatedFields: [SETT, REAS]
 
@@ -765,7 +974,8 @@ records:
     businessQuestion: Which configured cancellation-rejected reason applies?
     missingImpact: The demo status rule requires a controlled reason.
     supportedOptions: [B]
-    allowedCodes: [SETTLEMENT_ALREADY_FINAL]
+    codeList: CANCELLATION_REJECTED_REASON
+    allowedCodes: []
     formatExplanation: Controlled demonstration reason associated with CANR.
     relatedFields: [SETT, REAS]
 

@@ -1,5 +1,5 @@
 from app.composers.base import CompositionResult, MessageComposer, swift_decimal
-from app.domain.enums import MessageType
+from app.domain.enums import Direction, MessageType
 from app.domain.models import RenderedField, SettlementScenario
 from app.profiles.loader import ClientProfile
 
@@ -143,22 +143,26 @@ class DvpConfirmationComposer(MessageComposer):
             "settlement.placeOfSettlement",
             "Synthetic place of settlement",
         )
-        add(
-            "E",
-            "95R",
-            "DEAG",
-            f"SYNTH/{scenario.settlement.delivering_agent}",
-            "settlement.deliveringAgent",
-            "Synthetic delivering agent",
-        )
-        add(
-            "E",
-            "95R",
-            "REAG",
-            f"SYNTH/{scenario.settlement.receiving_agent}",
-            "settlement.receivingAgent",
-            "Synthetic receiving agent",
-        )
+        # A receipt names the chain that delivers; a delivery names the chain that
+        # receives. Emitting both made every instruction require its own counterparty twice.
+        if scenario.direction == Direction.RECEIVE:
+            add(
+                "E",
+                "95R",
+                "DEAG",
+                f"SYNTH/{scenario.settlement.delivering_agent}",
+                "settlement.deliveringAgent",
+                "Synthetic delivering agent",
+            )
+        else:
+            add(
+                "E",
+                "95R",
+                "REAG",
+                f"SYNTH/{scenario.settlement.receiving_agent}",
+                "settlement.receivingAgent",
+                "Synthetic receiving agent",
+            )
         lines.append(":16S:SETDET")
         lines.append("-}")
         return CompositionResult(raw_message="\n".join(lines), field_map=fields)

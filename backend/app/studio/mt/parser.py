@@ -36,6 +36,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from app.authoring.composer import canonical_field_value
 from app.domain.enums import MessageType
 from app.specifications.models import FieldSpecification, MessageSpecification
 from app.specifications.registry import specification_registry
@@ -702,7 +703,12 @@ class _TextBlockReader:
                 )
             highest[id(item.instance)] = max(seen, row.row_number)
 
-            value = item.value.strip()
+            # The composer writes a field's literal — `ISIN ` — at render time, so the
+            # importer takes it back off. Import is the exact inverse of composition, and
+            # the values it hands back are the same canonical values the browser, the JSON
+            # API and Excel use. Without this, regenerating an imported message would write
+            # `ISIN ISIN XS0000000009`.
+            value = canonical_field_value(row, item.value.strip())
             if not value:
                 self.errors.append(
                     _issue(

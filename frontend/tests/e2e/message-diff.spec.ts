@@ -206,7 +206,7 @@ test.describe("Original and regenerated", () => {
     await page.getByRole("button", { name: /Choose MT/ }).click();
     await page.getByRole("button", { name: /Settlement/ }).first().click();
     await page.getByRole("button", { name: /MT541/ }).first().click();
-    await page.getByRole("button", { name: /^Typical/ }).click();
+    await page.getByRole("button", { name: /Load typical sample/ }).click();
     await page.getByRole("button", { name: "Generate message" }).click();
 
     await expect(page.getByText("Ready to generate")).toBeVisible({ timeout: 20_000 });

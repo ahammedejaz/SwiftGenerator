@@ -198,7 +198,7 @@ structure:
         whyUsed: Unambiguously identifies the instrument for reconciliation.
         businessQuestion: What is the ISIN of the settled security?
         examples:
-          - value: XS0000000001
+          - value: XS0000000009
             explanation: A synthetic ISIN used for demonstration only.
         searchTerms: [ISIN, security identifier, 35B]
 

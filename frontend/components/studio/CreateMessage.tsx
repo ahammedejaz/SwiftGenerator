@@ -13,6 +13,7 @@ import { Icon } from "@/components/studio/Icon";
 import {
   FieldEditor,
   type FieldValues,
+  collapseChoices,
   fieldAddress,
   parseSlot,
   slotKey,
@@ -78,6 +79,10 @@ export function CreateMessage() {
   const [specLoading, setSpecLoading] = useState(false);
 
   const [values, setValues] = useState<FieldValues>({});
+  // Which sample the current values came from, so the form can say so and stop saying it
+  // once the tester starts editing. Marking is presentational: the values themselves are
+  // ordinary user-entered values and are generated through exactly the same path.
+  const [sampleOrigin, setSampleOrigin] = useState<SampleMessage | null>(null);
   const [occurrences, setOccurrences] = useState<Record<string, number>>({});
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
 
@@ -175,13 +180,6 @@ export function CreateMessage() {
     [entries, format, messageType],
   );
 
-  /** Expert mode shows everything; guided mode shows required plus what you asked for. */
-  const visibleSpec = useMemo(() => {
-    if (!spec) return null;
-    if (mode !== "EXPERT") return spec;
-    return spec;
-  }, [spec, mode]);
-
   const filledKeys = useMemo(
     () =>
       new Set(
@@ -191,11 +189,17 @@ export function CreateMessage() {
       ),
     [values],
   );
+  // Counted per business value rather than per field option: a settlement party offered as
+  // a BIC and as a proprietary identifier is one thing to fill in, and counting both made
+  // a complete message report "10 of 11".
   const requiredFields = useMemo(
-    () => spec?.fields.filter((field) => field.presence === "MANDATORY") ?? [],
+    () =>
+      collapseChoices(spec?.fields ?? []).filter((row) => row.presence === "MANDATORY"),
     [spec],
   );
-  const requiredFilled = requiredFields.filter((field) => filledKeys.has(field.id)).length;
+  const requiredFilled = requiredFields.filter((row) =>
+    row.options.some((option) => filledKeys.has(option.id)),
+  ).length;
   const anyFilled = filledKeys.size > 0;
 
   const invalidLocations = useMemo(() => {
@@ -207,6 +211,11 @@ export function CreateMessage() {
   }, [result]);
 
   /* -------------------------------------------------------------- actions */
+
+  function updateValue(key: string, value: string) {
+    setSampleOrigin(null);
+    setValues((current) => ({ ...current, [key]: value }));
+  }
 
   function selectFormat(next: MessageFormat) {
     setImported(null);
@@ -242,9 +251,16 @@ export function CreateMessage() {
       setRevealed(new Set(spec.fields.map((field) => field.id)));
     }
     if (next === "GUIDED") {
+      // Guided shows fewer fields, but never fewer *values*. An optional field holding a
+      // value stays visible, because clearing `revealed` used to leave the value in state
+      // and in the generated message while removing it from the screen — kept, submitted
+      // and unreviewable.
       setRevealed((current) => {
         const kept = new Set<string>();
         for (const key of current) if (key.startsWith("info:")) kept.add(key);
+        for (const key of Object.keys(values)) {
+          if (values[key]?.trim()) kept.add(parseSlot(key).fieldId);
+        }
         return kept;
       });
     }
@@ -286,6 +302,7 @@ export function CreateMessage() {
       for (const key of current) if (key.startsWith("info:")) merged.add(key);
       return merged;
     });
+    setSampleOrigin(sample);
     setMode("GUIDED");
     setResult(null);
     setStep(5);
@@ -568,6 +585,8 @@ export function CreateMessage() {
             <SelectionBar
               entry={selected}
               mode={mode}
+              onModeChange={chooseMode}
+              sampleOrigin={sampleOrigin}
               profileId={profileId}
               profiles={catalogue?.profiles ?? []}
               scenarioId={scenarioId}
@@ -580,7 +599,7 @@ export function CreateMessage() {
 
             {specLoading && <SpecSkeleton />}
 
-            {visibleSpec && !specLoading && (
+            {spec && !specLoading && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-ink-2">
@@ -607,11 +626,9 @@ export function CreateMessage() {
                 </div>
 
                 <FieldEditor
-                  spec={visibleSpec}
+                  spec={spec}
                   values={values}
-                  onChange={(key, value) =>
-                    setValues((current) => ({ ...current, [key]: value }))
-                  }
+                  onChange={updateValue}
                   occurrences={occurrences}
                   onAddOccurrence={(groupId) =>
                     setOccurrences((current) => ({
@@ -975,60 +992,98 @@ function StepMode({
     },
   ];
 
+  // The typical sample is the fastest honest way to see a working message, so it leads.
+  // It used to sit below two large cards under "Or start from a sample", where a tester
+  // picked a card and never saw it.
+  const typical = samples.find((item) => item.variant === "TYPICAL") ?? samples[0];
+  const others = samples.filter((item) => item !== typical);
+
   return (
     <Panel
-      title={`How do you want to enter the data for ${entry.messageType}?`}
-      description="You can switch at any time; nothing you have typed is lost."
+      title={`Start with ${entry.messageType}`}
+      description="Load a working sample and edit it, or start from an empty form. You can switch at any time; nothing you have typed is lost."
       action={
         <Button variant="quiet" icon="arrow-left" onClick={onBack}>
           Change message
         </Button>
       }
     >
-      <div className="grid gap-3 md:grid-cols-2">
-        {options.map((option) => (
+      {typical && (
+        <div className="grid gap-3 sm:grid-cols-2">
           <button
-            key={option.id}
             type="button"
-            onClick={() => onChoose(option.id)}
+            onClick={() => onSample(typical)}
+            className="group flex flex-col items-start gap-2 rounded-md border border-accent/40 bg-accent-sk p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-2)]"
+          >
+            <span className="flex flex-wrap items-center gap-2">
+              <Icon name="compose" className="h-4 w-4 text-accent" />
+              <span className="text-[0.9375rem] font-semibold">
+                Load {typical.title.toLowerCase()} sample
+              </span>
+              <Badge tone="accent">Fastest start</Badge>
+            </span>
+            <span className="text-sm leading-6 text-ink-2">{typical.description}</span>
+            <span className="text-xs text-ink-3 tnum">
+              {typical.fieldCount} fields, ready to edit
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onChoose("GUIDED")}
             className="group flex flex-col items-start gap-2 rounded-md border border-line-2 bg-panel p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[var(--shadow-2)]"
           >
             <span className="flex items-center gap-2">
-              <span className="text-[0.9375rem] font-semibold">{option.title}</span>
-              {option.recommended && <Badge tone="accent">Recommended</Badge>}
+              <Icon name="plus" className="h-4 w-4 text-ink-3" />
+              <span className="text-[0.9375rem] font-semibold">Empty message</span>
             </span>
-            <span className="text-sm leading-6 text-ink-2">{option.body}</span>
+            <span className="text-sm leading-6 text-ink-2">
+              Start from a blank form and enter your own values.
+            </span>
           </button>
-        ))}
-      </div>
-
-      {samples.length > 0 && (
-        <div className="mt-5 border-t border-line pt-5">
-          <h3 className="text-[0.9375rem] font-semibold">Or start from a sample</h3>
-          <p className="mt-1 text-sm leading-6 text-ink-2">
-            Samples are produced by the same composer as your message, so they always
-            validate. Load one and edit it.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            {samples.map((sample) => (
-              <button
-                key={sample.variant}
-                type="button"
-                onClick={() => onSample(sample)}
-                className="group rounded-md border border-line-2 bg-sunken px-4 py-3 text-left transition-colors duration-150 hover:border-accent/40 hover:bg-accent-sk"
-              >
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[0.8125rem] font-semibold">{sample.title}</span>
-                  <span className="text-xs text-ink-3 tnum">{sample.fieldCount} fields</span>
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-ink-2">
-                  {sample.description}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
       )}
+
+      {others.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-ink-3">Other samples:</span>
+          {others.map((sample) => (
+            <button
+              key={sample.variant}
+              type="button"
+              onClick={() => onSample(sample)}
+              className="rounded-md border border-line-2 bg-sunken px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150 hover:border-accent/40 hover:bg-accent-sk"
+            >
+              {sample.title}
+              <span className="ml-1.5 text-xs text-ink-3 tnum">{sample.fieldCount}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-4 text-xs leading-5 text-ink-3">
+        Samples are generated by the same composer as your message and validated against the
+        same rules, so they always work. Every value in one is synthetic test data.
+      </p>
+
+      <div className="mt-5 border-t border-line pt-5">
+        <h3 className="text-[0.9375rem] font-semibold">How much do you want to see?</h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChoose(option.id)}
+              className="group flex flex-col items-start gap-2 rounded-md border border-line-2 bg-panel p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[var(--shadow-2)]"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-[0.9375rem] font-semibold">{option.title}</span>
+                {option.recommended && <Badge tone="accent">Recommended</Badge>}
+              </span>
+              <span className="text-sm leading-6 text-ink-2">{option.body}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </Panel>
   );
 }
@@ -1036,6 +1091,8 @@ function StepMode({
 function SelectionBar({
   entry,
   mode,
+  onModeChange,
+  sampleOrigin,
   profileId,
   profiles,
   scenarioId,
@@ -1045,6 +1102,8 @@ function SelectionBar({
 }: {
   entry: CatalogueEntry;
   mode: InputMode;
+  onModeChange: (mode: InputMode) => void;
+  sampleOrigin: SampleMessage | null;
   profileId: string;
   profiles: string[];
   scenarioId: string;
@@ -1060,9 +1119,37 @@ function SelectionBar({
             <FormatBadge format={entry.format} />
             <span className="font-mono text-[1.0625rem] font-semibold">{entry.messageType}</span>
             <span className="text-[0.9375rem] text-ink-2">{entry.name}</span>
-            <Badge tone={mode === "GUIDED" ? "accent" : "neutral"}>
-              {mode === "GUIDED" ? "Guided" : "Expert"}
-            </Badge>
+            {/* Switching happens here rather than only at step 4, because the moment a
+                tester wants every field is the moment they are looking at the form. Values
+                are held per field id and are untouched by the switch, so nothing entered in
+                one mode is lost by moving to the other. */}
+            <div
+              className="inline-flex rounded-md border border-line-2 bg-panel p-0.5"
+              role="group"
+              aria-label="Detail level"
+            >
+              {(["GUIDED", "EXPERT"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={mode === option}
+                  onClick={() => onModeChange(option)}
+                  className={cx(
+                    "rounded-[5px] px-2.5 py-1 text-xs font-medium transition-colors duration-150",
+                    mode === option
+                      ? "bg-accent text-white"
+                      : "text-ink-2 hover:bg-rail hover:text-ink",
+                  )}
+                >
+                  {option === "GUIDED" ? "Guided" : "Expert"}
+                </button>
+              ))}
+            </div>
+            {sampleOrigin && (
+              <Badge tone="warn">
+                Sample data — {sampleOrigin.title.toLowerCase()}
+              </Badge>
+            )}
           </div>
           <p className="mt-1 max-w-[74ch] text-sm leading-6 text-ink-2">
             {entry.shortDescription}

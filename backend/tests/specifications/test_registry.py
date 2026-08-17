@@ -2,17 +2,24 @@ from app.domain.enums import MessageType
 from app.specifications.models import CapabilityState, VerificationStatus
 from app.specifications.registry import specification_registry
 
+#: The configured subset, row by row. Stated rather than derived on purpose: this is the
+#: one place a change to the specification has to be acknowledged deliberately.
+#:
+#: The settlement messages grew by two rows each when 22F::SETR stopped being configured
+#: twice (once in Trade Details carrying BUY/SELL, once in Settlement Details carrying
+#: RECE/DELI) and each settlement party gained a BIC form alongside its proprietary form:
+#: minus one SETR row, plus three option-P party rows.
 EXPECTED_ROWS = {
     MessageType.MT530: 5,
     MessageType.MT537: 23,
-    MessageType.MT540: 14,
-    MessageType.MT541: 15,
-    MessageType.MT542: 14,
-    MessageType.MT543: 15,
-    MessageType.MT544: 12,
-    MessageType.MT545: 13,
-    MessageType.MT546: 12,
-    MessageType.MT547: 13,
+    MessageType.MT540: 16,
+    MessageType.MT541: 17,
+    MessageType.MT542: 16,
+    MessageType.MT543: 17,
+    MessageType.MT544: 15,
+    MessageType.MT545: 16,
+    MessageType.MT546: 15,
+    MessageType.MT547: 16,
     MessageType.MT548: 12,
     MessageType.MT564: 14,
     MessageType.MT565: 10,
@@ -26,7 +33,7 @@ def test_registry_accounts_for_the_source_bounded_subset() -> None:
     assert specification_registry.statistics() == {
         item.value: count for item, count in EXPECTED_ROWS.items()
     }
-    assert sum(EXPECTED_ROWS.values()) == 200
+    assert sum(EXPECTED_ROWS.values()) == 220
     for message_type, expected in EXPECTED_ROWS.items():
         specification = specification_registry.get(message_type)
         assert len(specification.fields) == expected

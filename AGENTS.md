@@ -61,8 +61,8 @@ the same data; `GET /api/v1/sources` reports which authoritative artifacts are p
 **Verification status (all passing):**
 
 ```
-766 backend tests (pytest)      ruff: clean      mypy --strict: clean (129 files)
- 61 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
+986 backend tests (pytest)      ruff: clean      mypy --strict: clean (132 files)
+ 73 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
@@ -153,6 +153,9 @@ backend/app/studio/
 ```
 app/specifications/registry.py   MT specification registry
 app/knowledge/loader.py          MT knowledge base
+app/knowledge/code_lists.py      shared controlled code lists, with labels
+app/knowledge/presentation.py    which control a field deserves, derived once from the tag
+app/domain/identifiers.py        ISIN / BIC normalisation and verification, deterministic
 app/authoring/composer.py        Block 4 composer          ← reused, do not fork
 app/profiles/loader.py           client profiles
 app/domain/ app/composers/ app/workflows/   original scenario API, serves Advanced screens
@@ -164,6 +167,7 @@ app/agents/                      AI layer (optional, off by default)
 ```
 backend/config/README.md               what each directory is, and its override setting
 backend/config/knowledge/*.yaml        MT: per-tag meaning, format, examples, mistakes
+backend/config/knowledge/code_lists.yaml   controlled codes + labels, shared by MT and MX
 backend/config/specifications/*.yaml   MT: sequences and row order per message
 backend/config/mx/*.yaml               MX: complete nested element tree, one per message
 backend/config/mx/xsd/official/        drop licensed .xsd files here; see its README
@@ -183,11 +187,13 @@ frontend/components/studio/
   Chrome.tsx           app shell, 6-item nav
   CreateMessage.tsx    the six-step wizard
   FieldEditor.tsx      progressive disclosure + inline field explanations
+  FieldControl.tsx     one control per inputKind — never inferred in the browser
   ProofSheet.tsx       the generated message — dark, line-numbered, annotated
   MessageDiff.tsx      original vs regenerated, and why each line differs
   ValidationPanel.tsx  plain-English validation
   ExcelStudio.tsx  Intelligence.tsx  ValidateStudio.tsx  Automation.tsx  RecentMessages.tsx
   Icon.tsx  ui.tsx     authored SVG icons + the component vocabulary
+frontend/lib/identifiers.ts    ISIN / BIC checks for live feedback; the server still decides
 frontend/lib/studio-types.ts   TypeScript mirror of the API contract
 frontend/lib/studio-api.ts     typed client — the ONLY place fetch() is called
 frontend/app/{,excel,intelligence,validate,automation,recent,advanced}/page.tsx
@@ -207,6 +213,10 @@ V0_1_0_RELEASE_READINESS_REPORT.md     what was verified for the v0.1.0 baseline
 ```
 backend/tests/studio/test_fin_envelope.py     envelope correctness + refusal rules
 backend/tests/studio/test_mt_generation.py    addressing, validation, output modes
+backend/tests/studio/test_settlement_domain_rules.py  SETR, party direction, party options
+backend/tests/studio/test_financial_instrument_identifier.py  35B across every input path
+backend/tests/studio/test_field_presentation.py  one presentation model for every client
+backend/tests/unit/test_identifiers.py        ISO 6166 and BIC shape, both verdicts apart
 backend/tests/studio/test_mx_generation.py    namespace, order, choice, XSD, AppHdr
 backend/tests/studio/test_mt_import.py        the MT round trip, and every refusal
 backend/tests/studio/test_mx_import.py        the MX round trip, and every refusal
@@ -219,6 +229,7 @@ backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay
 backend/tests/unit/test_database_concurrency.py    the in-memory engine under threads
 backend/tests/unit/test_setup_from_a_clean_clone.py  make migrate works on a new machine
 frontend/tests/e2e/studio-create.spec.ts      the manual journey
+frontend/tests/e2e/mt-authoring.spec.ts       ISIN, SETR, parties, dropdowns, mode switch
 frontend/tests/e2e/studio-import.spec.ts      import round trip + lifecycle in the browser
 frontend/tests/e2e/message-diff.spec.ts       the comparison a tester actually reads
 frontend/tests/e2e/studio-screens.spec.ts     other screens + responsive + a11y
@@ -282,6 +293,11 @@ Reported individually, never collapsed into a boolean.
 | `XML_WELL_FORMED` | n/a | parses |
 | `XSD` | n/a | libxml2 |
 | `APPHDR_CONSISTENCY` | n/a | `MsgDefIdr` matches namespace |
+
+Client-profile rules also carry **identifier quality**: an ISIN's ISO 6166 check digit is
+verified in `CLIENT_PROFILE`, not `FORMAT`, because the FIN network checks the field format
+(`4!c//12!c`) and does not compute the check digit. Reporting both under one layer would
+claim a SWIFT rule that does not exist. See `app/domain/identifiers.py`.
 
 Business rules currently enforced: settlement date not before trade date · `APMT` requires
 an amount, `FREE` forbids one · MX receipt must name the delivering chain · cancellation
@@ -455,6 +471,44 @@ Defects found and fixed while building this. These are the ones likely to recur:
     golden fixtures and the samples screen use. An importer that only understands the first
     refuses the repository's own output.
 
+**Configuration**
+
+29. **A YAML merge key copies a code list onto every field that inherits it.** `<<: *anchor`
+    copies *everything*, so a payment date ended up declaring the code list of a
+    voluntary-event indicator, and an account number declared `VOLU` as its only allowed
+    value. Harmless while nothing read them; the moment code lists became dropdowns they
+    would have become wrong dropdowns. Blocked with an explicit `codeList: null` where the
+    inheritance is accidental, asserted at load, and
+    `test_a_code_list_never_leaks_onto_an_unrelated_field` fails if a list is ever shared by
+    two fields with neither tag nor qualifier in common.
+30. **A record that names a code list and restates different codes is a mistake, and load is
+    the only useful moment to say so.** `_resolve_code_list` refuses rather than preferring
+    one silently.
+
+**Identifiers**
+
+31. **This repository's own sample ISIN failed its check digit.** `XS0000000001` satisfies
+    the ISO 15022 field format for 35B — twelve characters, two leading letters, a numeric
+    final character — and the correct ISO 6166 digit for that body is `9`. It shipped in
+    every golden fixture, the demo pack and both Excel templates because nothing computed
+    the digit. `SAMPLE_ISIN` is now derived by `synthetic_isin()`, so it cannot recur.
+32. **Field format and identifier quality are different claims and belong in different
+    layers.** The FIN network validates `4!c//12!c`; it does not compute an ISO 6166 check
+    digit. Reporting a bad check digit as a FORMAT failure would assert a SWIFT rule that
+    does not exist, so it is a CLIENT_PROFILE finding with its own ruleId.
+
+**Frontend**
+
+33. **`maxLength` truncates the raw input before any normaliser sees it.** Pasting
+    `ISIN XS0000000009` into a `maxLength={12}` box leaves `ISIN XS00000`, which normalises
+    to `XS00000` — a silently mangled value from a paste that should have worked. Enforce
+    the length *after* normalising instead. Found by Playwright, not by typing.
+34. **Calling a parent's state setter during render can abort an in-flight fetch.** A select
+    with exactly one allowed value preselected it inline, React re-rendered mid-commit, and
+    the resulting churn cancelled the catalogue request — which surfaces as "the studio API
+    could not be reached" against a backend that is running perfectly. Preselect in an
+    effect.
+
 **Persistence**
 
 14. **`StaticPool` hands one SQLite connection to every thread at the same time.** With
@@ -590,10 +644,13 @@ Full list: [docs/limitations.md](docs/limitations.md).
   refusal, so the question is never asked of someone who does not need it.
 - **Not implemented:** payments (`pacs.*`), cash management (`camt.*`), reconciliation
   (`semt.*`).
-- **Documented domain-rule gap:** the configured MT subset renders `:22F::SETR//BUY` in
-  Sequence B and `:22F::SETR//RECE` in Sequence E. Authoritatively `22F::SETR` belongs in
-  Sequence E only and direction is implied by the message type. Recorded rather than
-  silently corrected — fixing it needs an authoritative source, not a guess.
+- **The `22F::SETR` domain-rule gap is closed.** It used to render `//BUY` in Sequence B
+  and `//RECE` in Sequence E; neither is a settlement transaction type, and the field
+  belongs in Sequence E alone. Reconciled against `config/mx/sese.023.001.11.yaml` — this
+  repository's own ISO 20022 definition of the same business message, which separates
+  direction (`SctiesMvmntTp`), payment (`Pmt`) and transaction type (`SctiesTxTp`) and both
+  formats now share one code list. What is still *not* established is whether that list is
+  complete; the subset caveat applies to it unchanged.
 - **RJE fails closed** — no authorised interchange contract exists here.
 - Rate limits, AI circuit breaker and L1 cache are **per process**.
 - No production identity-provider adapter; no KMS/HSM; no penetration test.
@@ -605,6 +662,8 @@ Full list: [docs/limitations.md](docs/limitations.md).
 | Task | What to do |
 |---|---|
 | Add a field to an MT message | One record in `backend/config/knowledge/*.yaml`. No code. |
+| Add or change a code list | One entry in `backend/config/knowledge/code_lists.yaml`, referenced by `codeList:`. Labels reach the UI, the API, Excel and both formats at once. No code. |
+| Change which control a field gets | It is derived in `app/knowledge/presentation.py` from the tag and field option. Override per record with `inputKind:` only where derivation genuinely cannot know. |
 | Add an MX message | One file in `backend/config/mx/`. Namespace must be `urn:iso:std:iso:20022:tech:xsd:<version>`. A node has `dataType` **or** `children`, never both. Document order = element order. **No code** — the four lifecycle messages were added this way and gained samples, Excel columns, search, import and XSD validation with no Python change. |
 | Add a client profile | One file in `backend/config/profiles/`. No code. |
 | Add a validation rule | `MtGenerator._business_rules` / `._profile_rules`, or `MxGenerator._business_rules`. Prefer configuration (`requireOneOf`) where possible. |
@@ -631,10 +690,9 @@ In value order on the current architecture:
    fits.
 3. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
    code, MX validation becomes authoritative.
-4. **Fix `22F::SETR` placement** once §14's authoritative source exists.
-5. **Shared state for rate limiter and circuit breaker** before running more than one
+4. **Shared state for rate limiter and circuit breaker** before running more than one
    instance. Needs Redis or equivalent.
-6. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
+5. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
 
 ## 17. Writing style expected in this repo
 

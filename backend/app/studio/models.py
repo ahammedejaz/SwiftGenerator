@@ -109,6 +109,27 @@ class LayerState(StrEnum):
     SKIPPED = "SKIPPED"
 
 
+class InputKind(StrEnum):
+    """The control a field deserves.
+
+    Published so a client — the browser, an automation harness, a spreadsheet generator —
+    can build the same safe form the studio does, instead of inferring it from whether a
+    code list happens to be present.
+    """
+
+    TEXT = "TEXT"
+    SELECT = "SELECT"
+    DATE = "DATE"
+    AMOUNT = "AMOUNT"
+    QUANTITY = "QUANTITY"
+    NARRATIVE = "NARRATIVE"
+    REFERENCE = "REFERENCE"
+    IDENTIFIER = "IDENTIFIER"
+    PARTY_BIC = "PARTY_BIC"
+    PARTY_PROPRIETARY = "PARTY_PROPRIETARY"
+    INDICATOR = "INDICATOR"
+
+
 class SampleVariant(StrEnum):
     MINIMAL = "MINIMAL"
     TYPICAL = "TYPICAL"
@@ -170,6 +191,19 @@ class FieldExample(ApiModel):
     explanation: str
 
 
+class AllowedValue(ApiModel):
+    """One controlled code, with the words a person uses for it.
+
+    ``TRAD`` alone asks a tester to already know the standard. ``TRAD — Trade`` does not.
+    The label and description come from the shared code-list configuration, so the browser,
+    this API and the Excel workbook cannot offer different vocabularies.
+    """
+
+    code: str
+    label: str
+    description: str = ""
+
+
 class SpecField(ApiModel):
     """One addressable input slot: an MT format row or an MX leaf element."""
 
@@ -190,7 +224,18 @@ class SpecField(ApiModel):
     business_question: str
     missing_impact: str | None = None
     format_explanation: str
+    #: Kept for existing clients. `allowed_values` carries the same codes with their words.
     allowed_codes: list[str] = Field(default_factory=list)
+    allowed_values: list[AllowedValue] = Field(default_factory=list)
+    #: Name of the shared code list the values came from, when one backs them.
+    code_list: str | None = None
+    input_kind: InputKind = InputKind.TEXT
+    #: The literal the composer writes in front of the value, if any. When this is set,
+    #: `user_enters_literal_prefix` is false: the caller supplies the value alone.
+    literal_prefix: str | None = None
+    user_enters_literal_prefix: bool = False
+    identifier_types: list[str] = Field(default_factory=list)
+    max_length: int | None = None
     examples: list[FieldExample] = Field(default_factory=list)
     common_mistakes: list[str] = Field(default_factory=list)
     depends_on: list[str] = Field(default_factory=list)
@@ -472,7 +517,18 @@ class IntelligenceDetail(ApiModel):
     technical_meaning: str
     why_used: str
     format_explanation: str
+    #: Kept for existing clients. `allowed_values` carries the same codes with their words.
     allowed_codes: list[str] = Field(default_factory=list)
+    allowed_values: list[AllowedValue] = Field(default_factory=list)
+    #: Name of the shared code list the values came from, when one backs them.
+    code_list: str | None = None
+    input_kind: InputKind = InputKind.TEXT
+    #: The literal the composer writes in front of the value, if any. When this is set,
+    #: `user_enters_literal_prefix` is false: the caller supplies the value alone.
+    literal_prefix: str | None = None
+    user_enters_literal_prefix: bool = False
+    identifier_types: list[str] = Field(default_factory=list)
+    max_length: int | None = None
     examples: list[FieldExample] = Field(default_factory=list)
     common_mistakes: list[str] = Field(default_factory=list)
     depends_on: list[str] = Field(default_factory=list)

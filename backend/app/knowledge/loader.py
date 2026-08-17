@@ -7,8 +7,10 @@ from typing import Any
 import yaml
 
 from app.domain.enums import MessageType
+from app.knowledge.code_lists import CODE_LIST_FILENAME, code_lists
 from app.knowledge.models import (
     EffectiveTagKnowledge,
+    InputKind,
     KnowledgeDependencyResponse,
     KnowledgeMessageSummary,
     PresenceRule,
@@ -18,6 +20,7 @@ from app.knowledge.models import (
     TagKnowledgeDefinition,
     WorkflowModuleId,
 )
+from app.knowledge.presentation import derive_input_kind
 from app.profiles.loader import ProfileRepository, profiles
 
 KNOWN_MESSAGE_OWNERS: dict[MessageType, WorkflowModuleId] = {
@@ -49,6 +52,15 @@ KNOWN_MESSAGE_OWNERS: dict[MessageType, WorkflowModuleId] = {
     },
 }
 
+#: A settlement party may be identified by a BIC (option P) or by a proprietary scheme
+#: identifier (option R). Both are configured for every party, because which one applies is
+#: the caller's business decision, not the platform's.
+_SETTLEMENT_PARTIES = {
+    (sequence, f"95{option}", qualifier)
+    for sequence in ("E",)
+    for option in ("P", "R")
+    for qualifier in ("PSET", "DEAG", "REAG")
+}
 _INSTRUCTION_FIELDS = {
     ("A", "20C", "SEME"),
     ("A", "20C", "PREV"),
@@ -58,12 +70,13 @@ _INSTRUCTION_FIELDS = {
     ("B", "98A", "SETT"),
     ("B", "35B", None),
     ("B", "36B", "SETT"),
-    ("B", "22F", "SETR"),
     ("C", "97A", "SAFE"),
+    # 22F::SETR carries the type of settlement transaction and belongs to Settlement
+    # Details only. It was previously configured in Trade Details as well, carrying BUY or
+    # SELL, and in Settlement Details carrying RECE or DELI — neither of which is a
+    # transaction type. Receive versus deliver is carried by the message type.
     ("E", "22F", "SETR"),
-    ("E", "95R", "PSET"),
-    ("E", "95R", "DEAG"),
-    ("E", "95R", "REAG"),
+    *_SETTLEMENT_PARTIES,
 }
 _CONFIRMATION_FIELDS = {
     ("A", "20C", "SEME"),
@@ -75,9 +88,7 @@ _CONFIRMATION_FIELDS = {
     ("B", "36B", "ESTT"),
     ("B", "22F", "STCO"),
     ("C", "97A", "SAFE"),
-    ("E", "95R", "PSET"),
-    ("E", "95R", "DEAG"),
-    ("E", "95R", "REAG"),
+    *_SETTLEMENT_PARTIES,
 }
 _STATUS_FIELDS = {
     ("A", "20C", "SEME"),
@@ -238,12 +249,17 @@ class TagKnowledgeRepository:
     ]:
         records: dict[str, TagKnowledge] = {}
         for path in sorted(self._config_dir.glob("*.yaml")):
+            # Shared code lists live beside the records but are not records themselves.
+            if path.name == CODE_LIST_FILENAME:
+                continue
             payload = self._read_yaml(path)
             definitions = payload.get("records")
             if not isinstance(definitions, list):
                 raise ValueError(f"Knowledge file {path.name} must contain a records list")
             for raw in definitions:
                 definition = TagKnowledgeDefinition.model_validate(raw)
+                definition = self._resolve_code_list(definition, path.name)
+                definition = self._derive_presentation(definition)
                 for message_type in definition.message_types:
                     expected_owner = KNOWN_MESSAGE_OWNERS.get(message_type)
                     if expected_owner is None or expected_owner != definition.workflow_module:
@@ -306,6 +322,44 @@ class TagKnowledgeRepository:
         self._validate_dependencies(records)
         self._validate_coverage(records)
         return records, overlays
+
+    @staticmethod
+    def _resolve_code_list(
+        definition: TagKnowledgeDefinition, filename: str
+    ) -> TagKnowledgeDefinition:
+        """Fill ``allowedCodes`` from the named shared list, or prove the two agree.
+
+        Declaring both is allowed and deliberately checked rather than silently preferred: a
+        record that names a list and then restates a different set of codes is a mistake,
+        and load is the only useful moment to say so.
+        """
+        if definition.code_list is None:
+            return definition
+        if not code_lists.known(definition.code_list):
+            raise ValueError(f"{filename} references unknown code list {definition.code_list}")
+        codes = code_lists.get(definition.code_list).codes
+        if definition.allowed_codes and definition.allowed_codes != codes:
+            raise ValueError(
+                f"{filename}: {definition.field_tag}/{definition.qualifier} declares codes "
+                f"that differ from code list {definition.code_list}"
+            )
+        return definition.model_copy(update={"allowed_codes": list(codes)})
+
+    @staticmethod
+    def _derive_presentation(definition: TagKnowledgeDefinition) -> TagKnowledgeDefinition:
+        """Fill the control from the tag and the field option, unless the record states one."""
+        if definition.input_kind is not InputKind.TEXT:
+            return definition
+        return definition.model_copy(
+            update={
+                "input_kind": derive_input_kind(
+                    definition.field_tag,
+                    allowed_codes=definition.allowed_codes,
+                    literal_prefix=definition.literal_prefix,
+                    identifier_types=definition.identifier_types,
+                )
+            }
+        )
 
     @staticmethod
     def _read_yaml(path: Path) -> dict[str, Any]:

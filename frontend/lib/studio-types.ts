@@ -89,6 +89,34 @@ export interface FieldExample {
   explanation: string;
 }
 
+/**
+ * The control a field deserves, decided by the specification rather than by this component.
+ *
+ * The browser used to infer it from whether one of the field's examples happened to appear
+ * in its code list, which got it wrong in both directions: a quantity such as `UNIT/1000`
+ * became a free-text box, and any value outside the list silently downgraded a dropdown
+ * back to a text input.
+ */
+export type InputKind =
+  | "TEXT"
+  | "SELECT"
+  | "DATE"
+  | "AMOUNT"
+  | "QUANTITY"
+  | "NARRATIVE"
+  | "REFERENCE"
+  | "IDENTIFIER"
+  | "PARTY_BIC"
+  | "PARTY_PROPRIETARY"
+  | "INDICATOR";
+
+/** One controlled code, with the words a person uses for it. */
+export interface AllowedValue {
+  code: string;
+  label: string;
+  description: string;
+}
+
 export interface SpecField {
   id: string;
   format: MessageFormat;
@@ -107,6 +135,14 @@ export interface SpecField {
   missingImpact: string | null;
   formatExplanation: string;
   allowedCodes: string[];
+  allowedValues: AllowedValue[];
+  codeList: string | null;
+  inputKind: InputKind;
+  /** The literal the composer writes in front of the value. The user never types it. */
+  literalPrefix: string | null;
+  userEntersLiteralPrefix: boolean;
+  identifierTypes: string[];
+  maxLength: number | null;
   examples: FieldExample[];
   commonMistakes: string[];
   dependsOn: string[];
@@ -343,6 +379,14 @@ export interface IntelligenceDetail {
   whyUsed: string;
   formatExplanation: string;
   allowedCodes: string[];
+  allowedValues: AllowedValue[];
+  codeList: string | null;
+  inputKind: InputKind;
+  /** The literal the composer writes in front of the value. The user never types it. */
+  literalPrefix: string | null;
+  userEntersLiteralPrefix: boolean;
+  identifierTypes: string[];
+  maxLength: number | null;
   examples: FieldExample[];
   commonMistakes: string[];
   dependsOn: string[];

@@ -54,7 +54,7 @@
       "occurrence": 1,
       "tag": "35B",
       "option": "B",
-      "value": "ISIN XS0000000001"
+      "value": "XS0000000009"
     },
     {
       "id": "MT541-B-36B-SETT",
@@ -64,15 +64,6 @@
       "qualifier": "SETT",
       "option": "B",
       "value": "UNIT/1000"
-    },
-    {
-      "id": "MT541-B-22F-SETR",
-      "sequence": "TRADDET",
-      "occurrence": 1,
-      "tag": "22F",
-      "qualifier": "SETR",
-      "option": "F",
-      "value": "BUY"
     },
     {
       "id": "MT541-C-97A-SAFE",
@@ -90,34 +81,25 @@
       "tag": "22F",
       "qualifier": "SETR",
       "option": "F",
-      "value": "RECE"
+      "value": "TRAD"
     },
     {
-      "id": "MT541-E-95R-PSET",
+      "id": "MT541-E-95P-PSET",
       "sequence": "SETDET",
       "occurrence": 1,
-      "tag": "95R",
+      "tag": "95P",
       "qualifier": "PSET",
-      "option": "R",
-      "value": "CSD/DEMOPSET01"
+      "option": "P",
+      "value": "DEMOGB2LXXX"
     },
     {
-      "id": "MT541-E-95R-DEAG",
+      "id": "MT541-E-95P-DEAG",
       "sequence": "SETDET",
       "occurrence": 1,
-      "tag": "95R",
+      "tag": "95P",
       "qualifier": "DEAG",
-      "option": "R",
-      "value": "AGT/DEMODEAG01"
-    },
-    {
-      "id": "MT541-E-95R-REAG",
-      "sequence": "SETDET",
-      "occurrence": 1,
-      "tag": "95R",
-      "qualifier": "REAG",
-      "option": "R",
-      "value": "AGT/DEMOREAG01"
+      "option": "P",
+      "value": "DEMODEAGXXX"
     },
     {
       "id": "MT541-E-19A-SETT",

@@ -5,6 +5,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from app.authoring.composer import canonical_field_value
 from app.domain.enums import MessageType
 from app.specifications.models import FieldSpecification, MessageSpecification
 
@@ -115,7 +116,12 @@ def parse_supported_message(
                     sequence_path=sequence_path,
                     sequence_occurrence=sequence_occurrence,
                     row=candidates[0],
-                    value=field_match.group("value"),
+                    # The composer writes a field's literal at render time, so reading one
+                    # back takes it off again. Storing the rendered form would recompose as
+                    # `ISIN ISIN XS0000000009`.
+                    value=canonical_field_value(
+                        candidates[0], field_match.group("value")
+                    ),
                 )
             )
             last_field = len(fields) - 1

@@ -67,8 +67,8 @@ def test_pset_has_message_specific_verified_explanation_and_profile_overlay() ->
     bfs = knowledge_repository.effective("MT541-E-95R-PSET", "BFS_CLIENT_DEMO_V1")
 
     assert base.record.display_name == "Place of Settlement"
-    assert "location or venue" in base.record.business_meaning
-    assert "generic counterparty account" in " ".join(base.record.common_mistakes)
+    assert "where the securities actually settle" in base.record.business_meaning.lower()
+    assert "data source scheme" in " ".join(base.record.common_mistakes)
     assert base.record.presence == PresenceRule.CONDITIONAL
     assert base.effective_presence == PresenceRule.MANDATORY
     assert base.record.related_fields == ["DEAG", "REAG"]
@@ -83,7 +83,6 @@ def test_search_and_dependencies_are_deterministic() -> None:
     assert results
     assert all(result.record.qualifier == "PSET" for result in results)
     dependencies = knowledge_repository.dependencies("MT541-E-95R-PSET", "BASE_DEMO_V1")
-    assert {item.record.qualifier for item in dependencies.required_with} == {"DEAG"}
     assert {item.record.qualifier for item in dependencies.related_fields} == {
         "DEAG",
         "REAG",

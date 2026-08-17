@@ -8,7 +8,7 @@ wrong. This tool writes it for you, checks it, and hands it over.
 
 You give it the business facts:
 
-> Receive 1,000 units of ISIN XS0000000001 on 18 August, paying USD 25,000.
+> Receive 1,000 units of ISIN XS0000000009 on 18 August, paying USD 25,000.
 
 It gives you back a real message:
 
@@ -21,7 +21,7 @@ It gives you back a real message:
 :23G:NEWM
 :16R:TRADDET
 :98A::SETT//20260818
-:35B:ISIN XS0000000001
+:35B:ISIN XS0000000009
 ...
 -}
 ```

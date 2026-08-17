@@ -41,7 +41,9 @@ Every value is synthetic demonstration data from `backend/config/profiles/` and 
 library:
 
 - BICs are `DEMOGB2LXXX` / `DEMOUS33XXX` — the `DEMO` prefix is not an allocated institution.
-- The account is `SAFE0000001`, the ISIN `XS0000000001`, references `TESTREF001` and similar.
+- The account is `SAFE0000001`, the ISIN `XS0000000009`, references `TESTREF001` and
+  similar. The ISIN is structurally valid and carries a correct ISO 6166 check digit; it
+  is synthetic and is not registered with any numbering agency.
 - Session `0001` and sequence `000001` are configured demonstration interface values.
 
 There are no client names, no real accounts or transaction references, no API keys, and no
