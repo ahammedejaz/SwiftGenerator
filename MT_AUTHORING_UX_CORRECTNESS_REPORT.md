@@ -464,8 +464,19 @@ synthetic and not claimed to be allocated.)
 |---|---|
 | Branch | `feat/mt-authoring-ux-correctness` |
 | Commit | `af327e5` |
-| PR | see §19 note below |
+| PR | https://github.com/ahammedejaz/SwiftGenerator/pull/6 |
 | Local gates | `make check`, `make e2e`, `make secret-scan`, `make coverage`, `make demo-pack-check`, `git diff --check`, `docker compose config --quiet`, `docker compose build` — all pass |
+
+CI — [run 32030684968](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/32030684968),
+all five jobs green on the first attempt:
+
+| Job | Result |
+|---|---|
+| Required Checks | pass · 2m02s |
+| Clean Clone | pass · 1m51s |
+| Browser E2E | pass · 5m13s |
+| Docker | pass · 1m11s |
+| Security Audit | pass · 1m01s |
 
 The PR is opened against `main` and **not merged**; no instruction in this repository
 authorises an automatic merge.
