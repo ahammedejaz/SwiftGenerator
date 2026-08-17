@@ -268,10 +268,14 @@ CI **started automatically** on the pull request; no manual dispatch was needed.
 
 ## 12 · Remaining limitations
 
-- **Branch protection is not configured.** Changing protection settings was explicitly out of
-  scope. **`CI / Required Checks` is the check to mark as required for `main`** — that job
-  name is deliberately stable, and renaming it would silently disable the gate. Until it is
-  marked required, CI reports but does not block.
+- **Branch protection is now configured** (it was out of scope when this report was
+  written). `main` requires the status check **`Required Checks`**, with `strict` on so a
+  branch must be up to date before merging; force pushes and deletion are blocked.
+  `Required Checks` — the job name alone — is the context to require. This report previously
+  named `CI / Required Checks`, which is the PR page's `workflow / job` display form and not
+  a context GitHub Actions ever reports; requiring it left `main` gated on a check that could
+  never arrive. The job name is deliberately stable, and renaming it would still silently
+  disable the gate, so the job and the required context move together.
 - **`Security Audit` does not block merges** by design (§6). A newly published advisory turns
   it red without anything in the diff having changed.
 - **One runner OS, one Python and one Node version.** `ubuntu-latest`, Python 3.13, Node 22 —

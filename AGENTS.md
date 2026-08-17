@@ -361,9 +361,10 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 | **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
 | **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
 
-Branch protection is **not** configured yet; mark `CI / Required Checks` as required for
-`main` to turn CI from reporting into blocking. Detail and rationale:
-[CI_IMPLEMENTATION_REPORT.md](CI_IMPLEMENTATION_REPORT.md).
+Branch protection is **configured** on `main`: the status check `Required Checks` is
+required, `strict` is on so a branch must be up to date with `main` before it merges, and
+force pushes and branch deletion are blocked. CI blocks rather than reports. Detail and
+rationale: [CI_IMPLEMENTATION_REPORT.md](CI_IMPLEMENTATION_REPORT.md).
 
 **Reproduce any job locally by running the same make target.** The workflow adds only what a
 runner needs that a laptop does not: the browser's OS libraries (`--with-deps`, which needs
@@ -372,8 +373,15 @@ range — bare `git diff --check` compares the worktree to the index and is alwa
 
 Things worth knowing before editing it:
 
-- **`CI / Required Checks` is the name branch protection should require.** Renaming that job
-  silently disables the gate.
+- **The required context is `Required Checks` — the job name on its own.** `CI / Required
+  Checks` is the *display* form the PR checks page shows (`workflow / job`); the name branch
+  protection matches against is the check run's own name, which GitHub Actions takes from
+  `jobs.<id>.name`. Requiring the display form gates `main` on a context that is never
+  reported, and the failure is close to invisible: every job goes green, `mergeable` stays
+  `MERGEABLE`, and only `mergeStateStatus` — which nothing surfaces until someone tries to
+  merge — sits at `BLOCKED`, permanently. That is what was configured, and it is why PR #6
+  could not be merged despite five green jobs. Renaming the job still silently disables the
+  gate, so change the job name and the required context together.
 - **Clean Clone deliberately has no dependency cache.** A cached wheel would hide exactly the
   class of defect that motivated the job — `lxml-stubs==0.6.0`, a pin that does not exist
   upstream and broke `make install` for everyone who had never run it.
