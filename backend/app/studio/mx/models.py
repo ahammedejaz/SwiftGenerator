@@ -59,6 +59,42 @@ DATA_TYPE_FORMATS: dict[MxDataType, str] = {
 }
 
 
+class MxRestrictionBase(StrEnum):
+    """The XSD base kinds the compiler supports for generic simple types."""
+
+    TEXT = "TEXT"
+    DECIMAL = "DECIMAL"
+    DATE = "DATE"
+    DATE_TIME = "DATE_TIME"
+    BOOLEAN = "BOOLEAN"
+
+
+class MxRestriction(BaseModel):
+    """A simple type carried verbatim from a source schema.
+
+    The closed :class:`MxDataType` enum names the representation classes the hand-authored
+    subsets use; a compiled pack meets arbitrary ISO 20022 simple types, and inventing an
+    enum member per type would put schema facts into code. The facts live here instead —
+    base kind plus facets — and validation, the derived XSD, samples and Excel all read
+    them. Exactly one of ``dataType`` and ``restriction`` is set on a leaf.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    base: MxRestrictionBase
+    #: The source schema's own name for the type, e.g. ``Max4AlphaNumericText``. Display
+    #: only; the facts below are what validate.
+    type_name: str | None = Field(default=None, alias="typeName", max_length=128)
+    pattern: str | None = Field(default=None, max_length=1024)
+    min_length: int | None = Field(default=None, alias="minLength", ge=0)
+    max_length: int | None = Field(default=None, alias="maxLength", ge=1)
+    length: int | None = Field(default=None, ge=1)
+    total_digits: int | None = Field(default=None, alias="totalDigits", ge=1)
+    fraction_digits: int | None = Field(default=None, alias="fractionDigits", ge=0)
+    min_inclusive: str | None = Field(default=None, alias="minInclusive", max_length=64)
+    max_inclusive: str | None = Field(default=None, alias="maxInclusive", max_length=64)
+
+
 class MxExample(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -77,6 +113,8 @@ class MxElement(BaseModel):
     max_occurs: int = Field(default=1, alias="maxOccurs", ge=1, le=1_000)
     choice: bool = False
     data_type: MxDataType | None = Field(default=None, alias="dataType")
+    #: Generic simple type from a source schema; mutually exclusive with ``dataType``.
+    restriction: MxRestriction | None = None
     codes: list[str] = Field(default_factory=list)
     #: Optional name of a shared list in ``config/knowledge/code_lists.yaml``. Where an
     #: ISO 20022 element and an ISO 15022 field carry the same business code list, both
@@ -100,10 +138,12 @@ class MxElement(BaseModel):
 
     @model_validator(mode="after")
     def check_leaf_or_branch(self) -> MxElement:
-        if self.children and self.data_type is not None:
+        if self.children and (self.data_type is not None or self.restriction is not None):
             raise ValueError(f"{self.name} cannot be both a container and a value element")
-        if not self.children and self.data_type is None:
-            raise ValueError(f"{self.name} must declare a dataType or children")
+        if self.data_type is not None and self.restriction is not None:
+            raise ValueError(f"{self.name} must declare a dataType or a restriction, not both")
+        if not self.children and self.data_type is None and self.restriction is None:
+            raise ValueError(f"{self.name} must declare a dataType, a restriction or children")
         if self.choice and not self.children:
             raise ValueError(f"{self.name} is a choice and must declare children")
         if self.data_type is MxDataType.CODE and not self.codes:
@@ -125,7 +165,44 @@ class MxElement(BaseModel):
             return "One of: " + ", ".join(self.codes)
         if self.data_type is not None:
             return DATA_TYPE_FORMATS[self.data_type]
+        if self.restriction is not None:
+            return restriction_format_text(self.restriction)
         return "Container element; supply values for its children."
+
+
+def restriction_format_text(restriction: MxRestriction) -> str:
+    """Format guidance derived from the facets themselves — never invented."""
+    if restriction.base is MxRestrictionBase.DATE:
+        return "An ISO date, YYYY-MM-DD."
+    if restriction.base is MxRestrictionBase.DATE_TIME:
+        return "An ISO date and time, YYYY-MM-DDThh:mm:ss with an optional zone."
+    if restriction.base is MxRestrictionBase.BOOLEAN:
+        return "true or false."
+    if restriction.base is MxRestrictionBase.DECIMAL:
+        parts = ["A decimal number using a full stop as the decimal separator"]
+        if restriction.total_digits is not None:
+            parts.append(f"up to {restriction.total_digits} digits")
+        if restriction.fraction_digits is not None:
+            parts.append(f"{restriction.fraction_digits} after the separator")
+        if restriction.min_inclusive is not None:
+            parts.append(f"minimum {restriction.min_inclusive}")
+        return ", ".join(parts) + "."
+    parts = []
+    if restriction.length is not None:
+        parts.append(f"Exactly {restriction.length} characters")
+    else:
+        low, high = restriction.min_length, restriction.max_length
+        if low is not None and high is not None:
+            parts.append(f"{low} to {high} characters")
+        elif high is not None:
+            parts.append(f"Up to {high} characters")
+        elif low is not None:
+            parts.append(f"At least {low} characters")
+        else:
+            parts.append("Text")
+    if restriction.pattern is not None:
+        parts.append(f"matching the pattern {restriction.pattern}")
+    return ", ".join(parts) + "."
 
 
 MxElement.model_rebuild()
@@ -138,6 +215,20 @@ class MxSource(BaseModel):
     source_reference: str = Field(alias="sourceReference", min_length=8, max_length=256)
     reviewed_at: str = Field(alias="reviewedAt")
     reviewed_by: str = Field(alias="reviewedBy")
+    # ---- provenance for compiled packs; optional so hand-authored YAML is untouched ----
+    #: True when a compiler produced this specification from a source artifact. The
+    #: capability model derives the structure dimension from this, so a generated pack
+    #: cannot present itself as a hand-reviewed subset.
+    generated: bool = False
+    #: File name of the source artifact within its bundle (never a server path).
+    source_location: str | None = Field(default=None, alias="sourceLocation")
+    #: The source's own version string, e.g. the schema version.
+    source_version: str | None = Field(default=None, alias="sourceVersion")
+    #: sha256:<hex> of the exact source bytes the pack was compiled from.
+    source_checksum: str | None = Field(default=None, alias="sourceChecksum")
+    #: Identifies the compiler and its output contract, e.g. ``spec-engine/1``.
+    compiler_version: str | None = Field(default=None, alias="compilerVersion")
+    review_status: str | None = Field(default=None, alias="reviewStatus")
 
 
 class MxMessageSpec(BaseModel):

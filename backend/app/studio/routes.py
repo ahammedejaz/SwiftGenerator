@@ -285,7 +285,7 @@ def _read_existing(text: str, message_type: str | None) -> _Existing:
         raise HTTPException(status_code=422, detail=error.issue.message) from error
     return _Existing(
         format=MessageFormat.MT,
-        message_type=mt.specification.message_type.value,
+        message_type=mt.specification.message_type,
         fin_blocks=mt.blocks,
         fields=mt.fields,
         envelope=mt.envelope,

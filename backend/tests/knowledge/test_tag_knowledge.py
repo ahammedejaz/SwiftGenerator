@@ -105,9 +105,17 @@ def _write_modified_pack(tmp_path: Path, mutate):  # type: ignore[no-untyped-def
             lambda payload: payload["records"].append(payload["records"][0].copy()),
             "Duplicate knowledge ID",
         ),
+        # The message-level authority is the specification manifest: a record cannot name
+        # a message, a module, or a sequence the manifest does not declare. (The former
+        # per-field signature list lived in code and made adding a field a code change;
+        # an unknown fieldTag inside a declared sequence is now a configuration decision.)
         (
-            lambda payload: payload["records"][0].update({"fieldTag": "99Z"}),
-            "Unknown supported field signature",
+            lambda payload: payload["records"][0].update({"messageTypes": ["MT999"]}),
+            "does not declare",
+        ),
+        (
+            lambda payload: payload["records"][0].update({"sequencePath": "Z9"}),
+            "has no sequence",
         ),
         (
             lambda payload: payload["records"][0].pop("businessMeaning"),

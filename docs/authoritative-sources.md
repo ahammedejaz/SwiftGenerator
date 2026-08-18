@@ -40,6 +40,15 @@ proves only that a document matches this repository's own YAML.
 **What to re-run.** `make check` — the derived-schema tests still pass, because messages
 without an official schema are unaffected.
 
+**Going further.** The same schema can also *create* the message's specification pack:
+`make spec-compile SOURCE=path/to/schema.xsd` compiles it into the `config/mx` format,
+runs six gates (including validating a generated sample against the schema itself), and
+records the schema's sha256 in the pack's provenance. See
+[specification-engine.md](specification-engine.md). Whether the compiled pack — a derived
+structural description — may be committed to a repository is a licensing judgement that
+belongs to you, not to this tool; when in doubt, keep packs in a drop directory alongside
+the schema and point `MX_SPECIFICATION_DIRECTORY` at it.
+
 ---
 
 ## 2. ISO 20022 message definition reports

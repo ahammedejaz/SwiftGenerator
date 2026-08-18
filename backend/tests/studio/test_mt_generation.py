@@ -118,7 +118,7 @@ def test_ambiguous_tag_without_a_sequence_is_reported() -> None:
     from app.specifications.registry import specification_registry
 
     ambiguous = next(
-        (spec.message_type.value, tag, qualifier)
+        (spec.message_type, tag, qualifier)
         for spec in specification_registry.list()
         for (tag, qualifier), count in Counter(
             (item.tag, item.qualifier) for item in spec.fields

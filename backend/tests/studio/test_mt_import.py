@@ -20,7 +20,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain.enums import MessageType
 from app.profiles.loader import profiles
 from app.specifications.registry import specification_registry
 from app.studio.models import FieldInput, GenerateRequest, MessageFormat, SampleVariant
@@ -31,7 +30,7 @@ from app.studio.service import studio_service
 
 # Derived from the registry, so a message added as configuration is covered by the round
 # trip without anyone remembering to extend this list.
-MT_TYPES = [spec.message_type.value for spec in specification_registry.list()]
+MT_TYPES = [spec.message_type for spec in specification_registry.list()]
 PROFILE = "BASE_DEMO_V1"
 GOLDEN = sorted((Path(__file__).resolve().parents[1] / "golden" / "expected").glob("*.txt"))
 
@@ -64,7 +63,7 @@ def test_every_sample_round_trips_to_an_identical_message(
 
     parsed = parse_message(original.fin or original.block_4)
     regenerated = _compose(
-        parsed.specification.message_type.value, parsed.fields, envelope=parsed.envelope
+        parsed.specification.message_type, parsed.fields, envelope=parsed.envelope
     )
 
     assert parsed.errors == []
@@ -83,7 +82,7 @@ def test_every_golden_fixture_imports_and_recomposes(fixture: Path) -> None:
     assert parsed.errors == []
     assert parsed.fields
 
-    message_type = parsed.specification.message_type.value
+    message_type = parsed.specification.message_type
     first = _compose(message_type, parsed.fields)
     again = parse_message(first.block_4, message_type=message_type)
     second = _compose(message_type, again.fields)
@@ -190,7 +189,7 @@ def test_the_application_header_identifies_the_message(message_type: str) -> Non
     original = _compose(message_type, _sample_fields(message_type, SampleVariant.MINIMAL))
     assert original.fin is not None
 
-    assert parse_message(original.fin).specification.message_type.value == message_type
+    assert parse_message(original.fin).specification.message_type == message_type
 
 
 @pytest.mark.parametrize("message_type", MT_TYPES)
@@ -202,7 +201,7 @@ def test_the_demonstration_envelope_identifies_the_message(message_type: str) ->
 
     parsed = parse_message(text)
 
-    assert parsed.specification.message_type.value == message_type
+    assert parsed.specification.message_type == message_type
     assert [issue.rule_id for issue in parsed.warnings] == ["MT_IMPORT_DEMONSTRATION_HEADER"]
 
 
@@ -211,7 +210,7 @@ def test_a_text_block_that_fits_only_one_message_is_identified_without_a_header(
 
     parsed = parse_message(original.block_4)
 
-    assert parsed.specification.message_type is MessageType.MT530
+    assert parsed.specification.message_type == "MT530"
 
 
 def test_a_text_block_that_fits_several_messages_is_refused_rather_than_guessed() -> None:
@@ -254,7 +253,7 @@ def test_an_output_header_does_not_become_a_receiver_address() -> None:
 
     parsed = parse_message(text)
 
-    assert parsed.specification.message_type is MessageType.MT541
+    assert parsed.specification.message_type == "MT541"
     assert parsed.envelope.receiver is None
     assert "MT_IMPORT_OUTPUT_HEADER" in [issue.rule_id for issue in parsed.warnings]
 

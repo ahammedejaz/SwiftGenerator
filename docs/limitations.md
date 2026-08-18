@@ -21,6 +21,15 @@ Every message therefore reports `capability: PARTIAL` and
 production-capable, and nothing can be until a licensed specification is imported and
 reconciled field by field.
 
+Alongside that single word, every message now reports **capability dimensions** —
+structure, business rules, market practice, client profile, external validation — each
+derived from what actually exists, so a message compiled from a schema can never present
+itself as more than structure-verified. A pack produced by the
+[specification engine](specification-engine.md) reads `structure: COMPILED_FROM_SCHEMA`
+and `businessRules: NOT_CONFIGURED`: XSD validation proves structure, and **only**
+structure. Market practice (CBPR+, HVPS+, MyStandards guidelines) is a separate,
+deliberately unbuilt layer — those artifacts are licensed and deployment-specific.
+
 **Use it to produce test data. Do not use it as a conformance authority.**
 
 Exact numbers per message: [generated/message-coverage.md](generated/message-coverage.md).

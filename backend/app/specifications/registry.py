@@ -7,10 +7,10 @@ from pathlib import Path
 import yaml
 
 from app.config import get_settings, source_path
-from app.domain.enums import MessageType
-from app.knowledge.loader import KNOWN_MESSAGE_OWNERS, knowledge_repository
+from app.knowledge.loader import knowledge_repository
 from app.knowledge.models import PresenceRule
 from app.raw.validator import FIELD_RANK
+from app.specifications.manifest import MT_TYPE_PATTERN, ManifestIndex
 from app.specifications.models import (
     CapabilityState,
     CoverageMetric,
@@ -34,24 +34,27 @@ class MessageSpecificationRegistry:
         )
         self._manifest, self._messages = self._load()
 
-    def _load(self) -> tuple[SpecificationManifest, dict[MessageType, MessageSpecification]]:
+    def _load(self) -> tuple[SpecificationManifest, dict[str, MessageSpecification]]:
         with self._path.open(encoding="utf-8") as source:
             raw = yaml.safe_load(source)
         manifest = SpecificationManifest.model_validate(raw)
-        messages: dict[MessageType, MessageSpecification] = {}
+        index = ManifestIndex(self._path)
+        messages: dict[str, MessageSpecification] = {}
         for raw_message in manifest.messages:
-            message_type = MessageType(str(raw_message["messageType"]))
+            message_type = str(raw_message["messageType"]).strip().upper()
+            if not MT_TYPE_PATTERN.fullmatch(message_type):
+                raise ValueError(f"Not an MT message identifier: {raw_message['messageType']}")
             if message_type in messages:
-                raise ValueError(f"Duplicate message specification: {message_type.value}")
+                raise ValueError(f"Duplicate message specification: {message_type}")
             raw_sequences = raw_message.get("sequences")
             if not isinstance(raw_sequences, list) or not raw_sequences:
-                raise ValueError(f"{message_type.value} must define sequences")
+                raise ValueError(f"{message_type} must define sequences")
             sequences = [SequenceSpecification.model_validate(item) for item in raw_sequences]
             self._validate_sequences(message_type, sequences)
             by_path = {sequence.path: sequence for sequence in sequences}
             records = knowledge_repository.list_records(message_type=message_type)
             if not records:
-                raise ValueError(f"{message_type.value} has no verified field records")
+                raise ValueError(f"{message_type} has no verified field records")
             fields: list[FieldSpecification] = []
             ordered_records = sorted(
                 (effective.record for effective in records),
@@ -116,12 +119,13 @@ class MessageSpecificationRegistry:
                 message_type=message_type,
                 name=str(raw_message["name"]),
                 scope=str(raw_message["scope"]),
+                short_description=index.get(message_type).short_description,
                 capability=CapabilityState.PARTIAL,
                 capability_explanation=(
                     "Configured source-bounded rows are implemented, but full current "
                     "authoritative format and client-rule completeness is not established."
                 ),
-                workflow_module=KNOWN_MESSAGE_OWNERS[message_type],
+                workflow_module=index.get(message_type).workflow_module,
                 standards_release=manifest.standards_release,
                 registry_version=manifest.registry_version,
                 authoritative_completeness_known=manifest.authoritative_completeness_known,
@@ -129,43 +133,45 @@ class MessageSpecificationRegistry:
                 fields=fields,
                 source=manifest.source,
             )
-        missing = set(MessageType) - set(messages)
-        if missing:
-            raise ValueError(
-                "Target specifications are missing: "
-                + ", ".join(sorted(item.value for item in missing))
-            )
         return manifest, messages
 
     @staticmethod
     def _validate_sequences(
-        message_type: MessageType, sequences: list[SequenceSpecification]
+        message_type: str, sequences: list[SequenceSpecification]
     ) -> None:
         paths = [item.path for item in sequences]
         codes = [item.code for item in sequences]
         if len(paths) != len(set(paths)) or len(codes) != len(set(codes)):
-            raise ValueError(f"{message_type.value} sequence paths and codes must be unique")
+            raise ValueError(f"{message_type} sequence paths and codes must be unique")
         known = set(paths)
         orders = [item.order for item in sequences]
         if len(orders) != len(set(orders)):
-            raise ValueError(f"{message_type.value} sequence orders must be unique")
+            raise ValueError(f"{message_type} sequence orders must be unique")
         for sequence in sequences:
             if sequence.parent_path and sequence.parent_path not in known:
                 raise ValueError(
-                    f"{message_type.value} sequence {sequence.path} has unknown parent"
+                    f"{message_type} sequence {sequence.path} has unknown parent"
                 )
             if sequence.min_occurs > sequence.max_occurs:
-                raise ValueError(f"{message_type.value} sequence cardinality is invalid")
+                raise ValueError(f"{message_type} sequence cardinality is invalid")
 
     @property
     def registry_version(self) -> str:
         return self._manifest.registry_version
 
     def list(self) -> list[MessageSpecification]:
-        return [self._messages[item] for item in sorted(self._messages, key=lambda x: x.value)]
+        return [self._messages[item] for item in sorted(self._messages)]
 
-    def get(self, message_type: MessageType) -> MessageSpecification:
-        return self._messages[message_type]
+    def known(self, message_type: str) -> bool:
+        return message_type.strip().upper() in self._messages
+
+    def get(self, message_type: str) -> MessageSpecification:
+        # Legacy callers pass MessageType members; StrEnum members are strings, so the
+        # same lookup serves both without the registry depending on the enum.
+        try:
+            return self._messages[message_type.strip().upper()]
+        except KeyError as error:
+            raise KeyError(f"Unknown MT message type: {message_type}") from error
 
     def catalogue(self) -> MessageCatalogue:
         return MessageCatalogue(
@@ -176,7 +182,7 @@ class MessageSpecificationRegistry:
 
     def coverage(
         self,
-        message_type: MessageType,
+        message_type: str,
         *,
         sample_rows: set[str] | None = None,
         golden_rows: set[str] | None = None,
@@ -220,8 +226,8 @@ class MessageSpecificationRegistry:
 
     def report(
         self,
-        sample_coverage: dict[MessageType, set[str]] | None = None,
-        golden_coverage: dict[MessageType, set[str]] | None = None,
+        sample_coverage: dict[str, set[str]] | None = None,
+        golden_coverage: dict[str, set[str]] | None = None,
     ) -> CoverageReport:
         sample_coverage = sample_coverage or {}
         golden_coverage = golden_coverage or {}
@@ -231,7 +237,7 @@ class MessageSpecificationRegistry:
                 sample_rows=sample_coverage.get(message_type),
                 golden_rows=golden_coverage.get(message_type),
             )
-            for message_type in sorted(self._messages, key=lambda item: item.value)
+            for message_type in sorted(self._messages)
         ]
         return CoverageReport(
             registry_version=self.registry_version,
@@ -243,7 +249,7 @@ class MessageSpecificationRegistry:
 
     def statistics(self) -> dict[str, int]:
         return dict(
-            Counter(field.message_type.value for item in self.list() for field in item.fields)
+            Counter(field.message_type for item in self.list() for field in item.fields)
         )
 
 

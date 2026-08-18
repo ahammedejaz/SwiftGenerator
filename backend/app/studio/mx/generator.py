@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -31,8 +32,8 @@ from app.studio.models import (
     ValidationIssue,
     ValidationLayer,
 )
-from app.studio.mx.models import FlatElement, MxDataType, MxMessageSpec
-from app.studio.mx.registry import mx_registry
+from app.studio.mx.models import FlatElement, MxDataType, MxMessageSpec, MxRestriction
+from app.studio.mx.registry import MxRegistry, mx_registry
 
 APPHDR_NAMESPACE = "urn:iso:std:iso:20022:tech:xsd:head.001.001.03"
 APPHDR_DEFINITION = "head.001.001.03"
@@ -115,11 +116,85 @@ def _issue(
 # --------------------------------------------------------------------------------------
 
 
+def _restriction_issue(  # noqa: C901 - one branch per facet family, each trivial
+    restriction: MxRestriction,
+    value: str,
+    bad: Callable[[str, str], ValidationIssue],
+) -> ValidationIssue | None:
+    """Validate a value against a schema-derived restriction, facet by facet.
+
+    The wording comes from the facets (via ``restriction_format_text``), so the message a
+    tester reads states the source schema's own rule rather than a paraphrase.
+    """
+    from app.studio.mx.models import MxRestrictionBase, restriction_format_text
+
+    expected = restriction_format_text(restriction)
+    base = restriction.base
+    if base is MxRestrictionBase.BOOLEAN:
+        if value.lower() not in {"true", "false"}:
+            return bad("true or false", "Enter true or false.")
+        return None
+    if base is MxRestrictionBase.DATE:
+        try:
+            if not ISO_DATE_PATTERN.fullmatch(value):
+                raise ValueError(value)
+            date.fromisoformat(value)
+        except ValueError:
+            return bad("An ISO date, YYYY-MM-DD", "Use the extended form, e.g. 2026-01-01.")
+        return None
+    if base is MxRestrictionBase.DATE_TIME:
+        try:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return bad(
+                "An ISO date and time",
+                "Use YYYY-MM-DDThh:mm:ss with an optional time zone.",
+            )
+        return None
+    if base is MxRestrictionBase.DECIMAL:
+        if not DECIMAL_PATTERN.fullmatch(value):
+            return bad(expected, "Use digits with an optional full-stop separator.")
+        digits = value.replace("-", "").replace(".", "")
+        if restriction.total_digits is not None and len(digits) > restriction.total_digits:
+            return bad(expected, f"Use at most {restriction.total_digits} digits.")
+        if restriction.fraction_digits is not None and "." in value:
+            fraction = value.split(".", 1)[1]
+            if len(fraction) > restriction.fraction_digits:
+                return bad(
+                    expected,
+                    f"Use at most {restriction.fraction_digits} digits after the separator.",
+                )
+        try:
+            number = Decimal(value)
+        except InvalidOperation:
+            return bad(expected, "Enter a numeric value.")
+        if restriction.min_inclusive is not None and number < Decimal(
+            restriction.min_inclusive
+        ):
+            return bad(expected, f"Use a value of at least {restriction.min_inclusive}.")
+        if restriction.max_inclusive is not None and number > Decimal(
+            restriction.max_inclusive
+        ):
+            return bad(expected, f"Use a value of at most {restriction.max_inclusive}.")
+        return None
+    # TEXT
+    if restriction.length is not None and len(value) != restriction.length:
+        return bad(expected, f"Use exactly {restriction.length} characters.")
+    if restriction.min_length is not None and len(value) < restriction.min_length:
+        return bad(expected, f"Use at least {restriction.min_length} characters.")
+    if restriction.max_length is not None and len(value) > restriction.max_length:
+        return bad(expected, f"Shorten the value to {restriction.max_length} characters.")
+    if not value:
+        return bad(expected, "Enter a value.")
+    if restriction.pattern is not None and not re.fullmatch(restriction.pattern, value):
+        return bad(expected, "Match the pattern the source schema declares.")
+    return None
+
+
 def validate_value(flat: FlatElement, value: str) -> tuple[str | None, ValidationIssue | None]:
     """Return the currency component (amounts only) and a format issue if the value is bad."""
     element = flat.element
     data_type = element.data_type
-    assert data_type is not None
     label = element.display_name
 
     def bad(expected: str, suggestion: str) -> ValidationIssue:
@@ -133,6 +208,12 @@ def validate_value(flat: FlatElement, value: str) -> tuple[str | None, Validatio
             current=value,
             suggestion=suggestion,
         )
+
+    if data_type is None:
+        restriction = element.restriction
+        assert restriction is not None  # the model guarantees a leaf has one or the other
+        issue = _restriction_issue(restriction, value, bad)
+        return None, issue
 
     if data_type in TEXT_LIMITS:
         limit = TEXT_LIMITS[data_type]
@@ -263,16 +344,23 @@ def validate_value(flat: FlatElement, value: str) -> tuple[str | None, Validatio
 
 
 class MxGenerator:
+    """Spec-driven composition. Reads the shared registry unless one is injected —
+    injection exists so compiler gates and tests can drive a pack that is not (yet)
+    part of the application's configuration."""
+
+    def __init__(self, registry: MxRegistry | None = None) -> None:
+        self._registry = registry or mx_registry
+
     def supports(self, message_type: str) -> bool:
-        return mx_registry.known(message_type)
+        return self._registry.known(message_type)
 
     def specification(self, message_type: str) -> MxMessageSpec:
-        return mx_registry.get(message_type)
+        return self._registry.get(message_type)
 
     def resolve(
         self, spec: MxMessageSpec, inputs: list[ElementInput]
     ) -> tuple[list[ResolvedElement], list[ValidationIssue]]:
-        by_path = mx_registry.by_path(spec.message_type)
+        by_path = self._registry.by_path(spec.message_type)
         root = f"/{spec.document_element}/{spec.message_root}"
         resolved: list[ResolvedElement] = []
         issues: list[ValidationIssue] = []
@@ -347,13 +435,13 @@ class MxGenerator:
         """Check mandatory chains, choices, cardinality and configured business rules."""
         issues: list[ValidationIssue] = []
         supplied_paths = {item.flat.path for item in resolved}
-        by_path = mx_registry.by_path(spec.message_type)
+        by_path = self._registry.by_path(spec.message_type)
 
         def branch_used(container_path: str) -> bool:
             prefix = container_path + "/"
             return any(path.startswith(prefix) for path in supplied_paths)
 
-        for flat in mx_registry.flat(spec.message_type):
+        for flat in self._registry.flat(spec.message_type):
             element = flat.element
             parent = by_path.get(flat.parent_path or "")
             parent_present = parent is None or branch_used(parent.path)
@@ -376,15 +464,22 @@ class MxGenerator:
                             )
                         )
                 elif not branch_used(flat.path):
+                    # Prefer a mandatory leaf; a required *choice* has none — its branches
+                    # are individually optional — so fall back to the first leaf of the
+                    # first branch. That keeps the suggestion actionable and lets the
+                    # sample repair loop satisfy a mandatory choice.
+                    descendants = [
+                        item
+                        for item in self._registry.flat(spec.message_type)
+                        if item.path.startswith(flat.path + "/") and item.element.is_leaf
+                    ]
                     leaf_hint = next(
                         (
                             item.path
-                            for item in mx_registry.flat(spec.message_type)
-                            if item.path.startswith(flat.path + "/")
-                            and item.element.is_leaf
-                            and item.element.presence is Presence.MANDATORY
+                            for item in descendants
+                            if item.element.presence is Presence.MANDATORY
                         ),
-                        None,
+                        descendants[0].path if descendants else None,
                     )
                     issues.append(
                         _issue(
@@ -447,9 +542,8 @@ class MxGenerator:
         issues.extend(self._business_rules(spec, resolved))
         return issues
 
-    @staticmethod
     def _business_rules(
-        spec: MxMessageSpec, resolved: list[ResolvedElement]
+        self, spec: MxMessageSpec, resolved: list[ResolvedElement]
     ) -> list[ValidationIssue]:
         """Configured cross-element rules for the securities settlement subsets."""
         issues: list[ValidationIssue] = []
@@ -488,7 +582,7 @@ class MxGenerator:
         payment = payment_element.value if payment_element else None
         amount_leaves = [
             item
-            for item in mx_registry.leaves(spec.message_type)
+            for item in self._registry.leaves(spec.message_type)
             if item.element.data_type is MxDataType.AMOUNT
         ]
         amount = next(
@@ -530,14 +624,14 @@ class MxGenerator:
             ):
                 continue
             labels = [
-                mx_registry.by_path(spec.message_type)[path].element.display_name
+                self._registry.by_path(spec.message_type)[path].element.display_name
                 for path in paths
-                if path in mx_registry.by_path(spec.message_type)
+                if path in self._registry.by_path(spec.message_type)
             ]
             first_leaf = next(
                 (
                     item.path
-                    for item in mx_registry.leaves(spec.message_type)
+                    for item in self._registry.leaves(spec.message_type)
                     if item.path.startswith(paths[0] + "/")
                 ),
                 paths[0],

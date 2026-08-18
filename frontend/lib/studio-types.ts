@@ -43,7 +43,16 @@ export type BusinessArea =
   | "SECURITIES_SETTLEMENT"
   | "SETTLEMENT_COMMANDS"
   | "PENALTIES"
-  | "CORPORATE_ACTIONS";
+  | "CORPORATE_ACTIONS"
+  | "OTHER";
+
+export interface CapabilityDimensions {
+  structure: "CONFIGURED_SUBSET" | "COMPILED_FROM_SCHEMA" | "UNVERIFIED";
+  businessRules: "NOT_CONFIGURED" | "CONFIGURED_SUBSET" | "SOURCE_DERIVED" | "REVIEWED";
+  marketPractice: "NOT_CONFIGURED" | "CONFIGURED" | "VERIFIED";
+  clientProfile: "NOT_CONFIGURED" | "CONFIGURED" | "VERIFIED";
+  externalValidation: "NOT_RUN" | "PASSED" | "FAILED";
+}
 
 export interface CatalogueEntry {
   format: MessageFormat;
@@ -61,6 +70,8 @@ export interface CatalogueEntry {
   authoritativeCompletenessKnown: boolean;
   sourceReference: string;
   limitations: string[];
+  capability: CapabilityDimensions | null;
+  capabilitySummary: string;
 }
 
 export interface CatalogueBusinessArea {
@@ -177,6 +188,7 @@ export interface MessageSpec {
   name: string;
   businessArea: BusinessArea;
   scope: string;
+  shortDescription: string;
   namespace: string | null;
   groups: SpecGroup[];
   fields: SpecField[];
@@ -185,6 +197,8 @@ export interface MessageSpec {
   sourceReference: string;
   standardsRelease: string;
   limitations: string[];
+  capability: CapabilityDimensions | null;
+  capabilitySummary: string;
 }
 
 export interface FieldInput {

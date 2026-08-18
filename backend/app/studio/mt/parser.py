@@ -37,7 +37,6 @@ import re
 from dataclasses import dataclass, field
 
 from app.authoring.composer import canonical_field_value
-from app.domain.enums import MessageType
 from app.specifications.models import FieldSpecification, MessageSpecification
 from app.specifications.registry import specification_registry
 from app.studio.models import (
@@ -296,7 +295,7 @@ def _resolve_specification(
                     "The message type could not be worked out from that text.",
                     layer=ValidationLayer.STRUCTURE,
                     current=", ".join(sorted(sequence_codes)) or "no sequences",
-                    expected=", ".join(item.message_type.value for item in _configured_types()),
+                    expected=", ".join(item.message_type for item in _configured_types()),
                     suggestion="Paste the whole message including its application header, "
                     "or name the message type on the request.",
                 )
@@ -308,27 +307,25 @@ def _resolve_specification(
                 "without being told which one it is.",
                 layer=ValidationLayer.STRUCTURE,
                 current=", ".join(sorted(sequence_codes)),
-                expected=", ".join(item.message_type.value for item in candidates),
+                expected=", ".join(item.message_type for item in candidates),
                 suggestion="Name the message type on the request, or paste the whole "
                 "message including its application header.",
             )
         )
 
-    try:
-        message_type = MessageType(chosen)
-    except ValueError as error:
+    if not specification_registry.known(chosen):
         raise MtImportError(
             _issue(
                 "MT_IMPORT_TYPE_NOT_CONFIGURED",
                 f"{chosen} is not a message this repository is configured to generate.",
                 layer=ValidationLayer.STRUCTURE,
                 current=chosen,
-                expected=", ".join(item.message_type.value for item in _configured_types()),
+                expected=", ".join(item.message_type for item in _configured_types()),
                 suggestion="Import one of the configured messages, or add its specification "
                 "to backend/config/specifications.",
             )
-        ) from error
-    return specification_registry.get(message_type), warnings
+        )
+    return specification_registry.get(chosen), warnings
 
 
 # --------------------------------------------------------------------------------------
@@ -475,7 +472,7 @@ class _TextBlockReader:
             self.errors.append(
                 _issue(
                     "MT_IMPORT_UNKNOWN_SEQUENCE",
-                    f"{code} is not a sequence of {self._spec.message_type.value}.",
+                    f"{code} is not a sequence of {self._spec.message_type}.",
                     layer=ValidationLayer.STRUCTURE,
                     location=f"line {number}",
                     current=code,
@@ -642,7 +639,7 @@ class _TextBlockReader:
                     _issue(
                         "MT_IMPORT_UNKNOWN_FIELD",
                         f"{label} is not part of the configured "
-                        f"{self._spec.message_type.value} subset in sequence "
+                        f"{self._spec.message_type} subset in sequence "
                         f"{item.instance.code}, so its value cannot be imported.",
                         layer=ValidationLayer.STRUCTURE,
                         location=f"line {item.line_number}",

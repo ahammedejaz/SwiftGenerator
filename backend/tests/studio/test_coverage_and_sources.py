@@ -43,7 +43,7 @@ def test_every_configured_message_appears_in_both_formats() -> None:
 
 
 @pytest.mark.parametrize(
-    "message_type", [item.message_type.value for item in specification_registry.list()]
+    "message_type", [item.message_type for item in specification_registry.list()]
 )
 def test_every_mt_message_round_trips(message_type: str) -> None:
     row = next(

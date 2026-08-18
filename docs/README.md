@@ -67,6 +67,9 @@ row from the table below based on why you are here.
     ├── advanced-workflows.md          settlement lifecycle, corporate actions, penalties
     ├── configuration.md               environment variables and their defaults
     ├── authoritative-sources.md       how to install a licensed specification or schema
+    ├── specification-engine.md        compile an ISO 20022 schema into a specification pack
+    ├── specification-pack-format.md   what a pack contains and what it may claim
+    ├── specification-engine-plan.md   the phased architecture programme (Phases 0–7)
     ├── ai-assistance.md               what the AI layer does (and does not)
     ├── security.md                    threat model and controls
     ├── testing.md                     run tests, add tests, the CI gate

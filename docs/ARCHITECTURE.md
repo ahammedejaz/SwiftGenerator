@@ -345,6 +345,17 @@ Add one YAML file to `backend/config/mx/`. The registry picks it up, the catalog
 it, samples generate themselves, the Excel template gains a sheet, and the derived XSD is
 built from it. Still no code change.
 
+Or let the specification engine write that file for you: `make spec-compile
+SOURCE=schema.xsd` compiles an ISO 20022 schema into the same format, proves a generated
+sample against the source schema, and records the schema's checksum in the pack. The
+running application never compiles anything — packs arrive like any other configuration,
+through review and commit. See [specification-engine.md](specification-engine.md).
+
+**A new MT message**
+One entry in `backend/config/specifications/supported_subset_v1.yaml` (sequences, owner
+module, description) plus its field records in `backend/config/knowledge/`. The manifest
+is the single authority for which MT messages exist — there is no message list in code.
+
 **A new validation rule**
 MT rules live in `MtGenerator._business_rules` and `._profile_rules`; MX rules in
 `MxGenerator._business_rules`. Prefer expressing a rule in the specification when you can —

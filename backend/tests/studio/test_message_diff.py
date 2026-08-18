@@ -23,7 +23,7 @@ from app.studio.models import DiffKind, DiffReason, MessageFormat, SampleVariant
 from app.studio.mx.registry import mx_registry
 from app.studio.samples import build_sample
 
-MT_TYPES = [spec.message_type.value for spec in specification_registry.list()]
+MT_TYPES = [spec.message_type for spec in specification_registry.list()]
 MX_TYPES = [spec.message_type for spec in mx_registry.all_specs()]
 
 
