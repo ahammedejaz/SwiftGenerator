@@ -12,7 +12,7 @@ could be: a diff a tester is expected to trust has to be reproducible.
 
 ## 1. Audit findings
 
-`AGENTS.md` and `MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md` were read first and the
+`AGENTS.md` and `mt-import-and-coverage-hardening-report.md` were read first and the
 documented state reproduced exactly: **697 backend tests, 50 browser tests, coverage
 current**. `AGENTS.md` §15 already listed this work as recommended next item 5, in the same
 words the brief used.

@@ -14,8 +14,8 @@ in. A drop directory outside the checkout is safer still; every location has a s
 exactly that.
 
 `GET /api/v1/sources` reports which of these are present right now, and `make coverage`
-renders the same into [docs/generated/message-coverage.md](docs/generated/message-coverage.md).
-The step-by-step procedure is [docs/authoritative-sources.md](docs/authoritative-sources.md).
+renders the same into [generated/message-coverage.md](generated/message-coverage.md).
+The step-by-step procedure is [authoritative-sources.md](authoritative-sources.md).
 
 ---
 

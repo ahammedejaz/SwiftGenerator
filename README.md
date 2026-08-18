@@ -157,16 +157,33 @@ will not make those up. If it cannot get one legitimately, it says why instead o
 
 ## Where to read next
 
+Two audiences, in the order you should read.
+
+**If you are using the tool:**
+
 | If you want to… | Read |
 |---|---|
-| Demo this to somebody in twenty minutes | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Make your first message | [docs/for-manual-testers.md](docs/for-manual-testers.md) |
 | Call it from a test suite | [docs/for-automation-testers.md](docs/for-automation-testers.md) |
-| Understand how the code fits together | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Change the code | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Understand a message format | [docs/how-messages-are-built.md](docs/how-messages-are-built.md) |
 | Know exactly what is and is not supported | [docs/limitations.md](docs/limitations.md) |
-| See every doc | [docs/README.md](docs/README.md) |
+| Demo this to somebody in twenty minutes | [docs/CLIENT_DEMO_RUNBOOK.md](docs/CLIENT_DEMO_RUNBOOK.md) |
+
+**If you are working on the code:**
+
+| If you want to… | Read |
+|---|---|
+| Understand how the pieces fit together | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Tour the backend service | [backend/README.md](backend/README.md) |
+| Tour the frontend app | [frontend/README.md](frontend/README.md) |
+| Know how a message is defined (the source of truth) | [backend/config/README.md](backend/config/README.md) |
+| Change the code (pre-push checklist) | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
+| See the design decisions behind the UI | [docs/DESIGN.md](docs/DESIGN.md) |
+
+**Everything else:** [docs/README.md](docs/README.md) is the full index — one row per
+guide, organised by what you are trying to do. Historical reports (implementation
+milestones, audits) live under [docs/history/](docs/history/README.md) and are labelled
+as such; they describe how the code reached its current shape, not how it works today.
 
 ---
 

@@ -4,7 +4,7 @@ Synthetic inputs, the messages they produce, and working examples in curl and Ja
 to show the platform to somebody in ten minutes, and enough for an automation tester to copy
 into a real framework.
 
-The runbook that uses this pack is [../CLIENT_DEMO_RUNBOOK.md](../CLIENT_DEMO_RUNBOOK.md).
+The runbook that uses this pack is [../docs/CLIENT_DEMO_RUNBOOK.md](../docs/CLIENT_DEMO_RUNBOOK.md).
 
 ## What is here
 

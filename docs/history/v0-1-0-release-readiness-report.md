@@ -173,13 +173,13 @@ as *never generated* and the verdict stays *every difference is accounted for*.
 
 ## 14 · Demo runbook status
 
-[CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) — twenty minutes, seven steps, start
+[CLIENT_DEMO_RUNBOOK.md](../CLIENT_DEMO_RUNBOOK.md) — twenty minutes, seven steps, start
 commands, talking points, an explicit "say these out loud" limitations section, and a
 troubleshooting table. Every step was walked in a browser before it was written.
 
 ## 15 · Demo data status
 
-[demo/](demo/README.md) — 8 request bodies, 6 expected outputs, both Excel templates, curl
+[demo/](../../demo/README.md) — 8 request bodies, 6 expected outputs, both Excel templates, curl
 examples and a Java REST Assured test.
 
 **Generated, not written.** `make demo-pack` rebuilds the directory using the production
@@ -196,7 +196,7 @@ glossed.
 ## 16 · Remaining external blockers
 
 Unchanged by this task. Full detail and what each unlocks:
-[AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md).
+[AUTHORITATIVE_ARTIFACT_CHECKLIST.md](../AUTHORITATIVE_ARTIFACT_CHECKLIST.md).
 
 1. **ISO 20022 Message Definition Reports** — `sese.020.001.08`, `sese.027.001.08`,
    `sese.030.001.10`, `sese.031.001.09` remain `UNVERIFIED`. Largest outstanding risk.
@@ -257,7 +257,7 @@ It is also cheap: the commands already exist, take about ninety seconds together
 secrets.
 
 After that, in value order, the specification work in
-[AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md) §Priority — the
+[AUTHORITATIVE_ARTIFACT_CHECKLIST.md](../AUTHORITATIVE_ARTIFACT_CHECKLIST.md) §Priority — the
 Message Definition Reports first, because they remove the largest caveat for the least effort.
 
 ---

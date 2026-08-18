@@ -3,7 +3,7 @@
 > **Superseded in part.** This is a point-in-time record and is left as written. MT import,
 > unified MT + MX coverage reporting and authoritative-source drop points were added
 > afterwards — see
-> [MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md](MT_IMPORT_AND_COVERAGE_HARDENING_REPORT.md)
+> [mt-import-and-coverage-hardening-report.md](mt-import-and-coverage-hardening-report.md)
 > for the current state. `AGENTS.md` is always the source of truth.
 
 **Date:** 2026-08-16 · **Branch base:** `main` at `fd2e8ea` · **Scope:** the priority order

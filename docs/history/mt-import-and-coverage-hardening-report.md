@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-16 · **Base:** `21e5f4b` on `feat/mx-import-and-lifecycle` ·
 **Scope:** the four priorities in the hardening brief, audited against `AGENTS.md` and
-[AUTONOMOUS_CONTINUATION_REPORT.md](AUTONOMOUS_CONTINUATION_REPORT.md), verified in a
+[autonomous-continuation-report.md](autonomous-continuation-report.md), verified in a
 running browser.
 
 No SWIFT, ISO 20022, MyStandards or client artifact was invented, expanded or "corrected".
@@ -243,7 +243,7 @@ clean clone behaves identically:
 `app/studio/sources.py` reports, per class: what it is, where it goes, the setting that
 redirects it, what is being read right now, and what changes when a real artifact arrives.
 Served by `GET /api/v1/sources`, rendered into the coverage document, and documented as a
-procedure in [docs/authoritative-sources.md](docs/authoritative-sources.md) — including what
+procedure in [authoritative-sources.md](../authoritative-sources.md) — including what
 to re-run and, for the lifecycle messages, which test asserts the `UNVERIFIED` caveat and
 must be updated in the same commit.
 
@@ -295,7 +295,7 @@ backend/config/README.md                               22   what each directory 
 | `frontend/components/studio/ValidateStudio.tsx` | two paste modes collapsed into one |
 | `frontend/components/studio/Automation.tsx` · `app/validate/page.tsx` | copy and endpoint list |
 | `frontend/tests/e2e/studio-import.spec.ts` | four MT import journeys |
-| `AGENTS.md` · `AUTONOMOUS_CONTINUATION_REPORT.md` | factual sections; superseded-in-part note |
+| `AGENTS.md` · `autonomous-continuation-report.md` | factual sections; superseded-in-part note |
 
 `32 files changed, 3358 insertions(+), 448 deletions(-)`
 
