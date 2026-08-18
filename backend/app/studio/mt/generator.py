@@ -22,7 +22,6 @@ from app.authoring.composer import (
     specification_composer,
 )
 from app.authoring.models import DataClassification, FieldValueSource
-from app.domain.enums import MessageType
 from app.domain.identifiers import IsinProblem, validate_isin
 from app.knowledge.presentation import (
     DIRECT_CODE_TAG_PREFIXES,
@@ -164,14 +163,10 @@ def plan_sequences(
 
 class MtGenerator:
     def supports(self, message_type: str) -> bool:
-        try:
-            MessageType(message_type.upper())
-        except ValueError:
-            return False
-        return True
+        return specification_registry.known(message_type)
 
     def specification(self, message_type: str) -> MessageSpecification:
-        return specification_registry.get(MessageType(message_type.upper()))
+        return specification_registry.get(message_type)
 
     # -- address resolution ------------------------------------------------------------
 
@@ -194,7 +189,7 @@ class MtGenerator:
                     issues.append(
                         _error(
                             "MT_UNKNOWN_FIELD_ID",
-                            f"'{item.id}' is not a field of {specification.message_type.value}.",
+                            f"'{item.id}' is not a field of {specification.message_type}.",
                             layer=ValidationLayer.CANONICAL,
                             field_name=item.id,
                             location=f"input[{index}]",
@@ -210,7 +205,7 @@ class MtGenerator:
                         _error(
                             "MT_UNKNOWN_SEQUENCE",
                             f"'{item.sequence}' is not a sequence of "
-                            f"{specification.message_type.value}.",
+                            f"{specification.message_type}.",
                             layer=ValidationLayer.STRUCTURE,
                             field_name=item.sequence,
                             location=f"input[{index}]",
@@ -264,7 +259,7 @@ class MtGenerator:
                         _error(
                             "MT_UNKNOWN_FIELD",
                             f"{label} is not a supported field of "
-                            f"{specification.message_type.value}"
+                            f"{specification.message_type}"
                             + (f" in sequence {item.sequence}." if item.sequence else "."),
                             layer=ValidationLayer.STRUCTURE,
                             field_name=label,
@@ -593,7 +588,7 @@ class MtGenerator:
         if want_fin:
             try:
                 fin_message = build_fin_message(
-                    message_type=specification.message_type.value,
+                    message_type=specification.message_type,
                     block_4=composition.block_4,
                     profile=profile,
                     override=envelope,

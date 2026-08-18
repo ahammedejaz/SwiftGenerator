@@ -14,7 +14,6 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from app.domain.enums import MessageType
 from app.knowledge.loader import knowledge_repository
 from app.studio.catalogue import message_spec
 from app.studio.models import (
@@ -38,8 +37,10 @@ def _index() -> list[tuple[SpecField, list[str], set[str]]]:
     """Build the searchable index once: (field, message types, lowercase search terms)."""
     merged: dict[str, tuple[SpecField, list[str], set[str]]] = {}
 
-    for message_type in sorted(MessageType, key=lambda item: item.value):
-        spec = message_spec(MessageFormat.MT, message_type.value)
+    from app.specifications.registry import specification_registry
+
+    for mt in specification_registry.list():
+        spec = message_spec(MessageFormat.MT, mt.message_type)
         for item in spec.fields:
             key = _merge_key(item)
             terms = _mt_terms(item)
@@ -207,8 +208,10 @@ def detail(field_id: str) -> IntelligenceDetail:
         return _detail(field, message_types)
     # An MT row id addresses one message type directly; fall back to a direct lookup so a
     # caller holding a row id from the specification endpoint always gets an answer.
-    for message_type in MessageType:
-        spec = message_spec(MessageFormat.MT, message_type.value)
+    from app.specifications.registry import specification_registry
+
+    for mt in specification_registry.list():
+        spec = message_spec(MessageFormat.MT, mt.message_type)
         for item in spec.fields:
             if item.id == field_id:
                 return _detail(item, [spec.message_type])

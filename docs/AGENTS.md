@@ -58,10 +58,20 @@ same comparison. Deterministic — `difflib` and string comparison, no model.
 measured from the real component rather than read from a flag. `GET /api/v1/coverage` serves
 the same data; `GET /api/v1/sources` reports which authoritative artifacts are present.
 
+**The specification engine exists (Phases 0–1).** Message discovery is
+specification-driven: the MT manifest — not a Python enum — decides which MT messages
+exist, and `app/spec_engine` compiles an ISO 20022 XSD into an ordinary `config/mx` pack
+(`make spec-compile`), gated by source-schema validation and a round trip. Every message
+carries derived **capability dimensions** (structure / businessRules / marketPractice /
+clientProfile / externalValidation) beside the legacy `PARTIAL`. No compiled pack ships
+in the catalogue; the synthetic fixture lives in `tests/fixtures/xsd/`. See
+[specification-engine.md](specification-engine.md) and
+[specification-engine-plan.md](specification-engine-plan.md).
+
 **Verification status (all passing):**
 
 ```
-986 backend tests (pytest)      ruff: clean      mypy --strict: clean (132 files)
+1036 backend tests (pytest)     ruff: clean      mypy --strict: clean (147 files)
  73 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean
@@ -151,7 +161,11 @@ backend/app/studio/
 ### Backend — reused unchanged (predates the studio, already tested)
 
 ```
-app/specifications/registry.py   MT specification registry
+app/specifications/registry.py   MT specification registry (string-keyed; manifest-driven)
+app/specifications/manifest.py   the manifest index — the single authority for which MT messages exist
+app/spec_engine/                 XSD -> specification-pack compiler (offline CLI; never in the request path)
+app/studio/capability.py         derived capability dimensions + plain-language summary
+app/studio/registry.py           format-neutral message-definition projection (catalogue metadata only)
 app/knowledge/loader.py          MT knowledge base
 app/knowledge/code_lists.py      shared controlled code lists, with labels
 app/knowledge/presentation.py    which control a field deserves, derived once from the tag
@@ -310,7 +324,7 @@ requires a previous reference · status advice must report at least one status
 
 | Source | Origin | Proves |
 |---|---|---|
-| `OFFICIAL` | a `.xsd` in `backend/config/mx/xsd/official/` | real conformance |
+| `OFFICIAL` | a `.xsd` the operator supplied in `backend/config/mx/xsd/official/` | conformance to that supplied schema — the platform cannot verify the file is the genuine ISO artifact |
 | `SUBSET_DERIVED` | generated at runtime from the YAML | matches *this repo's* subset |
 
 `SUBSET_DERIVED` is the default (official schemas are licensed, not included). It is a real
@@ -361,9 +375,10 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 | **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
 | **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
 
-Branch protection is **not** configured yet; mark `CI / Required Checks` as required for
-`main` to turn CI from reporting into blocking. Detail and rationale:
-[history/ci-implementation-report.md](history/ci-implementation-report.md).
+Branch protection is **configured** on `main`: the status check `Required Checks` is
+required, `strict` is on so a branch must be up to date with `main` before it merges, and
+force pushes and branch deletion are blocked. CI blocks rather than reports. Detail and
+rationale: [history/ci-implementation-report.md](history/ci-implementation-report.md).
 
 **Reproduce any job locally by running the same make target.** The workflow adds only what a
 runner needs that a laptop does not: the browser's OS libraries (`--with-deps`, which needs
@@ -372,8 +387,11 @@ range — bare `git diff --check` compares the worktree to the index and is alwa
 
 Things worth knowing before editing it:
 
-- **`CI / Required Checks` is the name branch protection should require.** Renaming that job
-  silently disables the gate.
+- **Branch protection matches the check run's own name — `Required Checks` — not the
+  `CI / Required Checks` display form the PR page shows.** Requiring the display form
+  looks configured and gates nothing: every job green, `mergeable: MERGEABLE`, and the PR
+  permanently `BLOCKED` with no visible reason. Renaming the job silently disables the
+  gate; job name and protection setting must move together.
 - **Clean Clone deliberately has no dependency cache.** A cached wheel would hide exactly the
   class of defect that motivated the job — `lxml-stubs==0.6.0`, a pin that does not exist
   upstream and broke `make install` for everyone who had never run it.
@@ -401,6 +419,9 @@ make coverage     # fail if docs/generated/message-coverage.md is stale
 make coverage-write   # regenerate it
 make demo-pack        # rebuild demo/ from the production composer
 make demo-pack-check  # fail if demo/ no longer matches what the composer produces
+make spec-compile SOURCE=schema.xsd [OUT=dir]   # XSD -> specification pack + gates
+make spec-validate PACK=pack.yaml SOURCE=schema.xsd
+make spec-diff BEFORE=old.yaml AFTER=new.yaml
 docker compose up --build
 ```
 
@@ -508,6 +529,25 @@ Defects found and fixed while building this. These are the ones likely to recur:
     the resulting churn cancelled the catalogue request — which surfaces as "the studio API
     could not be reached" against a backend that is running perfectly. Preselect in an
     effect.
+
+**The specification engine**
+
+35. **The MT registry was closed in both directions, and the loader duplicated
+    configuration in code.** `MessageType` (a 16-member enum), `KNOWN_MESSAGE_OWNERS` and
+    `KNOWN_FIELD_SIGNATURES` each had to be edited to add a message or even a field —
+    despite §15 promising YAML-only extension. All three authorities now live in the
+    manifest (`workflowModule`, `shortDescription`, sequences per message); the knowledge
+    loader validates records against it, and `StrEnum` members being `str` is what let the
+    registry switch to string keys without touching a legacy caller.
+36. **A branch of an XSD choice must not compile to `presence: MANDATORY`.** The
+    structural validator requires every mandatory leaf whose parent is present, so two
+    mandatory branches of one choice can never both be satisfiable. The choice itself
+    carries "exactly one"; branches compile with no presence, matching the hand-authored
+    packs.
+37. **The composer only writes an amount's `Ccy` attribute when the element declares
+    `currencyAttribute: true`.** A compiled amount without that flag produces
+    `<Amt>USD 1000.00</Amt>`, which the source schema rejects as a non-decimal — the
+    source-XSD gate exists precisely to catch that class of compiler bug, and did.
 
 **Persistence**
 
@@ -664,6 +704,8 @@ Full list: [limitations.md](limitations.md).
 | Add a field to an MT message | One record in `backend/config/knowledge/*.yaml`. No code. |
 | Add or change a code list | One entry in `backend/config/knowledge/code_lists.yaml`, referenced by `codeList:`. Labels reach the UI, the API, Excel and both formats at once. No code. |
 | Change which control a field gets | It is derived in `app/knowledge/presentation.py` from the tag and field option. Override per record with `inputKind:` only where derivation genuinely cannot know. |
+| Add an MT message | One manifest entry (`config/specifications/supported_subset_v1.yaml`: sequences, `workflowModule`, `shortDescription`) plus its field records in `config/knowledge/`. No code — `tests/specifications/test_dynamic_registry.py` proves it. |
+| Compile an MX message from its schema | `make spec-compile SOURCE=schema.xsd` emits an ordinary `config/mx` pack, gated against the source schema. [specification-engine.md](specification-engine.md). |
 | Add an MX message | One file in `backend/config/mx/`. Namespace must be `urn:iso:std:iso:20022:tech:xsd:<version>`. A node has `dataType` **or** `children`, never both. Document order = element order. **No code** — the four lifecycle messages were added this way and gained samples, Excel columns, search, import and XSD validation with no Python change. |
 | Add a client profile | One file in `backend/config/profiles/`. No code. |
 | Add a validation rule | `MtGenerator._business_rules` / `._profile_rules`, or `MxGenerator._business_rules`. Prefer configuration (`requireOneOf`) where possible. |
@@ -680,19 +722,22 @@ output. That friction is deliberate: update the fixture in the same commit and s
 
 In value order on the current architecture:
 
-1. **Reconcile the four lifecycle specifications** against an authoritative ISO 20022
+1. **Phase 2 of the specification engine** ([plan](specification-engine-plan.md)):
+   evidence-backed rule extraction and the market-practice overlay model. The provenance
+   fields and the `businessRules` dimension are the waiting seams.
+2. **Reconcile the four lifecycle specifications** against an authoritative ISO 20022
    message-definition report. They are shipped, generating and round-tripping, but flagged
    `UNVERIFIED`; this is the cheapest way to remove a caveat that applies to four of seven
    MX messages. The procedure and what to re-run are in
    [authoritative-sources.md](authoritative-sources.md).
-2. **Import a licensed MT specification.** Still the only thing that changes what the
+3. **Import a licensed MT specification.** Still the only thing that changes what the
    platform may *claim*. The drop point and the setting exist; the YAML structure already
    fits.
-3. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
+4. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
    code, MX validation becomes authoritative.
-4. **Shared state for rate limiter and circuit breaker** before running more than one
+5. **Shared state for rate limiter and circuit breaker** before running more than one
    instance. Needs Redis or equivalent.
-5. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
+6. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
 
 ## 17. Writing style expected in this repo
 

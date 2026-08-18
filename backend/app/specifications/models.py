@@ -5,7 +5,6 @@ from enum import StrEnum
 
 from pydantic import ConfigDict, Field
 
-from app.domain.enums import MessageType
 from app.domain.models import ApiModel
 from app.knowledge.models import (
     InputKind,
@@ -63,7 +62,7 @@ class SequenceSpecification(ApiModel):
 class FieldSpecification(ApiModel):
     row_id: str
     row_number: int
-    message_type: MessageType
+    message_type: str
     workflow_module: WorkflowModuleId
     sequence_path: str
     sequence_code: str
@@ -100,9 +99,11 @@ class FieldSpecification(ApiModel):
 
 
 class MessageSpecification(ApiModel):
-    message_type: MessageType
+    message_type: str
     name: str
     scope: str
+    #: The catalogue one-liner, owned by the manifest rather than a dict in code.
+    short_description: str = ""
     capability: CapabilityState
     capability_explanation: str
     workflow_module: WorkflowModuleId
@@ -135,7 +136,7 @@ class CoverageMetric(ApiModel):
 
 
 class MessageCoverage(ApiModel):
-    message_type: MessageType
+    message_type: str
     capability: CapabilityState
     authoritative_completeness_known: bool
     configured_format_rows: int

@@ -226,7 +226,7 @@ For MX, the tool validates the XML against a schema — and always tells you whi
 
 | Source | Where it comes from | What it proves |
 |---|---|---|
-| `OFFICIAL` | An ISO 20022 `.xsd` you place in `backend/config/mx/xsd/official/` | Real conformance |
+| `OFFICIAL` | An `.xsd` you place in `backend/config/mx/xsd/official/` as the official artifact | Conformance to that supplied schema — the platform cannot verify the file's authenticity |
 | `SUBSET_DERIVED` | Generated from this repository's YAML | The document matches *this repository's* subset |
 
 `SUBSET_DERIVED` is the default because official schemas are licensed and not included

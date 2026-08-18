@@ -21,6 +21,15 @@ Every message therefore reports `capability: PARTIAL` and
 production-capable, and nothing can be until a licensed specification is imported and
 reconciled field by field.
 
+Alongside that single word, every message now reports **capability dimensions** —
+structure, business rules, market practice, client profile, external validation — each
+derived from what actually exists, so a message compiled from a schema can never present
+itself as more than structure-verified. A pack produced by the
+[specification engine](specification-engine.md) reads `structure: COMPILED_FROM_SCHEMA`
+and `businessRules: NOT_CONFIGURED`: XSD validation proves structure, and **only**
+structure. Market practice (CBPR+, HVPS+, MyStandards guidelines) is a separate,
+deliberately unbuilt layer — those artifacts are licensed and deployment-specific.
+
 **Use it to produce test data. Do not use it as a conformance authority.**
 
 Exact numbers per message: [generated/message-coverage.md](generated/message-coverage.md).
@@ -91,9 +100,10 @@ automatically.
 | **sese.024** | Only the processing, matching and settlement status branches. No inferred matching, repair or modification status. |
 | **sese.025** | Omits `Lnkgs`, `FinInstrmAttrbts`, `CshPties`, `OthrAmts`, `SplmtryData`. Partial-settlement reporting beyond the confirmed quantity is not configured. |
 
-**Not implemented at all:** payments (`pacs.*`), cash management (`camt.*`), reconciliation
-(`semt.*`), and the cancellation and modification lifecycle (`sese.020`, `sese.027`,
-`sese.030`, `sese.031`).
+| **sese.020 / sese.027 / sese.030 / sese.031** | Implemented and generatable — the cancellation and modification lifecycle generates, validates and round-trips end to end — but the four specifications are **UNVERIFIED**: their version numbers, root element names and element sets were modelled on the ISO 20022 idioms already in this repository, not reconciled against an authoritative message-definition report. Reconcile before any use beyond internal testing. |
+
+**Not implemented at all:** payments (`pacs.*`), cash management (`camt.*`) and
+reconciliation (`semt.*`).
 
 The extension point for all of these is a YAML file. See
 [ARCHITECTURE.md](ARCHITECTURE.md#adding-things).
@@ -169,6 +179,6 @@ To be equally honest in the other direction:
   it refused to.
 - **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **813 automated tests** cover it: 752 backend, 61 in a real browser.
+- **1,109 automated tests** cover it: 1,036 backend, 73 in a real browser.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
   `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

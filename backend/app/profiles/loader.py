@@ -112,9 +112,11 @@ class ClientProfile(BaseModel):
             sender_reference_uppercase=self.validation.sender_reference.uppercase,
         )
 
-    def requirements_for(self, message_type: MessageType) -> list[str]:
-        base = self.required_fields.get(message_type.value, [])
-        client = self.client_required_fields.get(message_type.value, [])
+    def requirements_for(self, message_type: MessageType | str) -> list[str]:
+        # Callers pass the legacy enum or a plain identifier; StrEnum str()s to its value.
+        key = str(message_type)
+        base = self.required_fields.get(key, [])
+        client = self.client_required_fields.get(key, [])
         return list(dict.fromkeys([*base, *client]))
 
     def apply_defaults(self, scenario: SettlementScenario) -> SettlementScenario:

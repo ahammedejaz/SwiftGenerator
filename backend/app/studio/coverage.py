@@ -26,11 +26,11 @@ import argparse
 from enum import StrEnum
 from pathlib import Path
 
-from app.domain.enums import MessageType
 from app.domain.models import ApiModel
 from app.specifications.registry import specification_registry
 from app.studio import intelligence
-from app.studio.catalogue import message_spec
+from app.studio.capability import CapabilityDimensions, capability_summary
+from app.studio.catalogue import capability_dimensions, message_spec
 from app.studio.excel import reference_rows
 from app.studio.models import MessageFormat, SampleVariant
 from app.studio.mt.generator import mt_generator
@@ -89,6 +89,9 @@ class MessageCoverageRow(ApiModel):
     message_type: str
     version: str | None
     capability: str
+    #: The dimensional model behind the single word above; see app/studio/capability.py.
+    capability_dimensions: CapabilityDimensions | None = None
+    capability_summary: str = ""
     verification_status: str
     #: The denominator: value-bearing rows (MT) or leaf elements (MX) this repository holds.
     configured: int
@@ -155,10 +158,10 @@ def _intelligence_index() -> dict[str, int]:
 
 
 def _mt_row(
-    message_type: MessageType, excel: dict[str, int], search: dict[str, int]
+    message_type: str, excel: dict[str, int], search: dict[str, int]
 ) -> MessageCoverageRow:
     specification = specification_registry.get(message_type)
-    name = message_type.value
+    name = message_type
     configured = len(specification.fields)
     projected = message_spec(MessageFormat.MT, name)
 
@@ -185,11 +188,14 @@ def _mt_row(
 
     golden = _golden_rows(message_type)
 
+    dimensions = capability_dimensions(MessageFormat.MT, name)
     return MessageCoverageRow(
         format=MessageFormat.MT,
         message_type=name,
         version=None,
         capability=specification.capability.value,
+        capability_dimensions=dimensions,
+        capability_summary=capability_summary(dimensions),
         verification_status=specification.source.verification_status.value,
         configured=configured,
         configured_nodes=None,
@@ -215,7 +221,7 @@ def _mt_row(
     )
 
 
-def _golden_rows(message_type: MessageType) -> set[str]:
+def _golden_rows(message_type: str) -> set[str]:
     from app.samples.service import sample_service
 
     return sample_service.coverage().get(message_type, set())
@@ -233,7 +239,7 @@ def _mt_round_trip(message_type: str, inputs: list) -> RoundTrip:  # type: ignor
     if parsed.errors:
         return RoundTrip.REFUSED
     again = mt_generator.build(
-        parsed.specification.message_type.value,
+        parsed.specification.message_type,
         profile,
         parsed.fields,
         envelope=parsed.envelope,
@@ -280,11 +286,14 @@ def _mx_row(
     if unverified:
         notes.append("Message definition UNVERIFIED against an authoritative source.")
 
+    dimensions = capability_dimensions(MessageFormat.MX, spec.message_type)
     return MessageCoverageRow(
         format=MessageFormat.MX,
         message_type=spec.message_type,
         version=spec.version,
         capability="PARTIAL",
+        capability_dimensions=dimensions,
+        capability_summary=capability_summary(dimensions),
         verification_status="UNVERIFIED" if unverified else spec.source.source_type,
         configured=configured,
         configured_nodes=len(flat),
@@ -334,8 +343,8 @@ def build_coverage() -> UnifiedCoverage:
     search = _intelligence_index()
 
     rows = [
-        _mt_row(message_type, mt_excel, search)
-        for message_type in sorted(MessageType, key=lambda item: item.value)
+        _mt_row(mt.message_type, mt_excel, search)
+        for mt in specification_registry.list()
     ]
     rows.extend(
         _mx_row(spec.message_type, mx_excel, search) for spec in mx_registry.all_specs()
@@ -474,6 +483,39 @@ def render_markdown(coverage: UnifiedCoverage | None = None) -> str:
                     row.sample.render(),
                     row.schema_source.value if row.schema_source else "—",
                     row.round_trip.value,
+                ]
+            )
+            + " |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Capability dimensions",
+            "",
+            "One word cannot say which claims a message actually holds, so each authority "
+            "layer is reported separately. Derived from configuration and provenance — "
+            "never declared by a flag.",
+            "",
+            "| Message | Structure | Business rules | Market practice | Client profile | "
+            "External validation |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for row in report.messages:
+        dims = row.capability_dimensions
+        if dims is None:
+            continue
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    row.message_type,
+                    dims.structure.value,
+                    dims.business_rules.value,
+                    dims.market_practice.value,
+                    dims.client_profile.value,
+                    dims.external_validation.value,
                 ]
             )
             + " |"

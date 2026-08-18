@@ -6,7 +6,6 @@ from typing import Any
 
 import yaml
 
-from app.domain.enums import MessageType
 from app.knowledge.code_lists import CODE_LIST_FILENAME, code_lists
 from app.knowledge.models import (
     EffectiveTagKnowledge,
@@ -22,211 +21,17 @@ from app.knowledge.models import (
 )
 from app.knowledge.presentation import derive_input_kind
 from app.profiles.loader import ProfileRepository, profiles
-
-KNOWN_MESSAGE_OWNERS: dict[MessageType, WorkflowModuleId] = {
-    MessageType.MT530: WorkflowModuleId.SETTLEMENT_COMMAND,
-    MessageType.MT537: WorkflowModuleId.PENALTIES,
-    **{
-        message_type: WorkflowModuleId.SETTLEMENT
-        for message_type in (
-            MessageType.MT540,
-            MessageType.MT541,
-            MessageType.MT542,
-            MessageType.MT543,
-            MessageType.MT544,
-            MessageType.MT545,
-            MessageType.MT546,
-            MessageType.MT547,
-            MessageType.MT548,
-        )
-    },
-    **{
-        message_type: WorkflowModuleId.CORPORATE_ACTIONS
-        for message_type in (
-            MessageType.MT564,
-            MessageType.MT565,
-            MessageType.MT566,
-            MessageType.MT567,
-            MessageType.MT568,
-        )
-    },
-}
-
-#: A settlement party may be identified by a BIC (option P) or by a proprietary scheme
-#: identifier (option R). Both are configured for every party, because which one applies is
-#: the caller's business decision, not the platform's.
-_SETTLEMENT_PARTIES = {
-    (sequence, f"95{option}", qualifier)
-    for sequence in ("E",)
-    for option in ("P", "R")
-    for qualifier in ("PSET", "DEAG", "REAG")
-}
-_INSTRUCTION_FIELDS = {
-    ("A", "20C", "SEME"),
-    ("A", "20C", "PREV"),
-    ("A", "20C", "COMM"),
-    ("A", "23G", None),
-    ("B", "98A", "TRAD"),
-    ("B", "98A", "SETT"),
-    ("B", "35B", None),
-    ("B", "36B", "SETT"),
-    ("C", "97A", "SAFE"),
-    # 22F::SETR carries the type of settlement transaction and belongs to Settlement
-    # Details only. It was previously configured in Trade Details as well, carrying BUY or
-    # SELL, and in Settlement Details carrying RECE or DELI — neither of which is a
-    # transaction type. Receive versus deliver is carried by the message type.
-    ("E", "22F", "SETR"),
-    *_SETTLEMENT_PARTIES,
-}
-_CONFIRMATION_FIELDS = {
-    ("A", "20C", "SEME"),
-    ("A", "20C", "RELA"),
-    ("A", "20C", "COMM"),
-    ("A", "23G", None),
-    ("B", "98A", "ESET"),
-    ("B", "35B", None),
-    ("B", "36B", "ESTT"),
-    ("B", "22F", "STCO"),
-    ("C", "97A", "SAFE"),
-    *_SETTLEMENT_PARTIES,
-}
-_STATUS_FIELDS = {
-    ("A", "20C", "SEME"),
-    ("A", "20C", "RELA"),
-    ("A", "23G", None),
-    ("A1", "13A", "LINK"),
-    ("D", "25D", "SETT"),
-    ("D", "24B", "PEND"),
-    ("D", "24B", "REJT"),
-    ("D", "24B", "MACH"),
-    ("D", "24B", "NMAT"),
-    ("D", "24B", "CAND"),
-    ("D", "24B", "CANR"),
-    ("D", "70D", "REAS"),
-}
-_MT530_FIELDS = {
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "97A", "SAFE"),
-    ("B", "20C", "PREV"),
-    ("B", "22F", "PRIR"),
-}
-_MT537_FIELDS = {
-    ("A", "28E", None),
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "98A", "STAT"),
-    ("A", "22H", "STST"),
-    ("A", "97A", "SAFE"),
-    ("A", "17B", "ACTI"),
-    ("D", "22F", "CODE"),
-    ("D1", "11A", "PECU"),
-    ("D1", "98A", "DACO"),
-    ("D1", "95R", "ASDP"),
-    ("D1", "22F", "TRCA"),
-    ("D1a", "95R", "REPA"),
-    ("D1a", "22F", "TRCA"),
-    ("D1a", "19A", "AGNT"),
-    ("D1a1", "20C", "PREF"),
-    ("D1a1", "20C", "PCOM"),
-    ("D1a1", "20C", "PPRF"),
-    ("D1a1", "22H", "PNTP"),
-    ("D1a1", "25D", "PNST"),
-    ("D1a1", "19A", "AMCO"),
-    ("D1a1", "99A", "DAAC"),
-    ("D1a1B", "20C", "RELA"),
-}
-_MT564_FIELDS = {
-    ("A", "20C", "CORP"),
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "22F", "CAEV"),
-    ("A", "22F", "CAMV"),
-    ("A", "25D", "PROC"),
-    ("B", "35B", None),
-    ("B1", "97A", "SAFE"),
-    ("B", "93B", "ELIG"),
-    ("C", "98A", "PAYD"),
-    ("E", "13A", "CAON"),
-    ("E", "22F", "CAOP"),
-    ("E", "17B", "DFLT"),
-    ("E", "98A", "RDDT"),
-}
-_MT565_FIELDS = {
-    ("A", "20C", "CORP"),
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "22F", "CAEV"),
-    ("A1", "20C", "RELA"),
-    ("B", "35B", None),
-    ("B1", "97A", "SAFE"),
-    ("D", "13A", "CAON"),
-    ("D", "22F", "CAOP"),
-    ("D", "36B", "QINS"),
-}
-_MT566_FIELDS = {
-    ("A", "20C", "CORP"),
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "22F", "CAEV"),
-    ("A1", "20C", "RELA"),
-    ("B", "97A", "SAFE"),
-    ("B", "35B", None),
-    ("B", "93B", "ELIG"),
-    ("D", "13A", "CAON"),
-    ("D", "22H", "CAOP"),
-    ("D2", "22H", "CRDB"),
-    ("D2", "19B", "PSTA"),
-    ("D2", "98A", "POST"),
-}
-_MT567_FIELDS = {
-    ("A", "20C", "CORP"),
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "22F", "CAEV"),
-    ("A1", "20C", "RELA"),
-    ("C", "25D", "IPRC"),
-    ("C", "25D", "CPRC"),
-    ("C1", "24B", "IPRC"),
-    ("C1", "24B", "CPRC"),
-}
-_MT568_FIELDS = {
-    ("A", "20C", "CORP"),
-    ("A", "20C", "SEME"),
-    ("A", "23G", None),
-    ("A", "22F", "CAEV"),
-    ("A1", "20C", "RELA"),
-    ("C", "70E", "ADTX"),
-}
-KNOWN_FIELD_SIGNATURES: dict[MessageType, set[tuple[str, str, str | None]]] = {
-    MessageType.MT530: _MT530_FIELDS,
-    MessageType.MT537: _MT537_FIELDS,
-    MessageType.MT540: set(_INSTRUCTION_FIELDS),
-    MessageType.MT541: {*_INSTRUCTION_FIELDS, ("E", "19A", "SETT")},
-    MessageType.MT542: set(_INSTRUCTION_FIELDS),
-    MessageType.MT543: {*_INSTRUCTION_FIELDS, ("E", "19A", "SETT")},
-    MessageType.MT544: set(_CONFIRMATION_FIELDS),
-    MessageType.MT545: {*_CONFIRMATION_FIELDS, ("B", "19A", "ESTT")},
-    MessageType.MT546: set(_CONFIRMATION_FIELDS),
-    MessageType.MT547: {*_CONFIRMATION_FIELDS, ("B", "19A", "ESTT")},
-    MessageType.MT548: _STATUS_FIELDS,
-    MessageType.MT564: _MT564_FIELDS,
-    MessageType.MT565: _MT565_FIELDS,
-    MessageType.MT566: _MT566_FIELDS,
-    MessageType.MT567: _MT567_FIELDS,
-    MessageType.MT568: _MT568_FIELDS,
-}
+from app.specifications.manifest import ManifestIndex, manifest_index
 
 
 def knowledge_id_for(
-    message_type: MessageType | str,
+    message_type: str,
     sequence_path: str,
     field_tag: str,
     qualifier: str | None,
 ) -> str:
-    message_value = message_type.value if isinstance(message_type, MessageType) else message_type
     safe_sequence = sequence_path.replace("/", "-")
-    return f"{message_value}-{safe_sequence}-{field_tag}-{qualifier or 'NONE'}"
+    return f"{message_type}-{safe_sequence}-{field_tag}-{qualifier or 'NONE'}"
 
 
 class TagKnowledgeRepository:
@@ -234,11 +39,13 @@ class TagKnowledgeRepository:
         self,
         config_dir: Path | None = None,
         profile_repository: ProfileRepository | None = None,
+        manifest: ManifestIndex | None = None,
     ) -> None:
         self._config_dir = (
             config_dir or Path(__file__).resolve().parents[2] / "config" / "knowledge"
         )
         self._profiles = profile_repository or profiles
+        self._manifest = manifest or manifest_index()
         self._records, self._overlays = self._load()
 
     def _load(
@@ -247,6 +54,7 @@ class TagKnowledgeRepository:
         dict[str, TagKnowledge],
         dict[tuple[str, str], ProfileKnowledgeOverlay],
     ]:
+        manifest = self._manifest
         records: dict[str, TagKnowledge] = {}
         for path in sorted(self._config_dir.glob("*.yaml")):
             # Shared code lists live beside the records but are not records themselves.
@@ -261,10 +69,25 @@ class TagKnowledgeRepository:
                 definition = self._resolve_code_list(definition, path.name)
                 definition = self._derive_presentation(definition)
                 for message_type in definition.message_types:
-                    expected_owner = KNOWN_MESSAGE_OWNERS.get(message_type)
-                    if expected_owner is None or expected_owner != definition.workflow_module:
+                    # The manifest is the single authority for which messages exist, who
+                    # owns them, and which sequences they have. A record referencing a
+                    # message or sequence the manifest does not declare is a configuration
+                    # error, reported at load — never a silently ignored row.
+                    if not manifest.known(message_type):
                         raise ValueError(
-                            f"Unknown or incorrectly owned message type {message_type.value}"
+                            f"Knowledge record names a message the specification manifest "
+                            f"does not declare: {message_type}"
+                        )
+                    manifest_message = manifest.get(message_type)
+                    if manifest_message.workflow_module != definition.workflow_module:
+                        raise ValueError(
+                            f"{message_type} belongs to {manifest_message.workflow_module}, "
+                            f"not {definition.workflow_module}"
+                        )
+                    if definition.sequence_path not in manifest_message.sequence_paths:
+                        raise ValueError(
+                            f"{message_type} has no sequence {definition.sequence_path}; "
+                            f"the manifest declares {', '.join(manifest_message.sequence_paths)}"
                         )
                     knowledge_id = knowledge_id_for(
                         message_type,
@@ -272,14 +95,6 @@ class TagKnowledgeRepository:
                         definition.field_tag,
                         definition.qualifier,
                     )
-                    signature = (
-                        definition.sequence_path,
-                        definition.field_tag,
-                        definition.qualifier,
-                    )
-                    known_signatures = KNOWN_FIELD_SIGNATURES.get(message_type)
-                    if known_signatures is not None and signature not in known_signatures:
-                        raise ValueError(f"Unknown supported field signature: {knowledge_id}")
                     if knowledge_id in records:
                         raise ValueError(f"Duplicate knowledge ID: {knowledge_id}")
                     payload_data = definition.model_dump(mode="python", exclude={"message_types"})
@@ -384,7 +199,7 @@ class TagKnowledgeRepository:
 
     @staticmethod
     def _validate_dependencies(records: dict[str, TagKnowledge]) -> None:
-        by_message_qualifier: dict[tuple[MessageType, str], list[TagKnowledge]] = defaultdict(list)
+        by_message_qualifier: dict[tuple[str, str], list[TagKnowledge]] = defaultdict(list)
         for record in records.values():
             if record.qualifier:
                 by_message_qualifier[(record.message_type, record.qualifier)].append(record)
@@ -400,24 +215,24 @@ class TagKnowledgeRepository:
                         f"Broken dependency {qualifier} in knowledge {record.knowledge_id}"
                     )
 
-    @staticmethod
-    def _validate_coverage(records: dict[str, TagKnowledge]) -> None:
-        actual = {
-            (record.message_type, record.sequence_path, record.field_tag, record.qualifier)
-            for record in records.values()
-        }
-        for message_type, signatures in KNOWN_FIELD_SIGNATURES.items():
-            missing = {
-                (message_type, sequence, tag, qualifier)
-                for sequence, tag, qualifier in signatures
-                if (message_type, sequence, tag, qualifier) not in actual
-            }
-            if missing:
-                rendered = ", ".join(knowledge_id_for(*item) for item in sorted(missing, key=str))
-                raise ValueError(f"Missing tag knowledge coverage: {rendered}")
+    def _validate_coverage(self, records: dict[str, TagKnowledge]) -> None:
+        """Every manifest message must have field records; an empty message is a mistake.
+
+        The per-field signature list this used to check lived in Python and duplicated the
+        configuration it guarded, which meant adding a field was a code change despite the
+        repository's own rule that it must not be. Field-level drift is now guarded where
+        the fields are defined — the manifest sequence check at load, the golden fixtures,
+        and the studio suite.
+        """
+        covered = {record.message_type for record in records.values()}
+        missing = [item for item in self._manifest.message_types() if item not in covered]
+        if missing:
+            raise ValueError(
+                "Manifest messages with no tag knowledge records: " + ", ".join(missing)
+            )
 
     def list_messages(self) -> list[KnowledgeMessageSummary]:
-        grouped: dict[tuple[MessageType, WorkflowModuleId, str], int] = defaultdict(int)
+        grouped: dict[tuple[str, WorkflowModuleId, str], int] = defaultdict(int)
         for record in self._records.values():
             grouped[(record.message_type, record.workflow_module, record.knowledge_version)] += 1
         return [
@@ -428,14 +243,14 @@ class TagKnowledgeRepository:
                 knowledge_version=version,
             )
             for (message_type, module, version), count in sorted(
-                grouped.items(), key=lambda item: item[0][0].value
+                grouped.items(), key=lambda item: item[0][0]
             )
         ]
 
     def list_records(
         self,
         *,
-        message_type: MessageType | None = None,
+        message_type: str | None = None,
         sequence: str | None = None,
         tag: str | None = None,
         qualifier: str | None = None,
@@ -544,7 +359,7 @@ class TagKnowledgeRepository:
 
     def find_for_rendered_field(
         self,
-        message_type: MessageType,
+        message_type: str,
         sequence: str,
         tag: str,
         qualifier: str | None,

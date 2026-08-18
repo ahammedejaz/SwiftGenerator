@@ -72,8 +72,13 @@ class SampleService:
         except KeyError as error:
             raise KeyError(sample_id) from error
 
-    def coverage(self) -> dict[MessageType, set[str]]:
-        return {item.message_type: set(item.covered_row_ids) for item in self._samples.values()}
+    def coverage(self) -> dict[str, set[str]]:
+        # Keyed by the plain identifier so the string-keyed specification registry and the
+        # legacy enum callers read the same map; StrEnum members hash as their value.
+        return {
+            str(item.message_type): set(item.covered_row_ids)
+            for item in self._samples.values()
+        }
 
     def _build(self) -> dict[str, SampleDetail]:
         compositions = _compositions()

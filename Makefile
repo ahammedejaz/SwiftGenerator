@@ -66,6 +66,18 @@ demo-pack:
 demo-pack-check:
 	cd backend && .venv/bin/python -m app.studio.demo_pack --check
 
+# Specification engine: compile a source schema into a pack, prove a pack against its
+# source. Usage: make spec-compile SOURCE=path/to/schema.xsd [OUT=backend/config/mx]
+#                make spec-validate PACK=path/to/pack.yaml SOURCE=path/to/schema.xsd
+spec-compile:
+	cd backend && .venv/bin/python -m app.spec_engine compile $(abspath $(SOURCE)) $(if $(OUT),--out $(abspath $(OUT)),) --validate
+
+spec-validate:
+	cd backend && .venv/bin/python -m app.spec_engine validate $(abspath $(PACK)) --source $(abspath $(SOURCE))
+
+spec-diff:
+	cd backend && .venv/bin/python -m app.spec_engine diff $(abspath $(BEFORE)) $(abspath $(AFTER))
+
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark
 

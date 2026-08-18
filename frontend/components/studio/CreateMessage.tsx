@@ -1182,8 +1182,9 @@ function SelectionBar({
             <p className="flex items-start gap-2 text-xs leading-5 text-ink-2">
               <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
               <span>
-                Coverage is a configured subset of the standard, not the complete
-                authoritative definition.
+                {entry.capabilitySummary ||
+                  "Coverage is a configured subset of the standard, not the complete " +
+                    "authoritative definition."}
               </span>
             </p>
           </div>

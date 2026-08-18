@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import Field, field_validator, model_validator
 
 from app.domain.models import ApiModel
+from app.studio.capability import CapabilityDimensions
 
 
 class MessageFormat(StrEnum):
@@ -27,6 +28,9 @@ class BusinessArea(StrEnum):
     SETTLEMENT_COMMANDS = "SETTLEMENT_COMMANDS"
     PENALTIES = "PENALTIES"
     CORPORATE_ACTIONS = "CORPORATE_ACTIONS"
+    #: Compiled packs from families outside the four configured areas land here until a
+    #: reviewer assigns them a real area. A catalogue bucket, never a capability claim.
+    OTHER = "OTHER"
 
 
 BUSINESS_AREA_LABELS: dict[BusinessArea, str] = {
@@ -34,6 +38,7 @@ BUSINESS_AREA_LABELS: dict[BusinessArea, str] = {
     BusinessArea.SETTLEMENT_COMMANDS: "Settlement Commands",
     BusinessArea.PENALTIES: "Penalties",
     BusinessArea.CORPORATE_ACTIONS: "Corporate Actions",
+    BusinessArea.OTHER: "Other Configured Messages",
 }
 
 
@@ -157,6 +162,10 @@ class CatalogueEntry(ApiModel):
     authoritative_completeness_known: bool
     source_reference: str
     limitations: list[str] = Field(default_factory=list)
+    #: What is actually established about this message, per authority layer, plus the
+    #: one-sentence reading of it. Derived — see app/studio/capability.py.
+    capability: CapabilityDimensions | None = None
+    capability_summary: str = ""
 
 
 class CatalogueBusinessArea(ApiModel):
@@ -275,6 +284,8 @@ class MessageSpec(ApiModel):
     name: str
     business_area: BusinessArea
     scope: str
+    #: The catalogue one-liner. Owned by the specification (manifest / MX spec), not code.
+    short_description: str = ""
     namespace: str | None = None
     groups: list[SpecGroup]
     fields: list[SpecField]
@@ -283,6 +294,8 @@ class MessageSpec(ApiModel):
     source_reference: str
     standards_release: str
     limitations: list[str] = Field(default_factory=list)
+    capability: CapabilityDimensions | None = None
+    capability_summary: str = ""
 
 
 # --------------------------------------------------------------------------------------

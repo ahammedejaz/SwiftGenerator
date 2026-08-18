@@ -1,9 +1,9 @@
+import re
 from datetime import date
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.domain.enums import MessageType
 from app.domain.models import ApiModel
 
 
@@ -89,7 +89,7 @@ class TagExample(BaseModel):
 class TagKnowledgeDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    message_types: list[MessageType] = Field(alias="messageTypes", min_length=1)
+    message_types: list[str] = Field(alias="messageTypes", min_length=1)
     workflow_module: WorkflowModuleId = Field(alias="workflowModule")
     sequence_path: str = Field(alias="sequencePath", min_length=1, max_length=80)
     field_tag: str = Field(alias="fieldTag", pattern=r"^[0-9]{2}[A-Z]$")
@@ -143,10 +143,20 @@ class TagKnowledgeDefinition(BaseModel):
             raise ValueError("Field options must be single uppercase letters")
         return list(dict.fromkeys(values))
 
+    @field_validator("message_types")
+    @classmethod
+    def validate_message_types(cls, values: list[str]) -> list[str]:
+        # Shape only. Whether the message actually exists is the manifest's call, checked
+        # at load — a record cannot conjure a message type into the platform by itself.
+        for item in values:
+            if not re.fullmatch(r"MT\d{3}", item):
+                raise ValueError(f"Not an MT message identifier: {item}")
+        return values
+
 
 class TagKnowledge(ApiModel):
     knowledge_id: str
-    message_type: MessageType
+    message_type: str
     workflow_module: WorkflowModuleId
     sequence_path: str
     field_tag: str
@@ -213,7 +223,7 @@ class EffectiveTagKnowledge(ApiModel):
 
 
 class KnowledgeMessageSummary(ApiModel):
-    message_type: MessageType
+    message_type: str
     workflow_module: WorkflowModuleId
     record_count: int
     knowledge_version: str

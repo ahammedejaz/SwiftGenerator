@@ -34,11 +34,24 @@ has a setting that points somewhere else.
 **Procedure.** Copy the file in, restart the backend, generate any message of that version.
 
 **What changes.** The `XSD` validation layer reports `OFFICIAL` instead of `SUBSET_DERIVED`,
-for that version only. Schema conformance becomes a real claim; today the derived schema
-proves only that a document matches this repository's own YAML.
+for that version only. Validation then proves conformance to the schema you supplied —
+today the derived schema proves only that a document matches this repository's own YAML.
+One honesty boundary is yours to hold: the platform verifies against the file in the drop
+location; it cannot verify that the file is the genuine ISO artifact. That assurance comes
+from your licence and your procedure, and `OFFICIAL` records your declaration, not a
+verification the platform performed.
 
 **What to re-run.** `make check` — the derived-schema tests still pass, because messages
 without an official schema are unaffected.
+
+**Going further.** The same schema can also *create* the message's specification pack:
+`make spec-compile SOURCE=path/to/schema.xsd` compiles it into the `config/mx` format,
+runs six gates (including validating a generated sample against the schema itself), and
+records the schema's sha256 in the pack's provenance. See
+[specification-engine.md](specification-engine.md). Whether the compiled pack — a derived
+structural description — may be committed to a repository is a licensing judgement that
+belongs to you, not to this tool; when in doubt, keep packs in a drop directory alongside
+the schema and point `MX_SPECIFICATION_DIRECTORY` at it.
 
 ---
 

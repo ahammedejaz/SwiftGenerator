@@ -223,14 +223,13 @@ def _mt_acceptable(field: SpecField, message_type: str, value: str) -> bool:
     a sample and then refused at generation.
     """
     from app.authoring.composer import row_format_valid
-    from app.domain.enums import MessageType
     from app.knowledge.presentation import is_direct_code_field
     from app.specifications.registry import specification_registry
 
     row = next(
         (
             item
-            for item in specification_registry.get(MessageType(message_type)).fields
+            for item in specification_registry.get(message_type).fields
             if item.row_id == field.id
         ),
         None,

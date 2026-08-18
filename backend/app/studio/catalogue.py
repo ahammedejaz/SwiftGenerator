@@ -9,12 +9,16 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from app.domain.enums import MessageType
 from app.knowledge.code_lists import code_lists
 from app.knowledge.loader import knowledge_repository
 from app.knowledge.models import WorkflowModuleId
 from app.profiles.loader import profiles
 from app.specifications.registry import specification_registry
+from app.studio.capability import (
+    CapabilityDimensions,
+    capability_summary,
+    derive_dimensions,
+)
 from app.studio.models import (
     BUSINESS_AREA_LABELS,
     MT_OUTPUT_MODES,
@@ -44,26 +48,6 @@ MODULE_TO_AREA: dict[WorkflowModuleId, BusinessArea] = {
     WorkflowModuleId.CORPORATE_ACTIONS: BusinessArea.CORPORATE_ACTIONS,
 }
 
-#: Plain-English one-liners so a tester who has never seen ISO 15022 can still choose.
-MT_DESCRIPTIONS: dict[MessageType, str] = {
-    MessageType.MT530: "Change the processing priority of an existing settlement instruction.",
-    MessageType.MT537: "Report settlement-discipline penalties on failed transactions.",
-    MessageType.MT540: "Instruct the receipt of securities free of payment.",
-    MessageType.MT541: "Instruct the receipt of securities against a cash payment.",
-    MessageType.MT542: "Instruct the delivery of securities free of payment.",
-    MessageType.MT543: "Instruct the delivery of securities against a cash payment.",
-    MessageType.MT544: "Confirm that securities were received free of payment.",
-    MessageType.MT545: "Confirm that securities were received against a cash payment.",
-    MessageType.MT546: "Confirm that securities were delivered free of payment.",
-    MessageType.MT547: "Confirm that securities were delivered against a cash payment.",
-    MessageType.MT548: "Advise the status of a settlement instruction, with the reason.",
-    MessageType.MT564: "Notify the account owner of a corporate action event and its options.",
-    MessageType.MT565: "Instruct an election on a corporate action option.",
-    MessageType.MT566: "Confirm the outcome of a corporate action election.",
-    MessageType.MT567: "Advise the status of a corporate action instruction.",
-    MessageType.MT568: "Send supporting narrative for a corporate action event.",
-}
-
 FORMAT_DESCRIPTIONS: dict[MessageFormat, str] = {
     MessageFormat.MT: "Traditional Swift FIN messages built from tags and sequences (ISO 15022).",
     MessageFormat.MX: "ISO 20022 XML messages built from a Business Application Header and a "
@@ -75,6 +59,37 @@ MT_LIMITATIONS = [
     "authoritative format definition.",
     "Network validation rules and market or institution rule packs require an authorised import.",
 ]
+
+
+# --------------------------------------------------------------------------------------
+# Capability dimensions — derived from what exists, never declared
+# --------------------------------------------------------------------------------------
+
+
+def _profile_configured(message_type: str) -> bool:
+    return any(
+        profile.requirements_for(message_type) for profile in profiles.list()
+    )
+
+
+@lru_cache(maxsize=64)
+def capability_dimensions(format_: MessageFormat, message_type: str) -> CapabilityDimensions:
+    if format_ is MessageFormat.MT:
+        # Hand-authored subsets with configured cross-field and profile rules throughout.
+        return derive_dimensions(
+            generated_from_schema=False,
+            has_business_rules=True,
+            profile_configured=_profile_configured(message_type),
+        )
+    spec = mx_registry.get(message_type)
+    has_rules = bool(spec.require_one_of) or any(
+        item.element.business_path for item in mx_registry.leaves(spec.message_type)
+    )
+    return derive_dimensions(
+        generated_from_schema=spec.source.generated,
+        has_business_rules=has_rules,
+        profile_configured=_profile_configured(spec.message_type),
+    )
 
 
 # --------------------------------------------------------------------------------------
@@ -90,7 +105,7 @@ def message_spec(format_: MessageFormat, message_type: str) -> MessageSpec:
 
 
 def _mt_spec(message_type: str) -> MessageSpec:
-    specification = specification_registry.get(MessageType(message_type.upper()))
+    specification = specification_registry.get(message_type)
     groups = [
         SpecGroup(
             id=sequence.path,
@@ -156,11 +171,12 @@ def _mt_spec(message_type: str) -> MessageSpec:
         )
     return MessageSpec(
         format=MessageFormat.MT,
-        message_type=specification.message_type.value,
+        message_type=specification.message_type,
         version=None,
         name=specification.name,
         business_area=MODULE_TO_AREA[specification.workflow_module],
         scope=specification.scope,
+        short_description=specification.short_description,
         namespace=None,
         groups=groups,
         fields=fields,
@@ -169,6 +185,10 @@ def _mt_spec(message_type: str) -> MessageSpec:
         source_reference=specification.source.source_reference,
         standards_release=specification.standards_release,
         limitations=MT_LIMITATIONS,
+        capability=capability_dimensions(MessageFormat.MT, specification.message_type),
+        capability_summary=capability_summary(
+            capability_dimensions(MessageFormat.MT, specification.message_type)
+        ),
     )
 
 
@@ -244,7 +264,11 @@ def _mx_spec(message_type: str) -> MessageSpec:
                 or _inherited_condition(flat.path, spec),
                 business_path=element.business_path,
                 xpath=flat.path,
-                data_type=element.data_type.value if element.data_type else None,
+                data_type=(
+                    element.data_type.value
+                    if element.data_type
+                    else (element.restriction.type_name if element.restriction else None)
+                ),
                 choice_group=flat.choice_branch or flat.choice_group,
                 source_reference=spec.source.source_reference,
                 standards_release=spec.standards_release,
@@ -257,6 +281,7 @@ def _mx_spec(message_type: str) -> MessageSpec:
         name=spec.name,
         business_area=spec.business_area,
         scope=spec.short_description,
+        short_description=spec.short_description,
         namespace=spec.namespace,
         groups=groups,
         fields=fields,
@@ -265,6 +290,10 @@ def _mx_spec(message_type: str) -> MessageSpec:
         source_reference=spec.source.source_reference,
         standards_release=spec.standards_release,
         limitations=spec.limitations,
+        capability=capability_dimensions(MessageFormat.MX, spec.message_type),
+        capability_summary=capability_summary(
+            capability_dimensions(MessageFormat.MX, spec.message_type)
+        ),
     )
 
 
@@ -278,6 +307,15 @@ def _allowed_values(code_list: str | None, codes: list[str]) -> list[AllowedValu
 
 def _mx_input_kind(element) -> InputKind:  # type: ignore[no-untyped-def]
     """The control for an ISO 20022 leaf, from its representation class."""
+    if element.data_type is None and element.restriction is not None:
+        from app.studio.mx.models import MxRestrictionBase
+
+        return {
+            MxRestrictionBase.DATE: InputKind.DATE,
+            MxRestrictionBase.DATE_TIME: InputKind.DATE,
+            MxRestrictionBase.DECIMAL: InputKind.QUANTITY,
+            MxRestrictionBase.BOOLEAN: InputKind.INDICATOR,
+        }.get(element.restriction.base, InputKind.TEXT)
     data_type = element.data_type.value if element.data_type else ""
     if data_type.startswith("ISIN"):
         return InputKind.IDENTIFIER
@@ -351,11 +389,7 @@ def _entry(spec: MessageSpec, variants: tuple[SampleVariant, ...]) -> CatalogueE
         message_type=spec.message_type,
         version=spec.version,
         name=spec.name,
-        short_description=(
-            MT_DESCRIPTIONS.get(MessageType(spec.message_type), spec.scope)
-            if spec.format is MessageFormat.MT
-            else spec.scope
-        ),
+        short_description=spec.short_description or spec.scope,
         business_area=spec.business_area,
         business_area_label=BUSINESS_AREA_LABELS[spec.business_area],
         generatable=True,
@@ -368,6 +402,8 @@ def _entry(spec: MessageSpec, variants: tuple[SampleVariant, ...]) -> CatalogueE
         authoritative_completeness_known=spec.authoritative_completeness_known,
         source_reference=spec.source_reference,
         limitations=spec.limitations,
+        capability=spec.capability,
+        capability_summary=spec.capability_summary,
     )
 
 
@@ -375,9 +411,11 @@ def build_catalogue() -> StudioCatalogue:
     from app.studio.samples import available_variants
 
     entries: list[CatalogueEntry] = []
-    for message_type in sorted(MessageType, key=lambda item: item.value):
-        spec = message_spec(MessageFormat.MT, message_type.value)
-        entries.append(_entry(spec, available_variants(MessageFormat.MT, message_type.value)))
+    for mt_spec in specification_registry.list():
+        spec = message_spec(MessageFormat.MT, mt_spec.message_type)
+        entries.append(
+            _entry(spec, available_variants(MessageFormat.MT, mt_spec.message_type))
+        )
     for mx_spec in mx_registry.all_specs():
         spec = message_spec(MessageFormat.MX, mx_spec.message_type)
         entries.append(_entry(spec, available_variants(MessageFormat.MX, mx_spec.message_type)))
@@ -423,11 +461,7 @@ def resolve_format(message_type: str) -> MessageFormat:
 
 def known_message_type(format_: MessageFormat, message_type: str) -> bool:
     if format_ is MessageFormat.MT:
-        try:
-            MessageType(message_type.strip().upper())
-        except ValueError:
-            return False
-        return True
+        return specification_registry.known(message_type)
     return mx_registry.known(message_type)
 
 

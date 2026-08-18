@@ -262,7 +262,7 @@ XSD validation runs against one of two schemas, and the response always says whi
 
 | Source | Where it comes from | What it proves |
 |---|---|---|
-| `OFFICIAL` | An ISO 20022 `.xsd` you drop into `backend/config/mx/xsd/official/` | Real conformance |
+| `OFFICIAL` | An `.xsd` you drop into `backend/config/mx/xsd/official/` as the official artifact | Conformance to that supplied schema. Whether the file is the genuine ISO artifact is your responsibility under your licence — the platform cannot verify it |
 | `SUBSET_DERIVED` | Generated at runtime from the YAML specification | The document matches *this repository's* subset |
 
 `SUBSET_DERIVED` is the default because the official schemas are licensed and not in this
@@ -344,6 +344,17 @@ UI, the Excel template and Message Intelligence with no code change.
 Add one YAML file to `backend/config/mx/`. The registry picks it up, the catalogue lists
 it, samples generate themselves, the Excel template gains a sheet, and the derived XSD is
 built from it. Still no code change.
+
+Or let the specification engine write that file for you: `make spec-compile
+SOURCE=schema.xsd` compiles an ISO 20022 schema into the same format, proves a generated
+sample against the source schema, and records the schema's checksum in the pack. The
+running application never compiles anything — packs arrive like any other configuration,
+through review and commit. See [specification-engine.md](specification-engine.md).
+
+**A new MT message**
+One entry in `backend/config/specifications/supported_subset_v1.yaml` (sequences, owner
+module, description) plus its field records in `backend/config/knowledge/`. The manifest
+is the single authority for which MT messages exist — there is no message list in code.
 
 **A new validation rule**
 MT rules live in `MtGenerator._business_rules` and `._profile_rules`; MX rules in

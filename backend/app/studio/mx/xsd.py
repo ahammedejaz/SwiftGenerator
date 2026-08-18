@@ -3,8 +3,10 @@
 Two schema sources are supported, and the one that was used is always reported:
 
 ``OFFICIAL``
-    An authoritative ISO 20022 schema placed in ``config/mx/xsd/official/``, named after
-    the message version, for example ``sese.023.001.11.xsd``. When present it is preferred.
+    A schema the operator placed in ``config/mx/xsd/official/`` as the official ISO 20022
+    artifact, named after the message version, for example ``sese.023.001.11.xsd``. When
+    present it is preferred. ``OFFICIAL`` records where the file came from and the
+    operator's declaration — the platform cannot verify the file is the genuine artifact.
 
 ``SUBSET_DERIVED``
     A schema generated from the repository's configured subset specification. This is a
@@ -22,10 +24,17 @@ from dataclasses import dataclass
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from app.config import get_settings, source_path
 from app.studio.models import IssueSeverity, Presence, ValidationIssue, ValidationLayer
-from app.studio.mx.models import MxDataType, MxElement, MxMessageSpec
+from app.studio.mx.models import (
+    MxDataType,
+    MxElement,
+    MxMessageSpec,
+    MxRestriction,
+    MxRestrictionBase,
+)
 
 
 def official_schema_directory() -> Path:
@@ -64,6 +73,38 @@ SIMPLE_TYPES: dict[MxDataType, str] = {
 }
 
 
+_RESTRICTION_XSD_BASES = {
+    MxRestrictionBase.TEXT: "xs:string",
+    MxRestrictionBase.DECIMAL: "xs:decimal",
+    MxRestrictionBase.DATE: "xs:date",
+    MxRestrictionBase.DATE_TIME: "xs:dateTime",
+    MxRestrictionBase.BOOLEAN: "xs:boolean",
+}
+
+
+def _restriction_xsd(restriction: MxRestriction) -> str:
+    """Rebuild the source schema's facets so the derived XSD enforces the same rule."""
+    facets: list[str] = []
+    if restriction.pattern is not None:
+        facets.append(f'<xs:pattern value="{escape(restriction.pattern, {chr(34): "&quot;"})}"/>')
+    if restriction.length is not None:
+        facets.append(f'<xs:length value="{restriction.length}"/>')
+    if restriction.min_length is not None:
+        facets.append(f'<xs:minLength value="{restriction.min_length}"/>')
+    if restriction.max_length is not None:
+        facets.append(f'<xs:maxLength value="{restriction.max_length}"/>')
+    if restriction.total_digits is not None:
+        facets.append(f'<xs:totalDigits value="{restriction.total_digits}"/>')
+    if restriction.fraction_digits is not None:
+        facets.append(f'<xs:fractionDigits value="{restriction.fraction_digits}"/>')
+    if restriction.min_inclusive is not None:
+        facets.append(f'<xs:minInclusive value="{restriction.min_inclusive}"/>')
+    if restriction.max_inclusive is not None:
+        facets.append(f'<xs:maxInclusive value="{restriction.max_inclusive}"/>')
+    base = _RESTRICTION_XSD_BASES[restriction.base]
+    return f'<xs:restriction base="{base}">{"".join(facets)}</xs:restriction>'
+
+
 class SchemaSource(StrEnum):
     OFFICIAL = "OFFICIAL"
     SUBSET_DERIVED = "SUBSET_DERIVED"
@@ -93,7 +134,11 @@ def _emit(element: MxElement, path: tuple[str, ...], complex_types: list[str]) -
 
     if element.is_leaf:
         data_type = element.data_type
-        assert data_type is not None
+        if data_type is None:
+            generic = element.restriction
+            assert generic is not None
+            inline = f"<xs:simpleType>{_restriction_xsd(generic)}</xs:simpleType>"
+            return f'<xs:element name="{element.name}"{occurs}>{inline}</xs:element>'
         if data_type is MxDataType.CODE:
             enumerations = "".join(
                 f'<xs:enumeration value="{code}"/>' for code in element.codes
@@ -205,7 +250,9 @@ def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
     if official is not None:
         schema_text = official.read_text(encoding="utf-8")
         source = SchemaSource.OFFICIAL
-        detail_prefix = f"Validated against the official schema {official.name}."
+        detail_prefix = (
+            f"Validated against the operator-supplied official schema {official.name}."
+        )
     else:
         schema_text = derive_schema(spec)
         source = SchemaSource.SUBSET_DERIVED

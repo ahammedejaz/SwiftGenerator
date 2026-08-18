@@ -36,7 +36,7 @@ from app.studio.models import (
 )
 from app.studio.mx.generator import APPHDR_DEFINITION, APPHDR_NAMESPACE
 from app.studio.mx.models import MxElement, MxMessageSpec
-from app.studio.mx.registry import mx_registry
+from app.studio.mx.registry import MxRegistry, mx_registry
 
 #: The synthetic root used when the pasted text holds two sibling roots — an AppHdr and a
 #: Document downloaded separately and concatenated, which is not well-formed XML on its own.
@@ -165,8 +165,11 @@ def _find(root: ElementTree.Element, predicate) -> ElementTree.Element | None:  
     return None
 
 
-def _document_of(root: ElementTree.Element) -> tuple[ElementTree.Element, MxMessageSpec]:
+def _document_of(
+    root: ElementTree.Element, registry: MxRegistry | None = None
+) -> tuple[ElementTree.Element, MxMessageSpec]:
     """Identify the message from the document namespace, never from the element name."""
+    lookup = registry or mx_registry
     found: list[tuple[ElementTree.Element, MxMessageSpec]] = []
     seen_namespaces: set[str] = set()
     for node in [root, *root.iter()]:
@@ -176,7 +179,7 @@ def _document_of(root: ElementTree.Element) -> tuple[ElementTree.Element, MxMess
         if namespace == APPHDR_NAMESPACE:
             continue
         seen_namespaces.add(namespace)
-        spec = mx_registry.by_namespace(namespace)
+        spec = lookup.by_namespace(namespace)
         if spec is not None and not any(node is existing for existing, _ in found):
             found.append((node, spec))
             break
@@ -190,7 +193,7 @@ def _document_of(root: ElementTree.Element) -> tuple[ElementTree.Element, MxMess
                 "message is not configured in this repository.",
                 layer=ValidationLayer.STRUCTURE,
                 current=sorted(seen_namespaces)[0],
-                expected=", ".join(mx_registry.namespaces()),
+                expected=", ".join(lookup.namespaces()),
                 suggestion="Import one of the configured messages, or add the message "
                 "specification to backend/config/mx.",
             )
@@ -200,7 +203,7 @@ def _document_of(root: ElementTree.Element) -> tuple[ElementTree.Element, MxMess
             "MX_IMPORT_NO_DOCUMENT",
             "No ISO 20022 Document was found in that XML.",
             layer=ValidationLayer.STRUCTURE,
-            expected=", ".join(mx_registry.namespaces()),
+            expected=", ".join(lookup.namespaces()),
             suggestion="Paste the Document element, including its xmlns declaration — the "
             "namespace is what identifies the message.",
         )
@@ -517,14 +520,14 @@ def _read_app_hdr(
 # --------------------------------------------------------------------------------------
 
 
-def parse_message(xml: str) -> MxImportResult:
+def parse_message(xml: str, registry: MxRegistry | None = None) -> MxImportResult:
     """Read an ISO 20022 document into canonical element values.
 
     :raises MxImportError: when the message cannot be identified, which is the only failure
         that leaves nothing to hand to the generator.
     """
     root = _load(xml)
-    document, spec = _document_of(root)
+    document, spec = _document_of(root, registry)
 
     reader = _DocumentReader(spec)
     reader.read(document)
