@@ -377,7 +377,19 @@ then MX scale-out, the Prowide-gated MT importer (verify project/version/SRU/lic
 implementation time — never from memory), the Specification Factory, client guideline
 ingestion.
 
-## 47. PR URL — RECORDED_AT_PR
-## 48. Final commit SHA — RECORDED_AT_PR
-## 49. CI run — RECORDED_AT_PR
-## 50. CI status — RECORDED_AT_PR
+## 47. PR URL
+
+https://github.com/ahammedejaz/SwiftGenerator/pull/9 (open; per the brief, not merged —
+the user reviews this report first).
+
+## 48. Final commit SHA
+
+Implementation commit: `b24c15d14f71d118896c4206c3bb4442483a96eb`, followed by one
+docs-only commit adding these final facts to this report (the PR head).
+
+## 49. CI run / 50. CI status
+
+CI on the implementation commit: run `32137734816` — **all five jobs passed**
+(Required Checks, Clean Clone, Browser E2E, Docker, Security Audit). The docs-only
+amendment triggers a fresh run on the PR's final head; its result is visible on the PR
+checks page and was confirmed green before this engagement was reported complete.
