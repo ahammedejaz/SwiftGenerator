@@ -23,7 +23,9 @@ structures can never silently share an identity.
 
 ```yaml
 source:
-  sourceType: OFFICIAL_ISO_20022_XSD      # declared by the operator — honestly
+  sourceType: OFFICIAL_ISO_20022_XSD      # an explicit operator declaration; the
+                                          # compiler's default is OPERATOR_SUPPLIED_XSD,
+                                          # which claims nothing about the artifact
   sourceReference: COMPILED-FROM-SESE.023.001.11.XSD
   reviewedAt: NOT_REVIEWED
   reviewedBy: SPECIFICATION_COMPILER

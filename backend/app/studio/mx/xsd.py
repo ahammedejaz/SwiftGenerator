@@ -3,8 +3,10 @@
 Two schema sources are supported, and the one that was used is always reported:
 
 ``OFFICIAL``
-    An authoritative ISO 20022 schema placed in ``config/mx/xsd/official/``, named after
-    the message version, for example ``sese.023.001.11.xsd``. When present it is preferred.
+    A schema the operator placed in ``config/mx/xsd/official/`` as the official ISO 20022
+    artifact, named after the message version, for example ``sese.023.001.11.xsd``. When
+    present it is preferred. ``OFFICIAL`` records where the file came from and the
+    operator's declaration — the platform cannot verify the file is the genuine artifact.
 
 ``SUBSET_DERIVED``
     A schema generated from the repository's configured subset specification. This is a
@@ -248,7 +250,9 @@ def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
     if official is not None:
         schema_text = official.read_text(encoding="utf-8")
         source = SchemaSource.OFFICIAL
-        detail_prefix = f"Validated against the official schema {official.name}."
+        detail_prefix = (
+            f"Validated against the operator-supplied official schema {official.name}."
+        )
     else:
         schema_text = derive_schema(spec)
         source = SchemaSource.SUBSET_DERIVED

@@ -100,9 +100,10 @@ automatically.
 | **sese.024** | Only the processing, matching and settlement status branches. No inferred matching, repair or modification status. |
 | **sese.025** | Omits `Lnkgs`, `FinInstrmAttrbts`, `CshPties`, `OthrAmts`, `SplmtryData`. Partial-settlement reporting beyond the confirmed quantity is not configured. |
 
-**Not implemented at all:** payments (`pacs.*`), cash management (`camt.*`), reconciliation
-(`semt.*`), and the cancellation and modification lifecycle (`sese.020`, `sese.027`,
-`sese.030`, `sese.031`).
+| **sese.020 / sese.027 / sese.030 / sese.031** | Implemented and generatable — the cancellation and modification lifecycle generates, validates and round-trips end to end — but the four specifications are **UNVERIFIED**: their version numbers, root element names and element sets were modelled on the ISO 20022 idioms already in this repository, not reconciled against an authoritative message-definition report. Reconcile before any use beyond internal testing. |
+
+**Not implemented at all:** payments (`pacs.*`), cash management (`camt.*`) and
+reconciliation (`semt.*`).
 
 The extension point for all of these is a YAML file. See
 [ARCHITECTURE.md](ARCHITECTURE.md#adding-things).
@@ -178,6 +179,6 @@ To be equally honest in the other direction:
   it refused to.
 - **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **813 automated tests** cover it: 752 backend, 61 in a real browser.
+- **1,109 automated tests** cover it: 1,036 backend, 73 in a real browser.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
   `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

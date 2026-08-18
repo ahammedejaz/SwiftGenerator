@@ -125,8 +125,10 @@ def main(argv: list[str] | None = None) -> int:
     compile_cmd.add_argument("--root", help="global element to treat as the document")
     compile_cmd.add_argument(
         "--source-type",
-        default="OFFICIAL_ISO_20022_XSD",
-        help="provenance label recorded in the pack (declare honestly)",
+        default="OPERATOR_SUPPLIED_XSD",
+        help="provenance label recorded in the pack. Declaring a source official is an "
+        "explicit statement — pass OFFICIAL_ISO_20022_XSD only for the genuine artifact "
+        "obtained under your licence; the default records no such claim.",
     )
     compile_cmd.add_argument(
         "--force", action="store_true", help="overwrite a pack from a different source"

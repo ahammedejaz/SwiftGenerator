@@ -36,7 +36,7 @@ def compile_schema(
     entry: Path,
     *,
     bundle_root: Path | None = None,
-    source_type: str = "OFFICIAL_ISO_20022_XSD",
+    source_type: str = "OPERATOR_SUPPLIED_XSD",
     root_name: str | None = None,
 ) -> CompiledPack:
     """Compile one message schema (plus its local bundle) into a specification pack."""

@@ -1,6 +1,6 @@
 # Testing
 
-**813 automated tests.** 752 backend, 61 in a real browser.
+**1,109 automated tests.** 1,036 backend, 73 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
 
 ---
 
@@ -50,14 +50,16 @@ npx playwright test --debug                                   # step through it
 
 | Folder | Tests | Covers |
 |---|---|---|
-| `studio/` | 485 | FIN envelope, MT and MX generation, import, the comparison, coverage, Excel, the `/api/v1` contract |
-| `unit/` | 139 | Resolver, profiles, validation, AI service, cache, telemetry, security |
+| `studio/` | 693 | FIN envelope, MT and MX generation, import, the comparison, coverage, Excel, capability dimensions, the `/api/v1` contract |
+| `unit/` | 193 | Resolver, profiles, identifiers, validation, AI service, cache, telemetry, security |
 | `api/` | 63 | The original scenario API, bulk, samples, security, lifecycle |
+| `spec_engine/` | 36 | XSD loader security, the compiler, pack gates, structural diff, the end-to-end pack integration |
+| `knowledge/` | 17 | The MT knowledge base |
 | `golden/` | 17 | Byte-for-byte MT output regression |
 | `workflows/` | 16 | Settlement processing, penalties, corporate actions |
-| `knowledge/` | 16 | The MT knowledge base |
+| `specifications/` | 13 | The manifest-driven dynamic registry |
 | `security/` | 9 | CORS, throttling, encryption |
-| `specifications/`, `samples/` | 7 | Registry and sample coverage |
+| `samples/` | 2 | Sample coverage |
 
 The studio suite is worth knowing in detail, because it encodes the rules that matter:
 
@@ -115,6 +117,7 @@ The studio suite is worth knowing in detail, because it encodes the rules that m
 | Spec | Covers |
 |---|---|
 | `studio-create.spec.ts` | The full manual journey for MT541 and sese.023, field explanations, progressive disclosure, plain-English validation, envelope origins, download |
+| `mt-authoring.spec.ts` | ISIN entry, SETR semantics, settlement parties, dropdowns, Guided/Expert mode switching |
 | `studio-import.spec.ts` | Importing MT and MX back into the builder, the message-type picker, refusals, the cancellation lifecycle |
 | `message-diff.spec.ts` | Original versus regenerated: the verdict, every reason, show-only-changes, copy, download, return to edit, phone width |
 | `studio-screens.spec.ts` | Excel round trip both formats, Intelligence search, Validate, Automation examples, Recent Messages, responsive behaviour, accessibility basics |

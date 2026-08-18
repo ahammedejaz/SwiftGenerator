@@ -324,7 +324,7 @@ requires a previous reference · status advice must report at least one status
 
 | Source | Origin | Proves |
 |---|---|---|
-| `OFFICIAL` | a `.xsd` in `backend/config/mx/xsd/official/` | real conformance |
+| `OFFICIAL` | a `.xsd` the operator supplied in `backend/config/mx/xsd/official/` | conformance to that supplied schema — the platform cannot verify the file is the genuine ISO artifact |
 | `SUBSET_DERIVED` | generated at runtime from the YAML | matches *this repo's* subset |
 
 `SUBSET_DERIVED` is the default (official schemas are licensed, not included). It is a real

@@ -262,7 +262,7 @@ XSD validation runs against one of two schemas, and the response always says whi
 
 | Source | Where it comes from | What it proves |
 |---|---|---|
-| `OFFICIAL` | An ISO 20022 `.xsd` you drop into `backend/config/mx/xsd/official/` | Real conformance |
+| `OFFICIAL` | An `.xsd` you drop into `backend/config/mx/xsd/official/` as the official artifact | Conformance to that supplied schema. Whether the file is the genuine ISO artifact is your responsibility under your licence — the platform cannot verify it |
 | `SUBSET_DERIVED` | Generated at runtime from the YAML specification | The document matches *this repository's* subset |
 
 `SUBSET_DERIVED` is the default because the official schemas are licensed and not in this
