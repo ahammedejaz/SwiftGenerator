@@ -96,7 +96,7 @@ automatically.
 `sese.030`, `sese.031`).
 
 The extension point for all of these is a YAML file. See
-[../ARCHITECTURE.md](../ARCHITECTURE.md#adding-things).
+[ARCHITECTURE.md](ARCHITECTURE.md#adding-things).
 
 ---
 

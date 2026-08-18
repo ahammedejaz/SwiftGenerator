@@ -131,4 +131,4 @@ These are the source of truth for the API, the UI, the Excel templates and Messa
 Intelligence at once. Editing one YAML file changes all four.
 
 See [how-messages-are-built.md](how-messages-are-built.md) for the shape of these files,
-and [../ARCHITECTURE.md](../ARCHITECTURE.md#adding-things) for how to add a message.
+and [ARCHITECTURE.md](ARCHITECTURE.md#adding-things) for how to add a message.

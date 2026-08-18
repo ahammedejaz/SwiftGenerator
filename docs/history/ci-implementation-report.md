@@ -12,7 +12,7 @@ CI exposed a genuine defect — see §1.
 ## 1 · Audit findings
 
 The repository had **no `.github/` directory at all**. That is the gap
-[V0_1_0_RELEASE_READINESS_REPORT.md](V0_1_0_RELEASE_READINESS_REPORT.md) §18 named as the top
+[v0-1-0-release-readiness-report.md](v0-1-0-release-readiness-report.md) §18 named as the top
 next step: PR #2 merged with `gh pr checks` reporting *"no checks reported"*, and the
 clean-clone defect that broke `make migrate` for every new developer reached `main` because
 no automated environment ever started from nothing.
@@ -264,7 +264,7 @@ CI **started automatically** on the pull request; no manual dispatch was needed.
 | `Makefile` | `PYTHON ?= python3.13`, so the interpreter can be named differently without duplicating the recipe |
 | `AGENTS.md` | New §11 *Continuous integration*; gotcha 22 updated with the second occurrence |
 | `docs/testing.md` | Points at CI and at how to reproduce a job |
-| `CI_IMPLEMENTATION_REPORT.md` | This document |
+| `docs/history/ci-implementation-report.md` | This document |
 
 ## 12 · Remaining limitations
 
@@ -282,7 +282,7 @@ CI **started automatically** on the pull request; no manual dispatch was needed.
   reasons outside the repository.
 - **Docker images are built, not run.** The job proves construction, not that the composed
   stack serves traffic; that check is manual and recorded in
-  [V0_1_0_RELEASE_READINESS_REPORT.md](V0_1_0_RELEASE_READINESS_REPORT.md) §5.
+  [v0-1-0-release-readiness-report.md](v0-1-0-release-readiness-report.md) §5.
 - **No deployment, release automation or image publishing.** Deliberately out of scope.
 - **The XSD race fix is reasoned, not locally reproduced.** It does not manifest on macOS,
   whose lxml wheel bundles a different libxml2. Three consecutive green CI runs on the same

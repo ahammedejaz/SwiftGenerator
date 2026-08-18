@@ -8,7 +8,7 @@
 still gets `make e2e` working. Nothing else needs configuring: no `.env`, no API keys.
 
 Every one of these also runs in GitHub Actions on each pull request and on each push to
-`main` — see `.github/workflows/ci.yml`, or §11 of [../AGENTS.md](../AGENTS.md). Reproducing
+`main` — see `.github/workflows/ci.yml`, or §11 of [AGENTS.md](AGENTS.md). Reproducing
 a CI job means running the same make target.
 
 ## Run everything

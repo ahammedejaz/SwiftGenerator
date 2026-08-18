@@ -1,7 +1,7 @@
 # MT authoring UX and domain-correctness plan
 
 Branch `feat/mt-authoring-ux-correctness`. Written after the audit in §1–§7 and before any
-code change, as [AGENTS.md](AGENTS.md) §3 requires: most of what follows is a YAML edit, and
+code change, as [AGENTS.md](../AGENTS.md) §3 requires: most of what follows is a YAML edit, and
 knowing which parts are *not* is the point of writing it down first.
 
 ---
@@ -82,7 +82,7 @@ Secondary findings:
 
 ## 3. SETR root cause
 
-Already recorded as a known defect in [AGENTS.md](AGENTS.md) §14, [docs/limitations.md](docs/limitations.md)
+Already recorded as a known defect in [AGENTS.md](../AGENTS.md) §14, [limitations.md](../limitations.md)
 and §16 item 4 — *"fix once an authoritative source exists"*. **The authoritative source is
 already in this repository**, which is the finding that unblocks it.
 

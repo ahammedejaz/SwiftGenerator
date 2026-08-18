@@ -121,7 +121,7 @@ authenticated draft flow. No MX anywhere.
 Three doors in, one room behind them. MT and MX never share a rendering path. The original
 scenario API and all thirteen specialist screens still work, unchanged, under **Advanced**.
 
-Full detail: [../../ARCHITECTURE.md](../../ARCHITECTURE.md).
+Full detail: [../ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ---
 
@@ -137,7 +137,7 @@ Full detail: [../../ARCHITECTURE.md](../../ARCHITECTURE.md).
 | Tag knowledge on a separate page | ℹ on every field, inline, no modal, no model call |
 | `ruleId` and `technicalExplanation` first | "Ready to generate" or "3 issues need attention", each naming field, problem, expectation and fix |
 | Downloads required a session | Copy and Download on the result |
-| Teal, Arial, generic dashboard | Warm paper around a dark proof sheet ([../../DESIGN.md](../../DESIGN.md)) |
+| Teal, Arial, generic dashboard | Warm paper around a dark proof sheet ([../DESIGN.md](../DESIGN.md)) |
 
 ---
 

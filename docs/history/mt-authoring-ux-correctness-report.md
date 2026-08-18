@@ -1,7 +1,7 @@
 # MT authoring UX and domain-correctness report
 
 Branch `feat/mt-authoring-ux-correctness` · commit `af327e5`.
-Plan and self-review: [MT_AUTHORING_UX_CORRECTNESS_PLAN.md](MT_AUTHORING_UX_CORRECTNESS_PLAN.md).
+Plan and self-review: [mt-authoring-ux-correctness-plan.md](mt-authoring-ux-correctness-plan.md).
 
 ---
 

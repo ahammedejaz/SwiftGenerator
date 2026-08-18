@@ -1,8 +1,8 @@
 # Repository context for AI agents
 
 Orientation document for an AI tool working on this repository. Dense and factual by
-design. Human-facing docs are [README.md](README.md), [ARCHITECTURE.md](ARCHITECTURE.md),
-[CONTRIBUTING.md](CONTRIBUTING.md) and [docs/](docs/README.md).
+design. Human-facing docs are [../README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md),
+[CONTRIBUTING.md](CONTRIBUTING.md) and [the docs index](README.md).
 
 ---
 
@@ -178,7 +178,7 @@ Each of those four locations has a setting that redirects it — `MT_SPECIFICATI
 `MX_SPECIFICATION_DIRECTORY`, `MX_OFFICIAL_XSD_DIRECTORY`, `CLIENT_PROFILE_DIRECTORY` — so a
 licensed artifact is a drop-in, not a code change. Unset means "the configuration committed
 here", which is what keeps a clean clone working with no environment.
-[docs/authoritative-sources.md](docs/authoritative-sources.md) is the procedure.
+[authoritative-sources.md](authoritative-sources.md) is the procedure.
 
 ### Frontend (new, ~4,800 LOC)
 
@@ -205,7 +205,7 @@ frontend/app/{,excel,intelligence,validate,automation,recent,advanced}/page.tsx
 demo/                                  synthetic pack, generated — never hand-written
 CLIENT_DEMO_RUNBOOK.md                 the twenty-minute walkthrough
 AUTHORITATIVE_ARTIFACT_CHECKLIST.md    what a client must supply, and what it unlocks
-V0_1_0_RELEASE_READINESS_REPORT.md     what was verified for the v0.1.0 baseline
+docs/history/                          point-in-time reports; v0-1-0-release-readiness-report.md is the v0.1.0 baseline
 ```
 
 ### Tests
@@ -363,7 +363,7 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 
 Branch protection is **not** configured yet; mark `CI / Required Checks` as required for
 `main` to turn CI from reporting into blocking. Detail and rationale:
-[CI_IMPLEMENTATION_REPORT.md](CI_IMPLEMENTATION_REPORT.md).
+[history/ci-implementation-report.md](history/ci-implementation-report.md).
 
 **Reproduce any job locally by running the same make target.** The workflow adds only what a
 runner needs that a laptop does not: the browser's OS libraries (`--with-deps`, which needs
@@ -620,7 +620,7 @@ Defects found and fixed while building this. These are the ones likely to recur:
 
 ## 14. Known limitations
 
-Full list: [docs/limitations.md](docs/limitations.md).
+Full list: [limitations.md](limitations.md).
 
 - **Coverage is a repository-configured subset**, never reconciled against a licensed spec.
 - **XSD is `SUBSET_DERIVED` by default.**
@@ -669,7 +669,7 @@ Full list: [docs/limitations.md](docs/limitations.md).
 | Add a validation rule | `MtGenerator._business_rules` / `._profile_rules`, or `MxGenerator._business_rules`. Prefer configuration (`requireOneOf`) where possible. |
 | Add an output format | `OutputMode` enum → produce in `StudioService` → extension in `routes.OUTPUT_FILE_TYPES`. |
 | Add an endpoint | `app/studio/routes.py` → `lib/studio-types.ts` → `lib/studio-api.ts`. |
-| Import a licensed spec, schema or client guideline | Drop the file in and point the matching setting at it. No code. [docs/authoritative-sources.md](docs/authoritative-sources.md) is the procedure; `GET /api/v1/sources` reports what is present. |
+| Import a licensed spec, schema or client guideline | Drop the file in and point the matching setting at it. No code. [authoritative-sources.md](authoritative-sources.md) is the procedure; `GET /api/v1/sources` reports what is present. |
 
 **Golden files** (`backend/tests/golden/expected/*.txt`) fail on any byte change to MT
 output. That friction is deliberate: update the fixture in the same commit and say why.
@@ -684,7 +684,7 @@ In value order on the current architecture:
    message-definition report. They are shipped, generating and round-tripping, but flagged
    `UNVERIFIED`; this is the cheapest way to remove a caveat that applies to four of seven
    MX messages. The procedure and what to re-run are in
-   [docs/authoritative-sources.md](docs/authoritative-sources.md).
+   [authoritative-sources.md](authoritative-sources.md).
 2. **Import a licensed MT specification.** Still the only thing that changes what the
    platform may *claim*. The drop point and the setting exist; the YAML structure already
    fits.

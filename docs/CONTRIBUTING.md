@@ -109,7 +109,7 @@ reject an out-of-order message.
 
 ### Add a client profile
 
-One file in `backend/config/profiles/`. See [docs/configuration.md](docs/configuration.md).
+One file in `backend/config/profiles/`. See [configuration.md](configuration.md).
 
 ---
 
@@ -214,7 +214,7 @@ If a test caught the bug, say so. If you changed a golden file, say why the outp
 
 ## Adding tests
 
-See [docs/testing.md](docs/testing.md). In short: name the test after the behaviour, assert
+See [testing.md](testing.md). In short: name the test after the behaviour, assert
 on rule ids rather than prose, parametrise over sets rather than picking a member, and
 prefer a real end-to-end assertion to a mock — the whole backend suite runs in about three
 seconds, so there is no speed argument for faking things.
