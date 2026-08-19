@@ -135,7 +135,7 @@ values → MT/MX adapter → resolved values ─┐
                                  ValidationIssue[]  + rule provenance
 ```
 
-`backend/app/rule_engine/` — 12 modules plus `extraction/` (9) and `evaluation/` (3).
+`backend/app/rule_engine/` — 13 modules plus `extraction/` (10) and `evaluation/` (3).
 
 ## 9. Source Bundle model
 
@@ -504,10 +504,10 @@ Four commits on the branch:
 | `02926b8` | 229 backend tests and the Message Intelligence integration |
 | `bfa05d6` | documentation and the browser spec |
 
-New: `backend/app/rule_engine/` (24 modules), `backend/config/rules/` (2 packs),
+New: `backend/app/rule_engine/` (26 modules), `backend/config/rules/` (2 packs),
 `backend/config/rule_sources/` (2 synthetic documents + manifest + README),
 `backend/config/rule_evaluation/corpus.yaml`, `backend/config/profiles/demo_market_client_v1.yaml`,
-`backend/tests/rule_engine/` (13 files), `frontend/tests/e2e/rule-overlays.spec.ts`,
+`backend/tests/rule_engine/` (14 files), `frontend/tests/e2e/rule-overlays.spec.ts`,
 four documents.
 
 Modified: `app/config.py`, `app/profiles/loader.py`, `app/studio/{models,capability,catalogue,service,intelligence}.py`,
@@ -517,7 +517,7 @@ seven documents, one existing test.
 
 ## 48. Tests added
 
-233 in `backend/tests/rule_engine/` across 13 files, one in
+233 in `backend/tests/rule_engine/` across 13 test files, one in
 `backend/tests/studio/test_capability_dimensions.py`, and 7 Playwright. Folder coverage: the DSL and its semantics;
 reference resolution and ambiguity; every compiler refusal; narrowing, widening, conflict
 and unsatisfiability; the registry's refuse-don't-skip invariant; safe ingestion and stable
@@ -686,12 +686,29 @@ Phase 6 — Specification Factory             deliberately not started
 Phase 7 — Client guideline ingestion        the source model is ready for it
 ```
 
-## 58–60. PR, final commit, CI
+## 58. Pull request
 
-Recorded in §58a below once pushed.
+**[#10 — Evidence-backed rule engine: declarative rule packs, overlays and offline
+extraction (Phase 2)](https://github.com/ahammedejaz/SwiftGenerator/pull/10)**, open against
+`main` and **deliberately unmerged**.
 
----
+## 59. Commits
 
-## 58a. PR, final commit and CI
+Five, in the order they were made:
 
-_Filled in from the actual run; see below._
+| SHA | |
+|---|---|
+| `2009f0a` | the engine core |
+| `7a002a9` | sources, extraction, the corpus, the CLI, the synthetic demo overlays |
+| `02926b8` | the test suite and Message Intelligence |
+| `bfa05d6` | documentation and the browser spec |
+| `38a05c9` | the two defects the live run found, and its results |
+
+## 60. CI
+
+Run [`32207632218`](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/32207632218)
+on `38a05c976bc92835f042c5f6e245c90b671fd536` — **all five jobs green**: Required Checks,
+Clean Clone, Browser E2E, Docker, Security Audit.
+
+This report's own commit becomes the final head and gets its own run, recorded on the PR.
+Nothing in it changes code; it records what the run above established.
