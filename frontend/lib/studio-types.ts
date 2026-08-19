@@ -391,6 +391,17 @@ export interface IntelligenceSearchResponse {
   llmUsed: boolean;
 }
 
+export interface FieldRuleSummary {
+  ruleId: string;
+  /** The authority layer in words — "Market practice rule". */
+  layer: string;
+  title: string;
+  meaning: string;
+  /** Source identity and location. Never licensed prose. */
+  sourceReference: string;
+  reviewStatus: string;
+}
+
 export interface IntelligenceDetail {
   id: string;
   format: MessageFormat;
@@ -421,6 +432,7 @@ export interface IntelligenceDetail {
   sourceReference: string;
   standardsRelease: string;
   sampleLines: string[];
+  rules?: FieldRuleSummary[];
 }
 
 export const PRESENCE_LABEL: Record<Presence, string> = {

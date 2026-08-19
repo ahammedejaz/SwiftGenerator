@@ -153,6 +153,38 @@ every sample of every configured message. What it still cannot do:
 - Rate limits, the AI circuit breaker, the L1 cache and telemetry are **per process**. A
   multi-instance deployment needs shared state for all of them.
 
+## Business rules are only as good as their evidence
+
+The [rule engine](specification-rule-engine.md) enforces rules that trace to a named source
+location. That is a claim about *this evidence*, never about the standard:
+
+- **A reviewed rule pack means reviewed against the cited document.** It does not mean the
+  document covers the standard, and `authoritativeCompletenessKnown` stays `false` — the
+  model refuses `true`.
+- **What ships is synthetic.** `DEMO_MARKET_V1` is a market invented for this repository and
+  `DEMO_MARKET_CLIENT_V1` an invented client. Neither is CBPR+, HVPS+, SEPA, MyStandards or
+  any custodian's guideline, and no real market practice is installed.
+- **No base-business rule pack ships for any real message.** Deriving one from a synthetic
+  document would claim knowledge of a real message's rules. The base layer is exercised in
+  tests against a synthetic compiled message.
+- **`sourceType` is an operator declaration.** The platform can know a document arrived
+  through the drop directory and that someone labelled it; it cannot prove the file is the
+  genuine licensed artifact.
+- **Two extraction passes are not independent authorities.** They may share a provider, a
+  model family and training data. Their agreement reduces review effort and establishes
+  nothing.
+- **The candidate vocabulary is nine rule shapes.** A source rule needing two conditions at
+  once, or an exception that cannot be folded in, is reported as an ambiguity rather than
+  approximated — so extraction misses things by design.
+- **Conflict analysis is a set of deterministic checks, not a theorem prover.** It finds
+  required-versus-forbidden, disjoint and widened code sets, unsatisfiable groups,
+  contradictory dates and impossible conditions. A subtler contradiction can still pass.
+- **PDF ingestion is a seam, not an implementation.** `pypdf` is not a dependency of this
+  repository; convert with `pdftotext -layout` first. Scanned and image-only documents are
+  refused, and there is no OCR.
+- **The field list given to an extraction pass is capped.** For a very large message a rule
+  about a field beyond the cap could not be found. Truncation is reported, never silent.
+
 ## External validation
 
 The platform accepts uploaded, checksum-correlated validation evidence. It does not
@@ -179,6 +211,6 @@ To be equally honest in the other direction:
   it refused to.
 - **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **1,109 automated tests** cover it: 1,036 backend, 73 in a real browser.
+- **1,349 automated tests** cover it: 1,269 backend, 80 in a real browser.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
   `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

@@ -70,6 +70,10 @@ row from the table below based on why you are here.
     ├── specification-engine.md        compile an ISO 20022 schema into a specification pack
     ├── specification-pack-format.md   what a pack contains and what it may claim
     ├── specification-engine-plan.md   the phased architecture programme (Phases 0–7)
+    ├── specification-rule-engine.md   business rules as reviewed, evidence-backed configuration
+    ├── rule-pack-format.md            what a rule pack contains and what it may claim
+    ├── rule-source-handling.md        licensed source documents, and what may be committed
+    ├── specification-rule-engine-plan.md   the Phase 2 architecture plan
     ├── ai-assistance.md               what the AI layer does (and does not)
     ├── security.md                    threat model and controls
     ├── testing.md                     run tests, add tests, the CI gate

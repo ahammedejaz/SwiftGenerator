@@ -133,6 +133,35 @@ counterparty. Envelope values stop being demonstration placeholders — which al
 
 ---
 
+## 5. Business-rule source documents
+
+| | |
+| --- | --- |
+| **Artifact** | A message definition report, message usage guide, market-practice document or client guideline — the *evidence* business rules are derived from. |
+| **Location** | `backend/config/rule_sources/` — the documents, plus `sources.yaml` declaring them. |
+| **Setting** | `RULE_SOURCE_DIRECTORY` |
+
+**Procedure.** Drop the document in, declare it in `sources.yaml` with a stable
+`sourceId`, its `sourceType` and a redistribution policy, then
+`make rule-source-ingest SOURCE_ID=…` and record the checksum it prints. From there the
+rule engine's offline pipeline produces candidates, a person reviews them, and the reviewed
+pack is committed to `backend/config/rules/`.
+
+**What changes.** The `BUSINESS_RULES`, `MARKET_PRACTICE` and `CLIENT_PROFILE` validation
+layers start enforcing rules traceable to a named source location, and the corresponding
+capability dimension moves.
+
+**What is committed.** The derived pack only — identity, location, checksums, and a short
+excerpt **only** where the operator declared excerpts redistributable. `.gitignore` keeps
+the documents themselves out of the repository. `sourceType` is an operator declaration in
+exactly the sense §1 describes: the platform can know a file arrived through this directory
+and that someone labelled it, and cannot prove it is the genuine licensed artifact.
+
+**What to re-run.** `make check` and `make rule-validate PACK=…`. See
+[rule-source-handling.md](rule-source-handling.md).
+
+---
+
 ## What none of this changes
 
 Session and sequence numbers, MAC, CHK and other authentication trailers, and the MX

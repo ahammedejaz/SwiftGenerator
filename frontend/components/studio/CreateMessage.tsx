@@ -1161,8 +1161,18 @@ function SelectionBar({
       </div>
 
       <div className="mt-4 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Labelled label="Client profile" hint="Controls allowed currencies and reference rules.">
-          <Select value={profileId} onChange={(event) => onProfileChange(event.target.value)}>
+        <Labelled
+          label="Client profile"
+          hint="Controls allowed currencies, reference rules and any installed rule packs."
+        >
+          {/* `Labelled` renders a label whose `for` nothing claims, so a control it wraps
+              is named by its own aria-label — the same arrangement the import textarea
+              uses. Without this the profile selector has no accessible name at all. */}
+          <Select
+            aria-label="Client profile"
+            value={profileId}
+            onChange={(event) => onProfileChange(event.target.value)}
+          >
             {profiles.map((profile) => (
               <option key={profile} value={profile}>
                 {profile}

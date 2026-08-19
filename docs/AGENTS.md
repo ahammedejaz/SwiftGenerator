@@ -68,11 +68,23 @@ in the catalogue; the synthetic fixture lives in `tests/fixtures/xsd/`. See
 [specification-engine.md](specification-engine.md) and
 [specification-engine-plan.md](specification-engine-plan.md).
 
+**The rule engine exists (Phase 2).** Business rules are versioned configuration in
+`backend/config/rules/`, not Python: a closed declarative DSL, format-neutral field
+references resolved through the existing registries, and three layers — base, market
+practice, client — that may narrow one another but never widen or silently contradict.
+An offline pipeline turns a source document into *candidates* (two isolated model passes,
+deterministic diff, adversarial refuter, then the same compiler that guards an installed
+pack); only a reviewed, source-controlled pack ever loads. Two clearly synthetic overlays
+ship for `sese.023` under the `DEMO_MARKET_CLIENT_V1` profile; no base-business pack ships
+for any real message. See [specification-rule-engine.md](specification-rule-engine.md),
+[rule-pack-format.md](rule-pack-format.md) and
+[rule-source-handling.md](rule-source-handling.md).
+
 **Verification status (all passing):**
 
 ```
-1036 backend tests (pytest)     ruff: clean      mypy --strict: clean (147 files)
- 73 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
+1269 backend tests (pytest)     ruff: clean      mypy --strict: clean (173 files)
+ 80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
@@ -331,6 +343,36 @@ requires a previous reference · status advice must report at least one status
 XSD compiled by libxml2 and independently catches element order, cardinality, datatypes,
 enumerations and required attributes — tests prove each. It is **not** conformance and the
 tool never claims it is. The response always reports which was used.
+
+The same reading governs business-rule sources: `sourceType` on a source bundle is an
+operator **declaration**, and the platform never converts it into a compliance claim.
+
+---
+
+## 8a. The rule engine: the invariants worth knowing before you touch it
+
+- **AI candidates never enter runtime validation.** `RulePackRegistry` loads a pack only
+  when the pack *and every rule in it* is `REVIEWED`, and it **refuses** rather than skips
+  anything else — a silent skip is how that invariant would erode.
+- **Rule packs cannot mutate structure packs.** There is no writer; the compiler only
+  resolves references. Refusals are named: an overlay cannot invent a code, add an element
+  or a tag, change a namespace, widen cardinality, or forbid a field the structure requires
+  in every message.
+- **Reviewed packs are source-controlled.** Local approval is not activation. The gate is
+  `candidate → review → git diff → PR → CI → merge`; nothing writes to `config/rules/` at
+  runtime and there is no review API.
+- **Overlay widening is forbidden.** A higher layer's code set must be a subset of the
+  effective set beneath it. A contradiction is reported with both rule identifiers and both
+  evidence origins; the engine never picks a winner.
+- **Source text is untrusted prompt data.** It is fenced, never followed, and the closed
+  response schema means an injected instruction cannot change the answer's shape.
+- **No chain-of-thought is persisted.** It is never requested, and only the closed schema's
+  fields are stored.
+- **Live extraction is not part of normal CI.** `make check` must pass with no provider
+  credential of any kind; a test asserts the offline evaluation cannot construct a live
+  client.
+- **Rule evaluation is pure.** No clock, no randomness, no I/O, no model — the platform
+  validates identically with AI access switched off.
 
 ---
 

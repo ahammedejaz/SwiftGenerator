@@ -383,6 +383,32 @@ function FieldDetail({ detail }: { detail: IntelligenceDetail }) {
         </div>
       )}
 
+      {(detail.rules ?? []).length > 0 && (
+        <div className="border-t border-line px-6 py-4">
+          <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            Rules that use this field
+          </h3>
+          {/* Only reviewed, source-controlled rules reach this list. A candidate is a
+              reviewer's artifact; showing one here would present a model's proposal as a
+              property of the standard. */}
+          <ul className="mt-2 space-y-2.5">
+            {(detail.rules ?? []).map((rule) => (
+              <li key={rule.ruleId} className="text-[0.8125rem] leading-6">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium text-ink">{rule.layer}</span>
+                  <code className="font-mono text-[0.6875rem] text-ink-3">{rule.ruleId}</code>
+                </div>
+                <p className="text-ink-2">{rule.meaning}</p>
+                <p className="text-xs leading-5 text-ink-3">
+                  Source <span className="font-mono">{rule.sourceReference}</span> ·{" "}
+                  {rule.reviewStatus.toLowerCase()}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {detail.sampleLines.length > 0 && (
         <div className="proof border-t border-proof-line bg-proof px-6 py-4">
           <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-proof-dim">
