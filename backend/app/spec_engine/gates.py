@@ -22,6 +22,7 @@ from app.spec_engine.diagnostics import (
 )
 from app.studio.models import ElementInput, Presence
 from app.studio.mx.generator import MxGenerator
+from app.studio.mx.models import MxMessageSpec
 from app.studio.mx.parser import parse_message
 from app.studio.mx.registry import MxRegistry
 
@@ -117,7 +118,52 @@ def _sample_inputs(registry: MxRegistry, message_type: str) -> list[ElementInput
     return inputs
 
 
-def _mutations(document: str, spec, registry: MxRegistry):  # type: ignore[no-untyped-def]
+def _repair_sample_inputs(
+    registry: MxRegistry,
+    spec: MxMessageSpec,
+    generator: MxGenerator,
+    inputs: list[ElementInput],
+) -> list[ElementInput]:
+    """Add deterministic values for mandatory blocks surfaced by the validator.
+
+    Real ISO schemas often require a container whose usable value is inside the first
+    branch of a nested choice. The initial pass selects mandatory-chain leaves, then this
+    repair loop asks the ordinary structure validator which concrete leaf would satisfy a
+    missing block and fills that leaf from the schema-derived example.
+    """
+    by_path = registry.by_path(spec.message_type)
+    existing = {item.path for item in inputs}
+
+    def add_path(path: str | None) -> bool:
+        if not path or path in existing:
+            return False
+        flat = by_path.get(path)
+        if flat is None or not flat.element.is_leaf or not flat.element.examples:
+            return False
+        inputs.append(ElementInput(path=path, value=flat.element.examples[0].value))
+        existing.add(path)
+        return True
+
+    for _round in range(8):
+        resolved, resolve_issues = generator.resolve(spec, inputs)
+        structural = generator.validate_structure(spec, resolved)
+        blocking = [*resolve_issues, *structural]
+        changed = False
+        for issue in blocking:
+            if issue.rule_id == "MX_MANDATORY_BLOCK_MISSING":
+                changed = add_path(issue.expected) or changed
+            elif issue.rule_id == "MX_MANDATORY_ELEMENT_MISSING":
+                changed = add_path(issue.location) or changed
+        if not changed:
+            break
+    return inputs
+
+
+def _mutations(
+    document: str,
+    spec: MxMessageSpec,
+    registry: MxRegistry,
+) -> dict[str, str | None]:
     """Deliberately broken variants the source schema must reject."""
     import re
 
@@ -213,8 +259,15 @@ def validate_pack(
         spec = registry.all_specs()[0]
         registry_gate = GateResult(True, f"{spec.message_type} ({spec.version})")
 
+        generator = MxGenerator(registry)
+
         # Gate 2 — a sample derives from the pack's own examples.
-        inputs = _sample_inputs(registry, spec.message_type)
+        inputs = _repair_sample_inputs(
+            registry,
+            spec,
+            generator,
+            _sample_inputs(registry, spec.message_type),
+        )
         mandatory_leaves = [
             item
             for item in registry.flat(spec.message_type)
@@ -230,7 +283,6 @@ def validate_pack(
         )
 
         # Gate 3 — the ordinary generator composes and its own validation passes.
-        generator = MxGenerator(registry)
         resolved, issues = generator.resolve(spec, inputs)
         structural = generator.validate_structure(spec, resolved)
         blocking = [item for item in (*issues, *structural) if item.severity.value == "ERROR"]

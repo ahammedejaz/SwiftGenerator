@@ -60,6 +60,9 @@ class ComplexTypeIR:
     attributes: list[AttributeIR] = field(default_factory=list)
     #: Simple content: the type extends a simple type and adds attributes (amounts).
     simple_content: SimpleTypeIR | None = None
+    #: The type permits open XML content through xs:any. The mapper does not write open
+    #: content; optional open-content branches are omitted with a visible limitation.
+    open_content: bool = False
 
 
 @dataclass

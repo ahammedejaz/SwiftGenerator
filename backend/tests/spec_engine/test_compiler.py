@@ -111,6 +111,41 @@ def test_unknown_simple_types_become_verbatim_restrictions() -> None:
     assert quantity.restriction.min_inclusive == "0"
 
 
+def test_real_observed_builtin_simple_bases_compile_as_generic_restrictions(
+    tmp_path: Path,
+) -> None:
+    body = (
+        '<xs:element name="SeenAt" type="ISOTime"/>'
+        '<xs:element name="SeenYear" type="ISOYear"/>'
+        '<xs:element name="Payload" type="Max10KBinary"/>'
+    )
+    schema = _write_schema(
+        tmp_path,
+        '<xs:simpleType name="ISOTime"><xs:restriction base="xs:time"/></xs:simpleType>'
+        '<xs:simpleType name="ISOYear"><xs:restriction base="xs:gYear"/></xs:simpleType>'
+        '<xs:simpleType name="Max10KBinary">'
+        '<xs:restriction base="xs:base64Binary"><xs:maxLength value="10240"/>'
+        "</xs:restriction></xs:simpleType>"
+        + _MINIMAL.format(body=body),
+    )
+    pack = compile_schema(schema)
+
+    seen_at = _element(pack, "SeenAt")
+    seen_year = _element(pack, "SeenYear")
+    payload = _element(pack, "Payload")
+
+    assert seen_at.restriction is not None
+    assert seen_at.restriction.base.value == "TIME"
+    assert seen_at.examples[0].value == "00:00:00Z"
+    assert seen_year.restriction is not None
+    assert seen_year.restriction.base.value == "YEAR"
+    assert seen_year.examples[0].value == "2026"
+    assert payload.restriction is not None
+    assert payload.restriction.base.value == "BINARY"
+    assert payload.restriction.max_length == 10240
+    assert payload.examples[0].value == "U1lOVEhFVElD"
+
+
 def test_an_inline_anonymous_simple_type_compiles() -> None:
     instrument = _element(compile_schema(FIXTURE), "Mvmnt", "FinInstrmId")
     assert instrument.restriction is not None
@@ -215,6 +250,29 @@ def test_xs_any_is_a_warning_and_a_recorded_limitation(tmp_path: Path) -> None:
         "</xs:sequence></xs:complexType></xs:element>"
     )
     pack = _compile_body(tmp_path, body)
+    assert any(f.code is FindingCode.XSD_UNSUPPORTED_CONSTRUCT for f in pack.findings)
+
+
+def test_optional_open_content_only_branch_is_omitted_with_a_limitation(
+    tmp_path: Path,
+) -> None:
+    body = (
+        '<xs:element name="TxId" type="xs:string"/>'
+        '<xs:element name="SplmtryData" minOccurs="0" type="SupplementaryData1"/>'
+    )
+    schema = _write_schema(
+        tmp_path,
+        '<xs:complexType name="SupplementaryData1"><xs:sequence>'
+        '<xs:element name="Envlp" type="SupplementaryDataEnvelope1"/>'
+        "</xs:sequence></xs:complexType>"
+        '<xs:complexType name="SupplementaryDataEnvelope1"><xs:sequence>'
+        '<xs:any processContents="lax"/></xs:sequence></xs:complexType>'
+        + _MINIMAL.format(body=body),
+    )
+    pack = compile_schema(schema)
+
+    assert [item.name for item in pack.spec.structure] == ["TxId"]
+    assert any("Open XML content" in item for item in pack.spec.limitations)
     assert any(f.code is FindingCode.XSD_UNSUPPORTED_CONSTRUCT for f in pack.findings)
 
 

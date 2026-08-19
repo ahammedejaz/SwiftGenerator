@@ -66,6 +66,9 @@ class MxRestrictionBase(StrEnum):
     DECIMAL = "DECIMAL"
     DATE = "DATE"
     DATE_TIME = "DATE_TIME"
+    TIME = "TIME"
+    YEAR = "YEAR"
+    BINARY = "BINARY"
     BOOLEAN = "BOOLEAN"
 
 
@@ -176,6 +179,12 @@ def restriction_format_text(restriction: MxRestriction) -> str:
         return "An ISO date, YYYY-MM-DD."
     if restriction.base is MxRestrictionBase.DATE_TIME:
         return "An ISO date and time, YYYY-MM-DDThh:mm:ss with an optional zone."
+    if restriction.base is MxRestrictionBase.TIME:
+        return "An ISO time, hh:mm:ss with an optional zone."
+    if restriction.base is MxRestrictionBase.YEAR:
+        return "A four-digit ISO year."
+    if restriction.base is MxRestrictionBase.BINARY:
+        return "Base64-encoded binary content."
     if restriction.base is MxRestrictionBase.BOOLEAN:
         return "true or false."
     if restriction.base is MxRestrictionBase.DECIMAL:

@@ -11,6 +11,8 @@ prevented from carrying XML — the two formats never share a rendering path.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import re
 from collections.abc import Callable
@@ -150,6 +152,22 @@ def _restriction_issue(  # noqa: C901 - one branch per facet family, each trivia
                 "An ISO date and time",
                 "Use YYYY-MM-DDThh:mm:ss with an optional time zone.",
             )
+        return None
+    if base is MxRestrictionBase.TIME:
+        try:
+            datetime.fromisoformat(f"2026-01-01T{value.replace('Z', '+00:00')}")
+        except ValueError:
+            return bad("An ISO time", "Use hh:mm:ss with an optional time zone.")
+        return None
+    if base is MxRestrictionBase.YEAR:
+        if not re.fullmatch(r"\d{4}", value):
+            return bad("A four-digit ISO year", "Use a value such as 2026.")
+        return None
+    if base is MxRestrictionBase.BINARY:
+        try:
+            base64.b64decode(value, validate=True)
+        except (ValueError, binascii.Error):
+            return bad("Base64-encoded content", "Use valid base64 text.")
         return None
     if base is MxRestrictionBase.DECIMAL:
         if not DECIMAL_PATTERN.fullmatch(value):

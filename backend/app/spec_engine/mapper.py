@@ -44,13 +44,25 @@ _KNOWN_DATA_TYPES = {
 }
 
 #: XSD built-in types an element may use directly (`type="xs:string"`).
-_BUILTIN_BASES = {"string", "decimal", "boolean", "date", "dateTime"}
+_BUILTIN_BASES = {
+    "string",
+    "decimal",
+    "boolean",
+    "date",
+    "dateTime",
+    "time",
+    "gYear",
+    "base64Binary",
+}
 
 _BASE_TO_RESTRICTION = {
     "xs:string": "TEXT",
     "xs:decimal": "DECIMAL",
     "xs:date": "DATE",
     "xs:dateTime": "DATE_TIME",
+    "xs:time": "TIME",
+    "xs:gYear": "YEAR",
+    "xs:base64Binary": "BINARY",
     "xs:boolean": "BOOLEAN",
 }
 
@@ -105,6 +117,12 @@ def _example_value(facets: Facets, context: MappingContext, path: str) -> str | 
         return "2026-01-01"
     if facets.base == "xs:dateTime":
         return "2026-01-01T00:00:00Z"
+    if facets.base == "xs:time":
+        return "00:00:00Z"
+    if facets.base == "xs:gYear":
+        return "2026"
+    if facets.base == "xs:base64Binary":
+        return "U1lOVEhFVElD"
     if facets.base == "xs:boolean":
         return "true"
     if facets.base == "xs:decimal":
@@ -357,6 +375,18 @@ def _map_element(
                 mapped.pop("presence", None)
             children.append(mapped)
     if not children:
+        if complex_.open_content:
+            context.limitation(
+                f"Open XML content under {path} is outside the configured subset and is "
+                "not written by the generic composer."
+            )
+            return None
+        if element.min_occurs == 0:
+            context.limitation(
+                f"{path} was omitted because none of its optional or open-content "
+                "children are representable in the configured subset."
+            )
+            return None
         context.log.error(
             FindingCode.XSD_UNSUPPORTED_CONSTRUCT,
             f"{path} has no representable children.",

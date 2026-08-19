@@ -34,6 +34,7 @@ backend/config/mx/xsd/sources/*
 !backend/config/mx/xsd/sources/README.md
 !backend/config/mx/xsd/sources/*.yaml
 build/mx-real-sources/
+build/mx-real-candidates/
 
 # The autonomous engagement brief. Kept locally, never committed.
 workPrompt.txt

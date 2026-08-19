@@ -392,3 +392,171 @@ To compile real ISO 20022 packs, an operator must place legitimately obtained XS
 matching the manifest `sourceLocation` values into `backend/config/mx/xsd/sources/` or a
 configured external source directory. Only then can the six-gate source-XSD proof run
 against exact source bytes and produce candidate packs for review.
+
+## OPERATOR-SUPPLIED REAL ISO PAYMENTS PASS
+
+This pass used the operator-supplied local folder:
+
+```text
+archive_payments_clearing_and_settlement_15_52355c2554
+```
+
+Source authority: `OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE`.
+Redistribution: `UNKNOWN`.
+Derived metadata redistribution: `UNKNOWN`.
+Raw source committed: `NO`.
+Generated real packs committed: `NO`.
+
+The source folder was inspected read-only and copied into the ignored local cache
+`build/mx-real-sources/` for verification. `git check-ignore -v` confirmed representative
+raw source paths are ignored by `.gitignore`.
+
+Inventory:
+
+| Artifact kind | Count | Notes |
+| --- | ---: | --- |
+| XSD source files | 8 | All parsed safely as `xs:schema`; filename IDs matched target namespaces. |
+| XML examples | 0 | None present in the extracted folder. |
+| ZIP archives | 0 | The supplied folder was already extracted. |
+| PDF documents | 1 | MDR Part 2 document present; not committed. |
+| DOCX documents | 1 | MDR Part 1 document present; not committed. |
+| XLSX documents | 1 | MDR Part 3 document present; not committed. |
+| BAH/AppHdr/head schemas | 0 | No `head.*`, `AppHdr` or BAH XSD was present in this archive. |
+
+Exact message definitions discovered:
+
+| Definition | targetNamespace | SHA-256 |
+| --- | --- | --- |
+| `pacs.002.001.16` | `urn:iso:std:iso:20022:tech:xsd:pacs.002.001.16` | `sha256:fa35ba75f6f22654bf82eadef689cd0c95ab620a7683bbad7602cef665e7c2f6` |
+| `pacs.003.001.12` | `urn:iso:std:iso:20022:tech:xsd:pacs.003.001.12` | `sha256:29d8bd67a711b0407c485715f5d396084eed51b48ac6f900928231e5ec0dd7e9` |
+| `pacs.004.001.15` | `urn:iso:std:iso:20022:tech:xsd:pacs.004.001.15` | `sha256:d325d76d83a95087850919f9e19d9187da6d4534766e0049a6f97285364db7a1` |
+| `pacs.007.001.14` | `urn:iso:std:iso:20022:tech:xsd:pacs.007.001.14` | `sha256:72906d810bbcd0d5ec5dc06c4c41ab9362f85e8d1a40f1467c68eb6c14a69354` |
+| `pacs.008.001.14` | `urn:iso:std:iso:20022:tech:xsd:pacs.008.001.14` | `sha256:e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306` |
+| `pacs.009.001.13` | `urn:iso:std:iso:20022:tech:xsd:pacs.009.001.13` | `sha256:81b1fcedad68faae63f56424db2e39a3ce873cb4537b6a284e3fafd3fab9691b` |
+| `pacs.010.001.06` | `urn:iso:std:iso:20022:tech:xsd:pacs.010.001.06` | `sha256:d8557fe0dcb4dd99c2461b329f18f858f44344b76cbceda904b766f35fa018b2` |
+| `pacs.028.001.07` | `urn:iso:std:iso:20022:tech:xsd:pacs.028.001.07` | `sha256:0618a23c104d68dd74d3e54f849c8a4d2bff6985da18c744df1c7ec74c90453f` |
+
+### pacs.008 Six-Gate Proof
+
+`pacs.008.001.14` was the first real proof target because it exists in the operator archive
+and matches the Phase 3 catalogue expectation by safely parsed `targetNamespace`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Safe load | PASS | Existing safe loader rejected no DOCTYPE/XXE/network dependency and loaded `xs:schema`. |
+| Compile | PASS | Source XSD compiled to an ordinary MX Specification Pack outside Git. |
+| Registry | PASS | Private `MxRegistry` loaded `pacs.008 (pacs.008.001.14)`. |
+| Sample / composer | PASS | Deterministic sample: 13 elements; generic `MxGenerator` composed 1206 bytes. |
+| Source-XSD validation | PASS | Generated `Document` validated against exact `pacs.008.001.14.xsd`. |
+| Round trip | PASS | Parse and recompose were canonically identical. |
+
+Runtime vertical slice with `MX_SPECIFICATION_DIRECTORY=build/mx-real-candidates`:
+
+| Area | Result |
+| --- | --- |
+| Catalogue | PASS; `pacs.008.001.14` appears with structure `COMPILED_FROM_SCHEMA`. |
+| Expert structure | PASS; 1805 generated fields are projected. |
+| Guided/sample fallback | PASS; `MINIMAL` sample is available, oversized `FULL` is hidden. |
+| JSON API / StudioService | PASS; generated valid `Document` and canonical JSON. |
+| Exact runtime XSD | PASS with `MX_OFFICIAL_XSD_DIRECTORY=build/mx-real-sources`. |
+| Excel template | PASS; template generated, 108576 bytes. |
+| Message Intelligence | PASS; search returned 1805 `pacs.008` hits and field details. |
+| Import | PASS; parser recovered 13 canonical elements with 0 errors. |
+| Round trip | PASS; canonical XML equality. |
+| Browser | PASS; Create Message flow generated `pacs.008` at desktop and mobile widths with no captured console/network failures. |
+
+### Payments Batch Metrics
+
+| Metric | Count |
+| --- | ---: |
+| XSD source files discovered | 8 |
+| Exact ISO message definitions discovered | 8 |
+| Schemas attempted | 8 |
+| Safe-loaded | 8 |
+| Compiled | 8 |
+| Registry passed | 8 |
+| Sample generated | 8 |
+| Source-XSD validated | 8 |
+| Parser passed | 8 |
+| Round-tripped | 8 |
+| Excel passed | 1 directly verified for `pacs.008`; all candidate packs are ordinary registry inputs. |
+| JSON API passed | 1 directly verified for `pacs.008`; all candidate packs use the same service path. |
+| All mandatory gates | 8 |
+| Failed | 0 |
+
+Exact all-gate passes:
+
+```text
+pacs.002.001.16
+pacs.003.001.12
+pacs.004.001.15
+pacs.007.001.14
+pacs.008.001.14
+pacs.009.001.13
+pacs.010.001.06
+pacs.028.001.07
+```
+
+Exact failures: none.
+
+Failure categories: none for the final batch.
+
+Generic compiler/runtime defects discovered and fixed:
+
+| Category | Generic fix |
+| --- | --- |
+| TYPE_RESOLUTION | Added generic restriction support for `xs:time`, `xs:gYear` and `xs:base64Binary`. |
+| UNSUPPORTED_XSD_CONSTRUCT | Optional `xs:any`/open-content-only branches are omitted with visible limitations instead of blocking a schema that can generate a valid subset without them. |
+| SAMPLE_SYNTHESIS | The source-gate sample synthesizer now repairs mandatory blocks by following ordinary validator path hints and filling schema-derived example values. |
+| SAMPLE_SYNTHESIS / CATALOGUE | Oversized `FULL` samples are not advertised when they exceed the API request item cap; minimal deterministic samples remain available. |
+| API / CONCURRENCY | First-use lxml schema compilation is now serialised as well as validation, preventing concurrent catalogue requests from crashing native libxml2 state under large real candidate packs. |
+
+Real constructs observed in the Payments archive:
+
+- `xs:schema`, global `Document`, named complex/simple types, `xs:sequence`, `xs:choice`;
+- `xs:enumeration`, `xs:pattern`, length facets, digit facets, inclusive bounds;
+- `xs:boolean`, `xs:date`, `xs:dateTime`, `xs:decimal`, `xs:string`;
+- `xs:time`, `xs:gYear`, `xs:base64Binary`;
+- decimal simpleContent with required `Ccy`;
+- unbounded `maxOccurs`, capped at 1000 with limitations;
+- optional `xs:any` open content, omitted with limitations.
+
+No `xs:include`, `xs:import`, `xs:all`, `xs:group`, complexContent inheritance,
+union/list simple types or mixed content were observed in the supplied Payments archive.
+
+Performance for `pacs.008.001.14`:
+
+| Step | Time |
+| --- | ---: |
+| Safe XSD load | 6.80 ms |
+| IR creation | 3.40 ms |
+| Compile | 723.94 ms |
+| Registry load for 8 real candidate packs | 9675.60 ms |
+| Sample synthesis | 14.54 ms |
+| StudioService XML generation | 159.30 ms |
+| Source-XSD validation | 1.58 ms |
+| Parser | 0.20 ms |
+| Round trip recompose | 5.65 ms |
+| Excel generation | 104.42 ms |
+
+Compile/build-time measurements remain separate from runtime generation. Normal message
+generation does not compile XSDs.
+
+### Status
+
+| Area | Status |
+| --- | --- |
+| Phase 3 foundation | `PHASE_3_FOUNDATION_COMPLETE` |
+| Real schema proof | `REAL_SCHEMA_PROOF_COMPLETE` |
+| Payments scale-out | `PAYMENTS_REAL_SCALEOUT_COMPLETE` for the supplied Payments archive |
+| Representative multi-family scale-out | Not claimed; this archive covers Payments Clearing and Settlement only. |
+
+Capability honesty: this pass improves only the structure dimension for local candidate
+packs. Business rules, market practice, client profile and external validation are
+unchanged. The honest claim is: validated against the exact operator-supplied ISO 20022 XSD.
+
+Recommended next source archive: **Payment Initiation**. The Payments Clearing and
+Settlement archive exercised deep party structures, choices, open supplementary data and
+unbounded repetition successfully; Payment Initiation is the closest high-value adjacent
+archive and should test similar payment structures with a different initiation-oriented
+shape before moving to cash management or securities families.

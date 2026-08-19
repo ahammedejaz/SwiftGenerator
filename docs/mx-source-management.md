@@ -156,3 +156,36 @@ make mx-scaleout \
 
 Generated candidate packs remain outside Git until redistribution of derived metadata is
 explicitly approved.
+
+## Operator-Supplied Extracted Message Sets
+
+When an operator has already downloaded and extracted an official ISO message-set archive
+outside the repository, copy only the XSD files needed for local verification into the
+ignored cache, for example:
+
+```bash
+mkdir -p build/mx-real-sources
+cp /path/to/extracted-message-set/*.xsd build/mx-real-sources/
+```
+
+Record safe metadata only in `backend/config/mx/xsd/sources/*.yaml`: exact message
+definition, target-namespace-derived checksum, authority declaration, `UNKNOWN`
+redistribution status and `rawSourceCommitted: false`. The Payments operator manifest is:
+
+```text
+backend/config/mx/xsd/sources/payments-operator-supplied-2026-08-20.yaml
+```
+
+Run the real-source batch without committing generated packs:
+
+```bash
+make mx-scaleout \
+  MANIFEST=backend/config/mx/xsd/sources/payments-operator-supplied-2026-08-20.yaml \
+  SOURCES=build/mx-real-sources \
+  OUT=build/mx-real-candidates \
+  REPORT=build/mx-real-candidates/payments-scaleout-report.md
+```
+
+`build/mx-real-sources/` and `build/mx-real-candidates/` are ignored. Raw XSD files,
+message-set ZIPs, MDR/MUG documents and generated real candidate packs must not be staged
+unless redistribution of that exact artifact class has been explicitly established.
