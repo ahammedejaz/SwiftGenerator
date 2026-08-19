@@ -83,7 +83,7 @@ for any real message. See [specification-rule-engine.md](specification-rule-engi
 **Verification status (all passing):**
 
 ```
-1269 backend tests (pytest)     ruff: clean      mypy --strict: clean (173 files)
+1274 backend tests (pytest)     ruff: clean      mypy --strict: clean (173 files)
  80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: five jobs on every PR and every push to main   see §11
 production build: clean         migrations: up/down/up clean

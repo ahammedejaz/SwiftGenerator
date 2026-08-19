@@ -37,8 +37,8 @@ list does not contain, return NO_RULE_FOUND and say so in `noRuleReason`.
 _VOCABULARY = """
 Express each rule with exactly one of these shapes:
 
-REQUIRED            targets[0] must always be present.
-FORBIDDEN           targets[0] must never be present.
+REQUIRED            every field in targets must always be present.
+FORBIDDEN           every field in targets must never be present.
 REQUIRED_IF         when the condition holds, every field in targets must be present.
 FORBIDDEN_IF        when the condition holds, every field in targets must be absent.
 CODE_SUBSET         targets[0] may carry only the values listed in `codes`.

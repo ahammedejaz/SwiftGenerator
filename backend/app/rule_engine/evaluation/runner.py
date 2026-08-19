@@ -15,6 +15,7 @@ from typing import Any
 from app.agents.providers.base import StructuredCompletionRequest
 from app.config import get_settings
 from app.knowledge.models import RuleLayer
+from app.rule_engine.diagnostics import RuleFindingCode
 from app.rule_engine.evaluation.corpus import (
     Corpus,
     CorpusCase,
@@ -348,13 +349,18 @@ async def _run_live(corpus: Corpus, index: StructureIndex) -> EvaluationReport:
         if outcome is None or segment_id is None:
             continue
         expected_keys = {
-            canonicalise(
-                rule.as_candidate(case.case_id, segment_id), MessageFormat(corpus.format)
-            ).key
+            item
             for rule in case.expected_rules
+            for item in _rule_set(
+                canonicalise(
+                    rule.as_candidate(case.case_id, segment_id), MessageFormat(corpus.format)
+                ).key
+            )
         }
         produced_keys = {
-            _accepted_key(item, MessageFormat(corpus.format)) for item in outcome.accepted
+            key
+            for item in outcome.accepted
+            for key in _rule_set(_accepted_key(item, MessageFormat(corpus.format)))
         }
         true_positive += len(expected_keys & produced_keys)
         false_positive += len(produced_keys - expected_keys)
@@ -364,6 +370,17 @@ async def _run_live(corpus: Corpus, index: StructureIndex) -> EvaluationReport:
             if not produced_keys:
                 no_rule_correct += 1
         failures = list(_check_injection(outcome))
+        # Schema-invalid output is a *pipeline* defect, not a question of model quality: it
+        # means the application asked for something the provider was never told to return.
+        # Reading a paragraph differently from us is not a failure and is reported, not
+        # gated — a live run that failed whenever a model missed a rule would be a threshold
+        # tuned for green rather than a measurement.
+        schema_invalid = [
+            item
+            for item in outcome.findings
+            if item.code is RuleFindingCode.RULE_EXTRACTION_SCHEMA_INVALID
+        ]
+        failures.extend(item.render() for item in schema_invalid)
         if case.category is CorpusCategory.INJECTION:
             injection_total += 1
             if not failures:
@@ -379,7 +396,23 @@ async def _run_live(corpus: Corpus, index: StructureIndex) -> EvaluationReport:
             )
         )
     metrics = run.metrics()
+    matched = sum(
+        1
+        for item in report.results
+        if set(item.produced_keys)
+        == {
+            key
+            for entry in item.case.expected_rules
+            for key in _rule_set(
+                canonicalise(
+                    entry.as_candidate(item.case.case_id, "X#S0000"),
+                    MessageFormat(corpus.format),
+                ).key
+            )
+        }
+    )
     report.metrics = {
+        "cases read as the corpus reads them": f"{matched}/{len(report.results)}",
         "precision": _ratio(true_positive, true_positive + false_positive),
         "recall": _ratio(true_positive, true_positive + false_negative),
         "true positives": true_positive,
@@ -395,17 +428,42 @@ async def _run_live(corpus: Corpus, index: StructureIndex) -> EvaluationReport:
     return report
 
 
+
+#: Shapes whose targets are independent claims: "A, B and C must be present" is the same
+#: rule set as three separate requirements. Comparing groupings rather than rule sets would
+#: score a faithful reading as both a miss and a false positive at once.
+SEPARABLE_SHAPES = frozenset({"REQUIRED", "FORBIDDEN", "REQUIRED_IF", "FORBIDDEN_IF"})
+
+
+def _rule_set(key: tuple[str, tuple[str, ...]]) -> set[tuple[str, tuple[str, ...]]]:
+    shape, targets = key
+    if shape in SEPARABLE_SHAPES and len(targets) > 1:
+        return {(shape, (target,)) for target in targets}
+    return {key}
+
+
 def _accepted_key(
     item: Rule | CodeRestriction, format_: MessageFormat
 ) -> tuple[str, tuple[str, ...]]:
-    """The same identity a canonical candidate uses, read back off an accepted rule."""
-    from app.rule_engine.dsl import references
+    """The same identity a canonical candidate uses, read back off an accepted rule.
 
-    if isinstance(item, CodeRestriction):
-        return "CODE_SUBSET", (item.field.canonical(),)
-    refs = tuple(dict.fromkeys(ref.canonical() for ref in references(item.assert_)))
+    Target order must be normalised exactly as ``canonicalise`` normalises it — sorted for
+    the shapes whose operands commute, left alone for the ones where order carries meaning.
+    Sorting unconditionally would make every DATE_ORDER rule look like a miss and a false
+    positive at once, which is a measurement bug rather than a model one.
+    """
+    from app.rule_engine.dsl import references
+    from app.rule_engine.extraction.canonical import COMMUTATIVE_TYPES
+    from app.rule_engine.extraction.schemas import CandidateRuleType
+
     del format_
-    return _shape_of(item), tuple(sorted(refs))
+    if isinstance(item, CodeRestriction):
+        return CandidateRuleType.CODE_SUBSET.value, (item.field.canonical(),)
+    refs = tuple(dict.fromkeys(ref.canonical() for ref in references(item.assert_)))
+    shape = _shape_of(item)
+    if CandidateRuleType(shape) in COMMUTATIVE_TYPES:
+        refs = tuple(sorted(refs))
+    return shape, refs
 
 
 def _shape_of(rule: Rule) -> str:

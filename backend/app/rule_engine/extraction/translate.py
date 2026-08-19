@@ -70,8 +70,8 @@ _CONDITION_OPERATOR = {
 #: How many targets each shape needs. A shape given the wrong number is a malformed
 #: candidate, not something to be quietly repaired.
 _TARGET_COUNT: dict[CandidateRuleType, tuple[int, int]] = {
-    CandidateRuleType.REQUIRED: (1, 1),
-    CandidateRuleType.FORBIDDEN: (1, 1),
+    CandidateRuleType.REQUIRED: (1, 6),
+    CandidateRuleType.FORBIDDEN: (1, 6),
     CandidateRuleType.REQUIRED_IF: (1, 6),
     CandidateRuleType.FORBIDDEN_IF: (1, 6),
     CandidateRuleType.CODE_SUBSET: (1, 1),
@@ -172,9 +172,14 @@ def _assertion(
 ) -> Expression | None:
     match candidate.rule_type:
         case CandidateRuleType.REQUIRED:
-            return Predicate(field=refs[0], operator=Operator.EXISTS)
+            # "must carry the ISIN, the quantity and the account" is one sentence and one
+            # reading. Rejecting it because the shape took a single target made REQUIRED
+            # asymmetric with REQUIRED_IF for no reason a source would recognise.
+            parts = [Predicate(field=ref, operator=Operator.EXISTS) for ref in refs]
+            return parts[0] if len(parts) == 1 else AllOf(all_of=tuple(parts))
         case CandidateRuleType.FORBIDDEN:
-            return Predicate(field=refs[0], operator=Operator.ABSENT)
+            parts = [Predicate(field=ref, operator=Operator.ABSENT) for ref in refs]
+            return parts[0] if len(parts) == 1 else AllOf(all_of=tuple(parts))
         case CandidateRuleType.REQUIRED_IF:
             parts = [Predicate(field=ref, operator=Operator.EXISTS) for ref in refs]
             return parts[0] if len(parts) == 1 else AllOf(all_of=tuple(parts))

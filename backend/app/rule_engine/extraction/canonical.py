@@ -30,6 +30,8 @@ COMMUTATIVE_TYPES = frozenset(
         CandidateRuleType.MUTUALLY_EXCLUSIVE,
         CandidateRuleType.AT_LEAST_ONE_OF,
         CandidateRuleType.EXACTLY_ONE_OF,
+        CandidateRuleType.REQUIRED,
+        CandidateRuleType.FORBIDDEN,
         CandidateRuleType.REQUIRED_IF,
         CandidateRuleType.FORBIDDEN_IF,
     }

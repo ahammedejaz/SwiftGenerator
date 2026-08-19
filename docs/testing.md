@@ -1,6 +1,6 @@
 # Testing
 
-**1,349 automated tests.** 1,269 backend, 80 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
+**1,354 automated tests.** 1,274 backend, 80 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
 
 ---
 
@@ -54,7 +54,7 @@ npx playwright test --debug                                   # step through it
 | `unit/` | 193 | Resolver, profiles, identifiers, validation, AI service, cache, telemetry, security |
 | `api/` | 63 | The original scenario API, bulk, samples, security, lifecycle |
 | `spec_engine/` | 40 | XSD loader security, the compiler, pack gates, structural diff, provenance honesty, the end-to-end pack integration |
-| `rule_engine/` | 228 | The rule DSL and its semantics, reference resolution, every compiler refusal, layer narrowing and conflict, the review gate, source ingestion and segmentation, the extraction pipeline against scripted providers, the injection boundary, the evaluation corpus, and the synthetic end-to-end proof |
+| `rule_engine/` | 233 | The rule DSL and its semantics, reference resolution, every compiler refusal, layer narrowing and conflict, the review gate, source ingestion and segmentation, the extraction pipeline against scripted providers, the injection boundary, the evaluation corpus, and the synthetic end-to-end proof |
 | `knowledge/` | 17 | The MT knowledge base |
 | `golden/` | 17 | Byte-for-byte MT output regression |
 | `workflows/` | 16 | Settlement processing, penalties, corporate actions |

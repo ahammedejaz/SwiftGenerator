@@ -211,6 +211,6 @@ To be equally honest in the other direction:
   it refused to.
 - **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **1,349 automated tests** cover it: 1,269 backend, 80 in a real browser.
+- **1,354 automated tests** cover it: 1,274 backend, 80 in a real browser.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
   `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

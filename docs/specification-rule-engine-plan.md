@@ -1039,3 +1039,32 @@ reports `SOURCE_FORMAT_UNSUPPORTED` when no extractor is installed, and the docu
 tells the operator to convert with `pdftotext -layout` — which also gives them a text file
 they can checksum and inspect. This is recorded in `docs/limitations.md` rather than
 presented as done.
+
+---
+
+# What changed during implementation
+
+This is a plan, written before the code. Four things came out differently, and the
+[Phase 2 report](history/specification-engine-phase-02-report.md) records the built system.
+
+1. **Layer names.** The plan wrote `BASE_BUSINESS` / `MARKET_PRACTICE` / `CLIENT`. The
+   implementation reuses the repository's existing `RuleLayer` — `BASE_STANDARD` /
+   `MARKET_PRACTICE` / `CLIENT_PROFILE` — which is the stronger reading of "adapt to
+   existing conventions" and also makes each rule layer map onto the validation layer of
+   the same name.
+
+2. **A disagreement produces two candidates, not one.** The plan left the candidate body of
+   a partially-agreed pair unstated. Emitting extraction A with the difference recorded
+   underneath is still choosing a side, so both readings now go forward as separate
+   candidates for the reviewer to decide between.
+
+3. **One compiler check was added.** A rule that unconditionally forbids a field the
+   structure requires in every message can never be satisfied. That is exactly the shape a
+   mis-extraction takes when a model follows an instruction it read in the source, so
+   deterministic code refuses it rather than leaving it to a reviewer's attention.
+
+4. **The `Labelled` accessibility fix was reverted.** Associating every wrapped control
+   changed how labels resolve across the whole application and broke eleven existing
+   tests. Only the control this phase needs — the profile selector — was named, the way the
+   same file already names its import textarea. The general defect is recorded rather than
+   silently left.

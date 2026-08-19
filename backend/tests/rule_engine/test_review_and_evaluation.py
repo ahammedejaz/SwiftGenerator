@@ -230,3 +230,69 @@ def test_the_corpus_file_is_committed_where_the_runner_looks_for_it() -> None:
 
     assert (corpus_directory() / "corpus.yaml").is_file()
     assert Path("config/rule_evaluation/corpus.yaml").is_file()
+
+
+# -- the strict provider schema -------------------------------------------------------------
+
+
+def test_every_candidate_field_survives_into_the_strict_schema() -> None:
+    """The schema the provider is given must ask for exactly what the application requires.
+
+    It did not: the normaliser stripped every dict key called ``title`` — schema keyword
+    and *field name* alike — so the model was never asked for the candidate's title, never
+    sent one, and every response was then rejected for a missing required field. Offline
+    runs could not see it, because a scripted answer always includes every field. This is
+    the guard that would have caught it.
+    """
+    from app.rule_engine.extraction.schemas import (
+        CandidateExtraction,
+        CandidateRule,
+        Refutation,
+        candidate_schema,
+        refutation_schema,
+    )
+
+    for model, schema, definition in (
+        (CandidateRule, candidate_schema(), "CandidateRule"),
+        (CandidateExtraction, candidate_schema(), None),
+        (Refutation, refutation_schema(), None),
+    ):
+        node = schema["$defs"][definition] if definition else schema
+        published = set(node["properties"])
+        required = {field.alias or name for name, field in model.model_fields.items()}
+        assert required == published, f"{model.__name__}: {sorted(required ^ published)}"
+        # Strict mode: every property is required and nothing else is accepted.
+        assert set(node["required"]) == published
+        assert node["additionalProperties"] is False
+
+
+def test_a_property_named_like_a_schema_keyword_is_not_stripped() -> None:
+    from pydantic import BaseModel, ConfigDict
+
+    from app.agents.schemas import normalise_provider_schema
+
+    class Awkward(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        title: str
+        default: str
+
+    normalised = normalise_provider_schema(Awkward.model_json_schema())
+    assert isinstance(normalised, dict)
+    assert set(normalised["properties"]) == {"title", "default"}
+    # …while the schema's own `title` keyword is still removed from the object itself.
+    assert "title" not in {key for key in normalised if key != "properties"}
+
+
+def test_the_interpretation_schema_is_unchanged_by_that_fix() -> None:
+    # The normaliser is shared with the settlement-intent path. Its published schema must
+    # be byte-identical, because nothing there is named after a schema keyword.
+    import hashlib
+    import json
+
+    from app.agents.schemas import strict_interpretation_schema
+
+    digest = hashlib.sha256(
+        json.dumps(strict_interpretation_schema(), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    assert digest.startswith("6ea14edb65cc8b7d")

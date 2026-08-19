@@ -474,3 +474,66 @@ def test_extraction_never_touches_the_installed_rule_registry(index: StructureIn
     assert RuleLayer.BASE_STANDARD not in {
         compiled.pack.layer for compiled in rule_pack_registry.packs()
     }
+
+
+# -- the vocabulary --------------------------------------------------------------------------
+
+
+def test_required_and_forbidden_may_name_several_fields(index: StructureIndex) -> None:
+    """"Must carry the ISIN, the quantity and the account" is one sentence and one reading.
+
+    These shapes originally took a single target while their conditional twins took six,
+    an asymmetry no source would recognise — a live run found a model reading the sentence
+    correctly and the vocabulary rejecting it.
+    """
+    ingested = source(
+        "## Requirements\n\nEvery instruction must carry the ISIN, the quantity of units "
+        "and the safekeeping account identification.\n"
+    )
+    several = candidate(
+        ruleType="REQUIRED",
+        targets=[
+            "/Document/SctiesSttlmTxInstr/FinInstrmId/ISIN",
+            "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SttlmQty/Qty/Unit",
+            "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SfkpgAcct/Id",
+        ],
+        conditionField="",
+        conditionOperator="NONE",
+        conditionValues=[],
+    )
+    result, _ = run(index, ingested, staged(found(several), found(several)))
+    outcome = result.outcomes[0]
+    assert outcome.findings == ()
+    assert len(outcome.accepted) == 1
+    accepted = outcome.accepted[0]
+    assert isinstance(accepted, Rule)
+    # One rule, three independent claims — the same rule set as three separate rules.
+    from app.rule_engine.dsl import AllOf, references
+
+    assert isinstance(accepted.assert_, AllOf)
+    assert len(references(accepted.assert_)) == 3
+
+
+def test_the_targets_of_a_multi_field_requirement_commute(index: StructureIndex) -> None:
+    # Two passes listing the same three fields in different orders agree; treating the
+    # order as meaningful would manufacture a disagreement out of nothing.
+    ingested = source("## Requirements\n\nBoth fields must be present.\n")
+    first = candidate(
+        ruleType="REQUIRED",
+        targets=[
+            "/Document/SctiesSttlmTxInstr/FinInstrmId/ISIN",
+            "/Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SfkpgAcct/Id",
+        ],
+        conditionField="",
+        conditionOperator="NONE",
+        conditionValues=[],
+    )
+    second = candidate(
+        ruleType="REQUIRED",
+        targets=list(reversed(first["targets"])),
+        conditionField="",
+        conditionOperator="NONE",
+        conditionValues=[],
+    )
+    result, _ = run(index, ingested, staged(found(first), found(second)))
+    assert result.outcomes[0].agreement is ExtractionAgreement.AGREE
