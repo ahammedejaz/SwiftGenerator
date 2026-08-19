@@ -27,3 +27,6 @@ data/
 
 # Licensed ISO 20022 schemas are dropped in locally, never committed.
 backend/config/mx/xsd/official/*.xsd
+
+# The autonomous engagement brief. Kept locally, never committed.
+workPrompt.txt

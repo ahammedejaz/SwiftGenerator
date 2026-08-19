@@ -31,6 +31,7 @@ export type ValidationLayer =
   | "STRUCTURE"
   | "FORMAT"
   | "BUSINESS_RULES"
+  | "MARKET_PRACTICE"
   | "CLIENT_PROFILE"
   | "FIN_ENVELOPE"
   | "XML_WELL_FORMED"
@@ -434,6 +435,7 @@ export const LAYER_LABEL: Record<ValidationLayer, string> = {
   STRUCTURE: "Message structure",
   FORMAT: "Field formats",
   BUSINESS_RULES: "Business rules",
+  MARKET_PRACTICE: "Market practice",
   CLIENT_PROFILE: "Client profile",
   FIN_ENVELOPE: "FIN envelope",
   XML_WELL_FORMED: "XML is well formed",

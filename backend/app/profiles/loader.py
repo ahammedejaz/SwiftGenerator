@@ -87,6 +87,10 @@ class ClientProfile(BaseModel):
     client_required_fields: dict[str, list[str]] = Field(alias="clientRequiredFields")
     enabled_negative_mutations: list[NegativeMutation] = Field(alias="enabledNegativeMutations")
     validation: ProfileValidation
+    #: The market-practice rule packs this profile applies, if any. A market is a
+    #: convention several clients share, so it is named here rather than duplicated into
+    #: every client profile that follows it.
+    market_profile_id: str | None = Field(default=None, alias="marketProfileId")
     fin_envelope: FinEnvelopeProfile | None = Field(default=None, alias="finEnvelope")
     mx_envelope: MxEnvelopeProfile | None = Field(default=None, alias="mxEnvelope")
 

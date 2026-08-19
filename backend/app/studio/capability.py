@@ -82,7 +82,9 @@ _RULES_TEXT = {
     BusinessRuleStatus.SOURCE_DERIVED: (
         "Business rules were derived from a named source and await review."
     ),
-    BusinessRuleStatus.REVIEWED: "Business rules have been reviewed.",
+    BusinessRuleStatus.REVIEWED: (
+        "Business rules were reviewed against the evidence they cite."
+    ),
 }
 
 
@@ -109,15 +111,24 @@ def derive_dimensions(
     generated_from_schema: bool,
     has_business_rules: bool,
     profile_configured: bool,
+    reviewed_business_rules: bool = False,
+    market_practice_configured: bool = False,
+    client_rules_configured: bool = False,
 ) -> CapabilityDimensions:
     """Derive the dimensions from what demonstrably exists.
 
     ``generated_from_schema`` comes from the pack's provenance (`source.generated`);
     ``has_business_rules`` from whether any cross-field rule names the message;
     ``profile_configured`` from whether any client profile declares requirements for it.
-    Market practice and external validation have no configured sources yet, so they are
-    reported as absent rather than assumed — no existing message is upgraded by the mere
-    existence of this model.
+    The last three come from installed **reviewed** rule packs — a candidate rule is
+    invisible here, because a candidate is invisible to validation.
+
+    Each dimension moves for its own reason and never promotes another: a reviewed market
+    overlay changes ``marketPractice`` and nothing else. ``externalValidation`` has no
+    configured source and is reported as absent rather than assumed.
+
+    These say *what configuration exists for this message*, not *what applies to your
+    particular request* — which is exactly how ``clientProfile`` has always behaved.
     """
     return CapabilityDimensions(
         structure=(
@@ -126,13 +137,21 @@ def derive_dimensions(
             else StructureStatus.CONFIGURED_SUBSET
         ),
         business_rules=(
-            BusinessRuleStatus.CONFIGURED_SUBSET
+            BusinessRuleStatus.REVIEWED
+            if reviewed_business_rules
+            else BusinessRuleStatus.CONFIGURED_SUBSET
             if has_business_rules
             else BusinessRuleStatus.NOT_CONFIGURED
         ),
-        market_practice=OverlayStatus.NOT_CONFIGURED,
+        market_practice=(
+            OverlayStatus.CONFIGURED
+            if market_practice_configured
+            else OverlayStatus.NOT_CONFIGURED
+        ),
         client_profile=(
-            OverlayStatus.CONFIGURED if profile_configured else OverlayStatus.NOT_CONFIGURED
+            OverlayStatus.CONFIGURED
+            if profile_configured or client_rules_configured
+            else OverlayStatus.NOT_CONFIGURED
         ),
         external_validation=ExternalValidationStatus.NOT_RUN,
     )

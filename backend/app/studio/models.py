@@ -100,6 +100,9 @@ class ValidationLayer(StrEnum):
     STRUCTURE = "STRUCTURE"
     FORMAT = "FORMAT"
     BUSINESS_RULES = "BUSINESS_RULES"
+    #: Rules a market or infrastructure applies on top of the standard. Sits between the
+    #: base rules and the client's own, because a client narrows a market, not the reverse.
+    MARKET_PRACTICE = "MARKET_PRACTICE"
     CLIENT_PROFILE = "CLIENT_PROFILE"
     FIN_ENVELOPE = "FIN_ENVELOPE"
     XML_WELL_FORMED = "XML_WELL_FORMED"
@@ -392,6 +395,18 @@ class ValidationIssue(ApiModel):
     expected: str | None = None
     current_value: str | None = None
     suggestion: str | None = None
+
+    # ---- rule-pack provenance; absent on the platform's own built-in checks ------------
+    #: Which authority layer produced this, in words — "Market practice rule".
+    rule_layer: str | None = None
+    #: The installed rule pack the rule came from.
+    rule_pack_id: str | None = None
+    #: The source identity and segment the rule was derived from. Identity and location
+    #: only — never licensed prose, which is why this is a reference and not an excerpt.
+    source_reference: str | None = None
+    #: The rule's review state. Only ``REVIEWED`` rules are ever loaded, so this reads
+    #: `REVIEWED` in practice; it is published so an automation caller can assert it.
+    review_status: str | None = None
 
 
 class LayerResult(ApiModel):
