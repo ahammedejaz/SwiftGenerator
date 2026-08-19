@@ -1,0 +1,25 @@
+# Declared business-rule sources. Only synthetic fixtures are committed; see README.md.
+sources:
+  - sourceId: SYNTH-DEMO-MARKET-V1
+    sourceType: SYNTHETIC_FIXTURE
+    title: Synthetic Demo Market Practice — Securities Settlement
+    version: "1.0"
+    sourceLocation: synthetic-demo-market-v1.md
+    adapter: MARKDOWN
+    sourceChecksum: sha256:9c364cdb5291f9ccfd0fc30991ca61f1c3f4c7f745805e731620c274487756c8
+    marketIdentifier: DEMO_MARKET_V1
+    redistribution:
+      sourceMayBeCommitted: true
+      excerptsMayBeCommitted: true
+
+  - sourceId: SYNTH-DEMO-CLIENT-V1
+    sourceType: SYNTHETIC_FIXTURE
+    title: Synthetic Demo Client Guideline — Securities Settlement
+    version: "1.0"
+    sourceLocation: synthetic-demo-client-v1.md
+    adapter: MARKDOWN
+    sourceChecksum: sha256:199e9fbba96ed44110ebd08564e09f3f204a51149a175c3fc04e79285ad4f7a5
+    clientIdentifier: DEMO_MARKET_CLIENT_V1
+    redistribution:
+      sourceMayBeCommitted: true
+      excerptsMayBeCommitted: true

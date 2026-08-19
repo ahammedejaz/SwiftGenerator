@@ -251,6 +251,15 @@ export interface ValidationIssue {
   expected: string | null;
   currentValue: string | null;
   suggestion: string | null;
+  /**
+   * Present only when the finding came from an installed rule pack. The platform's own
+   * built-in checks leave these null, which is itself the honest answer: they have no
+   * external source to cite.
+   */
+  ruleLayer?: string | null;
+  rulePackId?: string | null;
+  sourceReference?: string | null;
+  reviewStatus?: string | null;
 }
 
 export interface LayerResult {

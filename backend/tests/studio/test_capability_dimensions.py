@@ -45,15 +45,41 @@ def test_no_existing_message_is_upgraded_by_the_model_existing() -> None:
 
 def test_client_profile_dimension_is_measured_from_the_profiles() -> None:
     # Profiles declare required fields for the MT subset, so those messages read
-    # CONFIGURED; nothing declares MX requirements today, so MX must not.
+    # CONFIGURED. sese.023 reads CONFIGURED for the other reason the dimension recognises:
+    # a reviewed CLIENT_PROFILE rule pack is installed for it. sese.024 has neither, and
+    # is the control that proves the dimension is measured rather than assumed.
     assert (
         capability_dimensions(MessageFormat.MT, "MT541").client_profile
         is OverlayStatus.CONFIGURED
     )
     assert (
         capability_dimensions(MessageFormat.MX, "sese.023").client_profile
+        is OverlayStatus.CONFIGURED
+    )
+    assert (
+        capability_dimensions(MessageFormat.MX, "sese.024").client_profile
         is OverlayStatus.NOT_CONFIGURED
     )
+
+
+def test_only_the_message_a_pack_targets_gains_an_overlay_dimension() -> None:
+    # The synthetic demo packs target sese.023 alone. Every other message must be
+    # untouched by their existence — a dimension moves for its own evidence, never
+    # because a neighbouring message acquired some.
+    assert (
+        capability_dimensions(MessageFormat.MX, "sese.023").market_practice
+        is OverlayStatus.CONFIGURED
+    )
+    for message_type in ("sese.024", "sese.025", "sese.030"):
+        dims = capability_dimensions(MessageFormat.MX, message_type)
+        assert dims.market_practice is OverlayStatus.NOT_CONFIGURED
+        assert dims.client_profile is OverlayStatus.NOT_CONFIGURED
+    # And no message anywhere claims reviewed business rules: no BASE_STANDARD pack ships.
+    for message_type in ("sese.023", "sese.024", "sese.025"):
+        assert (
+            capability_dimensions(MessageFormat.MX, message_type).business_rules
+            is not BusinessRuleStatus.REVIEWED
+        )
 
 
 def test_the_summary_never_makes_a_forbidden_claim() -> None:

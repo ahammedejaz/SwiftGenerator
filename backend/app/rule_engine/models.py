@@ -244,6 +244,26 @@ class CodeRestriction(RuleModel):
             raise ValueError(f"{self.restriction_id} lists a code twice")
         return self
 
+    def canonical_body(self) -> str:
+        payload = {
+            "restrictionId": self.restriction_id,
+            "field": self.field.canonical(),
+            "codes": sorted(self.codes),
+            "severity": self.severity.value,
+            "evidence": [
+                {
+                    "sourceId": item.source_id,
+                    "segmentId": item.segment_id,
+                    "segmentHash": item.segment_hash,
+                }
+                for item in self.evidence
+            ],
+        }
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+    def body_hash(self) -> str:
+        return "sha256:" + hashlib.sha256(self.canonical_body().encode("utf-8")).hexdigest()
+
 
 class StructureCompatibility(RuleModel):
     structure_version: str = Field(alias="structureVersion", max_length=64)

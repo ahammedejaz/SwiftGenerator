@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     rule_extraction_cache_enabled: bool = True
     rule_extraction_cache_directory: str = "./data/rule_extraction_cache"
     rule_extraction_max_fields: int = 400
+    #: The synthetic corpus the extraction evaluation runs against.
+    rule_evaluation_directory: str = ""
 
     @field_validator("automation_api_keys")
     @classmethod

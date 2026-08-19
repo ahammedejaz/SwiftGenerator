@@ -1,0 +1,93 @@
+packId: MX:sese.023.001.11:CLIENT_PROFILE:DEMO_MARKET_CLIENT_V1:v1
+format: MX
+messageType: sese.023
+messageVersion: sese.023.001.11
+layer: CLIENT_PROFILE
+profileId: DEMO_MARKET_CLIENT_V1
+packVersion: v1
+title: Synthetic demo client guideline narrowing the demo market practice
+engineVersion: rule-engine/1
+dslVersion: rule-dsl/1
+structureCompatibility:
+  structureVersion: sese.023.001.11
+  structureChecksum: sha256:c7a3c1271a4afa1fe294bf5eb54aee1a199961fe0cb548d26afc1810084c18b6
+review:
+  status: REVIEWED
+  reviewedBy: Repository maintainers
+  reviewedAt: SOURCE_CONTROLLED
+sources:
+- sourceId: SYNTH-DEMO-CLIENT-V1
+  sourceType: SYNTHETIC_FIXTURE
+  title: Synthetic Demo Client Guideline — Securities Settlement
+  version: '1.0'
+  sourceLocation: synthetic-demo-client-v1.md
+  sourceChecksum: sha256:199e9fbba96ed44110ebd08564e09f3f204a51149a175c3fc04e79285ad4f7a5
+  excerptsMayBeCommitted: true
+authoritativeCompletenessKnown: false
+limitations:
+- DEMO_MARKET_CLIENT_V1 is a synthetic client invented for this repository. No real institution uses
+  these conventions.
+- Reviewed against the cited synthetic document only.
+rules:
+- ruleId: DEMO-CLI-SESE023-COMMON-IDENTIFICATION
+  title: Common identification is always supplied
+  severity: ERROR
+  assert:
+    field:
+      format: MX
+      path: /Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/CmonId
+    operator: EXISTS
+  finding:
+    message: This client supplies a common identification on every instruction.
+    suggestion: Add the common identification.
+  evidence:
+  - sourceId: SYNTH-DEMO-CLIENT-V1
+    segmentId: SYNTH-DEMO-CLIENT-V1#S0004
+    sourceLocation: synthetic-demo-client-v1.md
+    sourceVersion: '1.0'
+    sourceChecksum: sha256:199e9fbba96ed44110ebd08564e09f3f204a51149a175c3fc04e79285ad4f7a5
+    segmentHash: sha256:f5964456aa50f83be2837e4df7f7420819d8f5cd599e772a50ec0b780e91a4cc
+    excerptHash: sha256:f5964456aa50f83be2837e4df7f7420819d8f5cd599e772a50ec0b780e91a4cc
+    excerpt: 'Every instruction sent by this client carries a common identification, so that the
+
+      instruction can be matched against the client''s own records.'
+    heading: 3 Common identification
+    lineStart: 20
+    lineEnd: 21
+  review:
+    status: REVIEWED
+    reviewedBy: Repository maintainers
+    reviewedAt: SOURCE_CONTROLLED
+    candidateHash: sha256:ef0d296b350fb35ba405679db8c257aaf0ae178b0014f5849a5856bf05eba2c8
+    ruleHash: sha256:ef0d296b350fb35ba405679db8c257aaf0ae178b0014f5849a5856bf05eba2c8
+codeRestrictions:
+- restrictionId: DEMO-CLI-SESE023-SETTLEMENT-CONDITION
+  field:
+    format: MX
+    path: /Document/SctiesSttlmTxInstr/SttlmParams/SttlmTxCond/Cd
+  codes:
+  - NOMC
+  finding:
+    message: This client uses only the settlement condition NOMC.
+    suggestion: Use NOMC.
+  evidence:
+  - sourceId: SYNTH-DEMO-CLIENT-V1
+    segmentId: SYNTH-DEMO-CLIENT-V1#S0003
+    sourceLocation: synthetic-demo-client-v1.md
+    sourceVersion: '1.0'
+    sourceChecksum: sha256:199e9fbba96ed44110ebd08564e09f3f204a51149a175c3fc04e79285ad4f7a5
+    segmentHash: sha256:59a8a36205fa3d42665cc71fc977ca2e7de9f5743b062768db8170c70affe74c
+    excerptHash: sha256:59a8a36205fa3d42665cc71fc977ca2e7de9f5743b062768db8170c70affe74c
+    excerpt: 'Instructions sent by this client carry the settlement transaction condition NOMC. The
+
+      other conditions the market permits are not used.'
+    heading: 2 Settlement transaction condition
+    lineStart: 15
+    lineEnd: 16
+  review:
+    status: REVIEWED
+    reviewedBy: Repository maintainers
+    reviewedAt: SOURCE_CONTROLLED
+    candidateHash: sha256:78dd0e5084ef58ab9e9bde82e089173726f9e2f82e16527dd5e9ef2536062a29
+    ruleHash: sha256:78dd0e5084ef58ab9e9bde82e089173726f9e2f82e16527dd5e9ef2536062a29
+  severity: ERROR

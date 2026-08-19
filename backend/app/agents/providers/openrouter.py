@@ -21,6 +21,8 @@ from app.agents.providers.base import (
     InterpretationModelRequest,
     InterpretationModelResponse,
     ModelUsage,
+    StructuredCompletionRequest,
+    StructuredCompletionResponse,
 )
 from app.agents.schemas import SCHEMA_NAME, ProviderSchemaError, strict_interpretation_schema
 from app.config import Settings
@@ -267,6 +269,84 @@ class OpenRouterClient:
             provider=routed_provider if isinstance(routed_provider, str) else "",
             http_status=response.status_code,
         )
+
+    # -- generic structured completion ---------------------------------------------------
+
+    def build_completion_payload(
+        self, request: StructuredCompletionRequest
+    ) -> dict[str, Any]:
+        """The same transport and the same provider policy, with a caller's prompt.
+
+        Every privacy control the interpretation path relies on is applied here too —
+        parameter enforcement, data-collection denial and zero-data-retention routing come
+        from one settings object, so an offline operation cannot accidentally be laxer than
+        the runtime one.
+        """
+        return {
+            "model": request.model,
+            "messages": [
+                {"role": "system", "content": request.system_prompt},
+                {"role": "user", "content": request.user_content},
+            ],
+            "max_completion_tokens": request.max_output_tokens,
+            "stream": False,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": request.schema_name,
+                    "strict": True,
+                    "schema": request.json_schema,
+                },
+            },
+            "provider": {
+                "require_parameters": self._settings.openrouter_require_parameters,
+                "allow_fallbacks": self._settings.openrouter_allow_provider_fallbacks,
+                "data_collection": self._settings.openrouter_data_collection,
+                "zdr": self._settings.openrouter_zdr_required,
+            },
+        }
+
+    async def complete(
+        self, request: StructuredCompletionRequest
+    ) -> StructuredCompletionResponse:
+        if not self.configured:
+            raise ai_error("AI_NOT_CONFIGURED")
+        started = monotonic()
+        last_error: AiServiceError | None = None
+        max_attempts = self._settings.openrouter_max_retries + 1
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = await self._client.post(
+                    "chat/completions",
+                    headers=self.build_headers(),
+                    json=self.build_completion_payload(request),
+                )
+                parsed = self._parse_response(response, attempt, started)
+                return StructuredCompletionResponse(
+                    payload=parsed.payload,
+                    model=parsed.model,
+                    attempt_count=parsed.attempt_count,
+                    latency_ms=parsed.latency_ms,
+                    usage=parsed.usage,
+                    provider=parsed.provider,
+                    http_status=parsed.http_status,
+                )
+            except httpx.TimeoutException:
+                last_error = ai_error(
+                    "AI_TIMEOUT", retryable=True, affects_circuit=True
+                ).with_attempt_count(attempt)
+            except httpx.NetworkError:
+                last_error = ai_error(
+                    "AI_PROVIDER_UNAVAILABLE", retryable=True, affects_circuit=True
+                ).with_attempt_count(attempt)
+            except AiServiceError as exc:
+                last_error = exc.with_attempt_count(attempt)
+            if last_error is None or not last_error.retryable or attempt >= max_attempts:
+                assert last_error is not None
+                raise last_error
+            await self._sleep(self._retry_delay(attempt, last_error.retry_after))
+        assert last_error is not None
+        raise last_error
 
     def _http_error(
         self,

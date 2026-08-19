@@ -44,6 +44,7 @@ from app.rule_engine.models import (
     Rule,
     RulePack,
     RuleReviewStatus,
+    StructureCompatibility,
 )
 from app.rule_engine.refs import (
     DATE_KINDS,
@@ -399,6 +400,38 @@ def _check_expression(
                 pass
 
 
+def _check_against_structure(
+    rule: Rule,
+    bindings: dict[str, ResolvedFieldRef],
+    log: RuleFindingLog,
+    subject: str,
+) -> None:
+    """Refuse rules the structure already makes impossible.
+
+    An unconditional rule forbidding a field the structure requires in every message can
+    never be satisfied — every message would fail. That is the shape a mis-extraction
+    takes when a model follows an instruction it read in the source, so it is worth
+    catching here rather than leaving to a reviewer's attention.
+    """
+    if rule.when is not None:
+        return
+    node = rule.assert_
+    if not isinstance(node, Predicate) or node.operator is not Operator.ABSENT:
+        return
+    binding = bindings.get(node.field.canonical())
+    if binding is None or not binding.always_present:
+        return
+    log.error(
+        RuleFindingCode.RULE_OVERLAY_UNSATISFIABLE,
+        f"{rule.rule_id} forbids {binding.display_name}, which the structure requires in "
+        "every message.",
+        "A rule pack restricts how a structure is used; it cannot contradict the "
+        "structure itself.",
+        subject=subject,
+        location=rule.rule_id,
+    )
+
+
 def compile_pack(
     pack: RulePack,
     index: StructureIndex,
@@ -495,6 +528,7 @@ def compile_pack(
         if rule.when is not None:
             _check_expression(rule.when, bindings, log, subject, rule.rule_id)
         _check_expression(rule.assert_, bindings, log, subject, rule.rule_id)
+        _check_against_structure(rule, bindings, log, subject)
         primary = next(
             (bindings[ref.canonical()] for ref in refs if ref.canonical() in bindings),
             None,
@@ -561,9 +595,9 @@ def compile_pack(
 
 def structure_compatibility_for(
     index: StructureIndex, format_: MessageFormat, message_type: str
-) -> dict[str, str]:
+) -> StructureCompatibility:
     """The compatibility block a new pack should record. Used by the CLI and the tests."""
-    return {
-        "structureVersion": index.version(format_, message_type) or message_type,
-        "structureChecksum": index.structure_checksum(format_, message_type),
-    }
+    return StructureCompatibility(
+        structure_version=index.version(format_, message_type) or message_type,
+        structure_checksum=index.structure_checksum(format_, message_type),
+    )

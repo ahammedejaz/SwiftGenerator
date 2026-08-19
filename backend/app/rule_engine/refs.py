@@ -20,6 +20,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.knowledge.models import PresenceRule
 from app.specifications.registry import MessageSpecificationRegistry, specification_registry
 from app.studio.models import MessageFormat, Presence
 from app.studio.mx.models import MxDataType, MxMessageSpec, MxRestrictionBase
@@ -118,6 +119,10 @@ class ResolvedFieldRef:
     codes: tuple[str, ...]
     #: The address a validation finding points at, so "go to this field" keeps working.
     location: str
+    #: True when the structure requires this field in every message — the element is
+    #: mandatory and so is every container above it. A rule that forbids such a field can
+    #: never be satisfied, which is worth refusing at compile time.
+    always_present: bool = False
 
     @property
     def repeatable(self) -> bool:
@@ -197,6 +202,28 @@ class StructureIndex:
     # -- fields ------------------------------------------------------------------------
 
     def fields(self, format_: MessageFormat, message_type: str) -> list[ResolvedFieldRef]:
+        if format_ is MessageFormat.MT:
+            specification = self._mt.get(message_type)
+            required_sequences = {
+                sequence.path for sequence in specification.sequences if sequence.min_occurs >= 1
+            }
+            return [
+                ResolvedFieldRef(
+                    canonical=f"MT|{row.row_id}",
+                    key=row.row_id,
+                    display_name=row.business_name,
+                    kind=_mt_kind(row.input_kind.value, row.allowed_codes),
+                    presence=Presence(row.presence.value),
+                    max_occurs=row.max_occurs,
+                    codes=tuple(row.allowed_codes),
+                    location=row.row_id,
+                    always_present=(
+                        row.presence is PresenceRule.MANDATORY
+                        and row.sequence_path in required_sequences
+                    ),
+                )
+                for row in specification.fields
+            ]
         if format_ is MessageFormat.MX:
             return [
                 ResolvedFieldRef(
@@ -211,22 +238,10 @@ class StructureIndex:
                     max_occurs=item.element.max_occurs,
                     codes=tuple(item.element.codes),
                     location=item.path,
+                    always_present=item.mandatory_chain,
                 )
                 for item in self._mx.leaves(message_type)
             ]
-        return [
-            ResolvedFieldRef(
-                canonical=f"MT|{row.row_id}",
-                key=row.row_id,
-                display_name=row.business_name,
-                kind=_mt_kind(row.input_kind.value, row.allowed_codes),
-                presence=Presence(row.presence.value),
-                max_occurs=row.max_occurs,
-                codes=tuple(row.allowed_codes),
-                location=row.row_id,
-            )
-            for row in self._mt.get(message_type).fields
-        ]
 
     def resolve(
         self, ref: FieldRef, message_type: str
@@ -267,6 +282,7 @@ class StructureIndex:
             max_occurs=resolved.max_occurs,
             codes=resolved.codes,
             location=resolved.location,
+            always_present=resolved.always_present,
         )
 
     # -- compatibility -----------------------------------------------------------------
