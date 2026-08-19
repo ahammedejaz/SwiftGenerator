@@ -21,6 +21,15 @@ import yaml
 from app.spec_engine.diagnostics import CompilationError
 from app.spec_engine.gates import validate_pack
 from app.spec_engine.pipeline import compile_schema
+from app.spec_engine.source import (
+    acquire_manifest_sources,
+    discover_messages,
+    fetch_source,
+    load_manifest,
+    manifest_yaml,
+    render_batch_report,
+    run_scaleout,
+)
 from app.spec_engine.structdiff import diff_packs
 from app.studio.mx.models import MxMessageSpec
 
@@ -114,6 +123,105 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     return 0 if result.identical else 2
 
 
+def _cmd_source_discover(args: argparse.Namespace) -> int:
+    manifest = discover_messages(args.logical)
+    text = manifest_yaml(manifest)
+    if args.out:
+        target = Path(args.out)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        print(
+            f"wrote {target} ({len(manifest.messages)} message definitions, "
+            f"{len(manifest.unresolved)} unresolved)"
+        )
+    else:
+        print(text)
+    return 0 if manifest.messages else 2
+
+
+def _cmd_source_fetch(args: argparse.Namespace) -> int:
+    try:
+        result = fetch_source(
+            args.url,
+            Path(args.out),
+            expected_message_definition=args.expected_message_definition,
+            expected_checksum=args.expected_checksum,
+        )
+    except Exception as error:  # noqa: BLE001 - CLI surface is a concise acquisition error.
+        print(f"source fetch failed: {error}", file=sys.stderr)
+        return 1
+    print(f"wrote {result.path}")
+    print(f"final-url: {result.final_url}")
+    print(f"checksum: {result.checksum}")
+    print(f"content-type: {result.content_type}")
+    print(f"size: {result.size}")
+    if result.redirects:
+        print("redirects:")
+        for item in result.redirects:
+            print(f"- {item}")
+    return 0
+
+
+def _cmd_source_acquire(args: argparse.Namespace) -> int:
+    manifest = acquire_manifest_sources(
+        Path(args.manifest),
+        source_dir=Path(args.sources),
+        out_manifest=Path(args.out) if args.out else None,
+    )
+    acquired = sum(1 for item in manifest.messages if item.source_checksum)
+    print(
+        f"acquired {acquired}/{len(manifest.messages)} message definition source(s), "
+        f"{len(manifest.unresolved)} unresolved"
+    )
+    if args.out:
+        print(f"wrote {args.out}")
+    if manifest.unresolved:
+        print("unresolved:")
+        for item in manifest.unresolved:
+            print(f"- {item}")
+    return 0 if acquired else 2
+
+
+def _cmd_source_inspect(args: argparse.Namespace) -> int:
+    manifest = load_manifest(Path(args.manifest))
+    print(f"manifest: {args.manifest}")
+    print(f"retrieved: {manifest.retrieved_at}")
+    print(f"source: {manifest.source_url}")
+    print(f"messages: {len(manifest.messages)}")
+    if manifest.unresolved:
+        print("unresolved:")
+        for unresolved in manifest.unresolved:
+            print(f"- {unresolved}")
+    if manifest.logical_messages:
+        print("logical definitions:")
+        for logical in manifest.logical_messages:
+            current = ", ".join(logical.current_definitions) or "-"
+            archived = ", ".join(logical.archived_definitions) or "-"
+            print(f"- {logical.logical_message}: current=[{current}] archived=[{archived}]")
+    for entry in manifest.messages:
+        print(
+            f"- {entry.logical_message} -> {entry.message_definition} "
+            f"({entry.catalogue_state.value}, {entry.redistribution_status.value})"
+        )
+    return 0
+
+
+def _cmd_scaleout(args: argparse.Namespace) -> int:
+    result = run_scaleout(
+        Path(args.manifest),
+        source_dir=Path(args.sources),
+        candidates_dir=Path(args.out),
+    )
+    report = render_batch_report(result)
+    if args.report:
+        target = Path(args.report)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(report, encoding="utf-8")
+        print(f"wrote {target}")
+    print(report)
+    return 0 if result.failed == 0 else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.spec_engine", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -152,6 +260,52 @@ def main(argv: list[str] | None = None) -> int:
     diff_cmd.add_argument("before")
     diff_cmd.add_argument("after")
     diff_cmd.set_defaults(handler=_cmd_diff)
+
+    source_discover_cmd = commands.add_parser(
+        "source-discover", help="resolve logical message IDs from the official ISO catalogue"
+    )
+    source_discover_cmd.add_argument("logical", nargs="+", help="logical IDs such as pacs.008")
+    source_discover_cmd.add_argument("--out", help="write a metadata-only source manifest")
+    source_discover_cmd.set_defaults(handler=_cmd_source_discover)
+
+    source_fetch_cmd = commands.add_parser(
+        "source-fetch", help="fetch one iso20022.org artifact into a local source cache"
+    )
+    source_fetch_cmd.add_argument("url", help="official iso20022.org URL")
+    source_fetch_cmd.add_argument("--out", required=True, help="target file or directory")
+    source_fetch_cmd.add_argument(
+        "--expected-message-definition",
+        help="exact message-definition ID used to verify targetNamespace",
+    )
+    source_fetch_cmd.add_argument("--expected-checksum", help="optional expected sha256:<hex>")
+    source_fetch_cmd.set_defaults(handler=_cmd_source_fetch)
+
+    source_acquire_cmd = commands.add_parser(
+        "source-acquire", help="download every xsdUrl in a manifest into a local source cache"
+    )
+    source_acquire_cmd.add_argument("--manifest", required=True, help="metadata manifest YAML")
+    source_acquire_cmd.add_argument("--sources", required=True, help="ignored source cache")
+    source_acquire_cmd.add_argument("--out", help="write updated metadata manifest")
+    source_acquire_cmd.set_defaults(handler=_cmd_source_acquire)
+
+    source_inspect_cmd = commands.add_parser(
+        "source-inspect", help="summarise a metadata-only source manifest"
+    )
+    source_inspect_cmd.add_argument("manifest")
+    source_inspect_cmd.set_defaults(handler=_cmd_source_inspect)
+
+    scaleout_cmd = commands.add_parser(
+        "scaleout", help="compile and gate every source listed in a manifest"
+    )
+    scaleout_cmd.add_argument("--manifest", required=True, help="source manifest YAML")
+    scaleout_cmd.add_argument(
+        "--sources",
+        required=True,
+        help="directory containing sourceLocation files from the manifest",
+    )
+    scaleout_cmd.add_argument("--out", required=True, help="directory for candidate packs")
+    scaleout_cmd.add_argument("--report", help="write a markdown batch report")
+    scaleout_cmd.set_defaults(handler=_cmd_scaleout)
 
     args = parser.parse_args(argv)
     return int(args.handler(args))

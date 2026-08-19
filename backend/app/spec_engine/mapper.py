@@ -369,9 +369,12 @@ def _map_element(
 
 
 _AREA_BY_FAMILY = {
+    "pacs": "PAYMENTS_CLEARING_SETTLEMENT",
+    "pain": "PAYMENT_INITIATION",
+    "camt": "CASH_MANAGEMENT",
     "sese": "SECURITIES_SETTLEMENT",
-    "semt": "SECURITIES_SETTLEMENT",
-    "seev": "CORPORATE_ACTIONS",
+    "semt": "SECURITIES_MANAGEMENT",
+    "seev": "SECURITIES_EVENTS",
 }
 
 

@@ -87,6 +87,15 @@ The response always says which schema was used (`SUBSET_DERIVED` or `OFFICIAL`).
 official `.xsd` in `backend/config/mx/xsd/official/` and the validator prefers it
 automatically.
 
+## Real-schema scale-out needs source artifacts
+
+Phase 3 source tooling can resolve current message-definition identities from the official
+ISO 20022 catalogue and can batch compile local source bundles, but this repository still
+does not commit ISO XSD bodies. The committed catalogue snapshot is metadata only:
+versions, source URLs, source locations and redistribution declarations. Until an operator
+places legitimate XSD bytes in the ignored source cache, `make mx-scaleout` reports
+missing-source failures rather than fabricating schemas.
+
 ---
 
 ## Per-message limits

@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -43,7 +43,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage demo-pack-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -59,6 +59,12 @@ coverage:
 
 coverage-write:
 	cd backend && .venv/bin/python -m app.studio.coverage --write
+
+xsd-compatibility:
+	cd backend && .venv/bin/python -m app.spec_engine.compatibility --check
+
+xsd-compatibility-write:
+	cd backend && .venv/bin/python -m app.spec_engine.compatibility --write
 
 demo-pack:
 	cd backend && .venv/bin/python -m app.studio.demo_pack --write
@@ -77,6 +83,34 @@ spec-validate:
 
 spec-diff:
 	cd backend && .venv/bin/python -m app.spec_engine diff $(abspath $(BEFORE)) $(abspath $(AFTER))
+
+# MX real-schema scale-out tooling. Discovery and fetch are developer/operator commands;
+# runtime generation never performs either.
+#   make mx-source-discover LOGICAL="pacs.008 pain.001" OUT=backend/config/mx/xsd/sources/snapshot.yaml
+#   make mx-source-fetch URL=https://www.iso20022.org/... OUT=backend/config/mx/xsd/sources
+#   make mx-source-acquire MANIFEST=... SOURCES=... OUT=...
+#   make mx-source-inspect MANIFEST=backend/config/mx/xsd/sources/snapshot.yaml
+#   make mx-scaleout MANIFEST=... SOURCES=... OUT=build/mx-candidates REPORT=build/mx-scaleout.md
+mx-source-discover:
+	cd backend && .venv/bin/python -m app.spec_engine source-discover $(LOGICAL) \
+		$(if $(OUT),--out $(abspath $(OUT)),)
+
+mx-source-fetch:
+	cd backend && .venv/bin/python -m app.spec_engine source-fetch "$(URL)" --out $(abspath $(OUT)) \
+		$(if $(EXPECTED_MESSAGE_DEFINITION),--expected-message-definition $(EXPECTED_MESSAGE_DEFINITION),) \
+		$(if $(EXPECTED_CHECKSUM),--expected-checksum $(EXPECTED_CHECKSUM),)
+
+mx-source-acquire:
+	cd backend && .venv/bin/python -m app.spec_engine source-acquire --manifest $(abspath $(MANIFEST)) \
+		--sources $(abspath $(SOURCES)) $(if $(OUT),--out $(abspath $(OUT)),)
+
+mx-source-inspect:
+	cd backend && .venv/bin/python -m app.spec_engine source-inspect $(abspath $(MANIFEST))
+
+mx-scaleout:
+	cd backend && .venv/bin/python -m app.spec_engine scaleout --manifest $(abspath $(MANIFEST)) \
+		--sources $(abspath $(SOURCES)) --out $(abspath $(OUT)) \
+		$(if $(REPORT),--report $(abspath $(REPORT)),)
 
 # Rule engine: business rules as reviewed configuration. Extraction is offline and never
 # runs inside the application. Usage:

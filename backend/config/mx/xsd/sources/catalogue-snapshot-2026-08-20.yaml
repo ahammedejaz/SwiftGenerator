@@ -1,0 +1,530 @@
+manifestVersion: mx-source-manifest/1
+retrievedAt: '2026-08-20T00:00:00+00:00'
+sourceUrl: https://www.iso20022.org/iso-20022-message-definitions
+messageSetsInspected:
+  - Bank-to-Customer Cash Management
+  - Corporate Actions
+  - Payments Clearing and Settlement
+  - Payments Initiation
+  - Settlement and Reconciliation
+unresolved: []
+logicalMessages:
+  - logicalMessage: pacs.008
+    currentDefinitions:
+      - pacs.008.001.14
+    archivedDefinitions: []
+  - logicalMessage: pacs.009
+    currentDefinitions:
+      - pacs.009.001.13
+    archivedDefinitions: []
+  - logicalMessage: pain.001
+    currentDefinitions:
+      - pain.001.001.13
+    archivedDefinitions: []
+  - logicalMessage: pain.002
+    currentDefinitions:
+      - pain.002.001.15
+    archivedDefinitions: []
+  - logicalMessage: camt.052
+    currentDefinitions:
+      - camt.052.001.14
+    archivedDefinitions: []
+  - logicalMessage: camt.053
+    currentDefinitions:
+      - camt.053.001.14
+    archivedDefinitions: []
+  - logicalMessage: camt.054
+    currentDefinitions:
+      - camt.054.001.14
+    archivedDefinitions: []
+  - logicalMessage: sese.020
+    currentDefinitions:
+      - sese.020.001.09
+      - sese.020.002.07
+    archivedDefinitions: []
+  - logicalMessage: sese.023
+    currentDefinitions:
+      - sese.023.001.13
+      - sese.023.002.11
+    archivedDefinitions: []
+  - logicalMessage: sese.024
+    currentDefinitions:
+      - sese.024.001.14
+      - sese.024.002.12
+    archivedDefinitions: []
+  - logicalMessage: sese.025
+    currentDefinitions:
+      - sese.025.001.13
+      - sese.025.002.11
+    archivedDefinitions: []
+  - logicalMessage: sese.027
+    currentDefinitions:
+      - sese.027.001.09
+      - sese.027.002.07
+    archivedDefinitions: []
+  - logicalMessage: sese.030
+    currentDefinitions:
+      - sese.030.001.10
+      - sese.030.002.09
+    archivedDefinitions: []
+  - logicalMessage: sese.031
+    currentDefinitions:
+      - sese.031.001.11
+      - sese.031.002.09
+    archivedDefinitions: []
+  - logicalMessage: semt.002
+    currentDefinitions:
+      - semt.002.001.12
+      - semt.002.002.11
+    archivedDefinitions: []
+  - logicalMessage: semt.017
+    currentDefinitions:
+      - semt.017.001.14
+      - semt.017.002.12
+    archivedDefinitions: []
+  - logicalMessage: seev.031
+    currentDefinitions:
+      - seev.031.001.16
+      - seev.031.002.15
+    archivedDefinitions: []
+  - logicalMessage: seev.035
+    currentDefinitions:
+      - seev.035.001.17
+      - seev.035.002.16
+    archivedDefinitions: []
+messages:
+  - logicalMessage: pacs.008
+    messageDefinition: pacs.008.001.14
+    messageName: FIToFICustomerCreditTransferV14
+    messageSet: Payments Clearing and Settlement
+    businessArea: PAYMENTS_CLEARING_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=Pacs.008
+    sourceLocation: pacs.008.001.14.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: pacs.009
+    messageDefinition: pacs.009.001.13
+    messageName: FinancialInstitutionalCreditTransferV13
+    messageSet: Payments Clearing and Settlement
+    businessArea: PAYMENTS_CLEARING_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=Pacs.008
+    sourceLocation: pacs.009.001.13.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: pain.001
+    messageDefinition: pain.001.001.13
+    messageName: CustomerCreditTransferInitiationV13
+    messageSet: Payments Initiation
+    businessArea: PAYMENT_INITIATION
+    submittingOrganisation: ISTH/SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=pain.001
+    sourceLocation: pain.001.001.13.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: pain.002
+    messageDefinition: pain.002.001.15
+    messageName: CustomerPaymentStatusReportV15
+    messageSet: Payments Initiation
+    businessArea: PAYMENT_INITIATION
+    submittingOrganisation: ISTH/SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=pain.001
+    sourceLocation: pain.002.001.15.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: camt.052
+    messageDefinition: camt.052.001.14
+    messageName: BankToCustomerAccountReportV14
+    messageSet: Bank-to-Customer Cash Management
+    businessArea: CASH_MANAGEMENT
+    submittingOrganisation: ISTH
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=camt
+    sourceLocation: camt.052.001.14.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: camt.053
+    messageDefinition: camt.053.001.14
+    messageName: BankToCustomerStatementV14
+    messageSet: Bank-to-Customer Cash Management
+    businessArea: CASH_MANAGEMENT
+    submittingOrganisation: ISTH
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=camt
+    sourceLocation: camt.053.001.14.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: camt.054
+    messageDefinition: camt.054.001.14
+    messageName: BankToCustomerDebitCreditNotificationV14
+    messageSet: Bank-to-Customer Cash Management
+    businessArea: CASH_MANAGEMENT
+    submittingOrganisation: ISTH
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=camt
+    sourceLocation: camt.054.001.14.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.023
+    messageDefinition: sese.023.001.13
+    messageName: SecuritiesSettlementTransactionInstructionV13
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.023.001.13.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.024
+    messageDefinition: sese.024.001.14
+    messageName: SecuritiesSettlementTransactionStatusAdviceV14
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.024.001.14.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.025
+    messageDefinition: sese.025.001.13
+    messageName: SecuritiesSettlementTransactionConfirmationV13
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.025.001.13.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: semt.002
+    messageDefinition: semt.002.001.12
+    messageName: SecuritiesBalanceCustodyReportV12
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_MANAGEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: semt.002.001.12.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: semt.017
+    messageDefinition: semt.017.001.14
+    messageName: SecuritiesTransactionPostingReportV14
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_MANAGEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: semt.017.001.14.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: seev.031
+    messageDefinition: seev.031.001.16
+    messageName: CorporateActionNotificationV16
+    messageSet: Corporate Actions
+    businessArea: SECURITIES_EVENTS
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=seev
+    sourceLocation: seev.031.001.16.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: seev.035
+    messageDefinition: seev.035.001.17
+    messageName: CorporateActionMovementPreliminaryAdviceV17
+    messageSet: Corporate Actions
+    businessArea: SECURITIES_EVENTS
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=seev
+    sourceLocation: seev.035.001.17.xsd
+    contentType: application/xml
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.020
+    messageDefinition: sese.020.001.09
+    messageName: SecuritiesTransactionCancellationRequestV09
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.020.001.09.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.020
+    messageDefinition: sese.020.002.07
+    messageName: SecuritiesTransactionCancellationRequest002V07
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.020.002.07.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.023
+    messageDefinition: sese.023.002.11
+    messageName: SecuritiesSettlementTransactionInstruction002V11
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.023.002.11.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.024
+    messageDefinition: sese.024.002.12
+    messageName: SecuritiesSettlementTransactionStatusAdvice002V12
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.024.002.12.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.025
+    messageDefinition: sese.025.002.11
+    messageName: SecuritiesSettlementTransactionConfirmation002V11
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.025.002.11.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.027
+    messageDefinition: sese.027.001.09
+    messageName: SecuritiesTransactionCancellationRequestStatusAdviceV09
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.027.001.09.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.027
+    messageDefinition: sese.027.002.07
+    messageName: SecuritiesTransactionCancellationRequestStatusAdvice002V07
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.027.002.07.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.030
+    messageDefinition: sese.030.001.10
+    messageName: SecuritiesSettlementConditionsModificationRequestV10
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.030.001.10.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.030
+    messageDefinition: sese.030.002.09
+    messageName: SecuritiesSettlementConditionsModificationRequest002V09
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.030.002.09.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.031
+    messageDefinition: sese.031.001.11
+    messageName: SecuritiesSettlementConditionModificationStatusAdviceV11
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: Swift
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.031.001.11.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: sese.031
+    messageDefinition: sese.031.002.09
+    messageName: SecuritiesSettlementConditionModificationStatusAdvice002V09
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_SETTLEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: sese.031.002.09.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: semt.002
+    messageDefinition: semt.002.002.11
+    messageName: SecuritiesBalanceCustodyReport002V11
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_MANAGEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: semt.002.002.11.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: semt.017
+    messageDefinition: semt.017.002.12
+    messageName: SecuritiesTransactionPostingReport002V12
+    messageSet: Settlement and Reconciliation
+    businessArea: SECURITIES_MANAGEMENT
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?page=1
+    sourceLocation: semt.017.002.12.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: seev.031
+    messageDefinition: seev.031.002.15
+    messageName: CorporateActionNotification002V15
+    messageSet: Corporate Actions
+    businessArea: SECURITIES_EVENTS
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=seev
+    sourceLocation: seev.031.002.15.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - logicalMessage: seev.035
+    messageDefinition: seev.035.002.16
+    messageName: CorporateActionMovementPreliminaryAdvice002V16
+    messageSet: Corporate Actions
+    businessArea: SECURITIES_EVENTS
+    submittingOrganisation: SWIFT
+    catalogueState: CURRENT
+    sourceType: OFFICIAL_ISO_20022_XSD
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=seev
+    sourceLocation: seev.035.002.16.xsd
+    contentType: application/octet-stream
+    authorityDeclaration: Resolved from the official ISO 20022 catalogue on 2026-08-20; source bytes were not acquired in this repository.
+    redistributionStatus: UNKNOWN
+    derivedMetadataRedistributionStatus: UNKNOWN
+    rawSourceCommitted: false
