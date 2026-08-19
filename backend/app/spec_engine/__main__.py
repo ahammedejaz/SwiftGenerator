@@ -23,11 +23,15 @@ from app.spec_engine.gates import validate_pack
 from app.spec_engine.pipeline import compile_schema
 from app.spec_engine.source import (
     acquire_manifest_sources,
+    discover_message_sets,
     discover_messages,
+    fetch_message_set_bundle,
     fetch_source,
+    index_message_set_bundle,
     load_manifest,
     manifest_yaml,
     render_batch_report,
+    render_bundle_index,
     run_scaleout,
 )
 from app.spec_engine.structdiff import diff_packs
@@ -162,11 +166,76 @@ def _cmd_source_fetch(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_message_set_discover(args: argparse.Namespace) -> int:
+    try:
+        message_sets = discover_message_sets(args.family)
+    except Exception as error:  # noqa: BLE001 - CLI surface is a concise acquisition error.
+        print(f"message-set discovery failed: {error}", file=sys.stderr)
+        return 1
+    if not message_sets:
+        print("no message-set download links discovered")
+        return 2
+    rows = [
+        item.model_dump(by_alias=True, mode="json", exclude_none=True) for item in message_sets
+    ]
+    print(
+        yaml.safe_dump(
+            rows,
+            sort_keys=False,
+            allow_unicode=False,
+        ).strip()
+    )
+    return 0
+
+
+def _cmd_message_set_fetch(args: argparse.Namespace) -> int:
+    try:
+        result = fetch_message_set_bundle(
+            args.url,
+            Path(args.out),
+            message_set_name=args.message_set_name or args.family or "ISO message set",
+        )
+    except CompilationError as error:
+        for finding in error.findings:
+            print(finding.render(), file=sys.stderr)
+        return 1
+    except Exception as error:  # noqa: BLE001 - CLI surface is a concise acquisition error.
+        print(f"message-set fetch failed: {error}", file=sys.stderr)
+        return 1
+    print(f"wrote {result.path}")
+    print(f"final-url: {result.final_url}")
+    print(f"checksum: {result.checksum}")
+    print(f"content-type: {result.content_type}")
+    print(f"size: {result.size}")
+    if result.redirects:
+        print("redirects:")
+        for item in result.redirects:
+            print(f"- {item}")
+    print(render_bundle_index(result.index))
+    return 0
+
+
+def _cmd_message_set_inspect(args: argparse.Namespace) -> int:
+    try:
+        index = index_message_set_bundle(
+            Path(args.bundle),
+            destination=Path(args.sources),
+            message_set_name=args.message_set_name or args.family or "ISO message set",
+        )
+    except CompilationError as error:
+        for finding in error.findings:
+            print(finding.render(), file=sys.stderr)
+        return 1
+    print(render_bundle_index(index))
+    return 0
+
+
 def _cmd_source_acquire(args: argparse.Namespace) -> int:
     manifest = acquire_manifest_sources(
         Path(args.manifest),
         source_dir=Path(args.sources),
         out_manifest=Path(args.out) if args.out else None,
+        allow_individual_fallback=not args.bundle_only,
     )
     acquired = sum(1 for item in manifest.messages if item.source_checksum)
     print(
@@ -198,6 +267,13 @@ def _cmd_source_inspect(args: argparse.Namespace) -> int:
             current = ", ".join(logical.current_definitions) or "-"
             archived = ", ".join(logical.archived_definitions) or "-"
             print(f"- {logical.logical_message}: current=[{current}] archived=[{archived}]")
+    if manifest.message_sets:
+        print("message sets:")
+        for message_set in manifest.message_sets:
+            print(
+                f"- {message_set.message_set_name}: "
+                f"{message_set.download_url or message_set.bundle_location or 'unresolved'}"
+            )
     for entry in manifest.messages:
         print(
             f"- {entry.logical_message} -> {entry.message_definition} "
@@ -280,12 +356,42 @@ def main(argv: list[str] | None = None) -> int:
     source_fetch_cmd.add_argument("--expected-checksum", help="optional expected sha256:<hex>")
     source_fetch_cmd.set_defaults(handler=_cmd_source_fetch)
 
+    message_set_discover_cmd = commands.add_parser(
+        "message-set-discover",
+        help="discover complete message-set download links from the official catalogue",
+    )
+    message_set_discover_cmd.add_argument("family", help="family or logical ID such as pacs")
+    message_set_discover_cmd.set_defaults(handler=_cmd_message_set_discover)
+
+    message_set_fetch_cmd = commands.add_parser(
+        "message-set-fetch", help="fetch and safely index one ISO message-set ZIP"
+    )
+    message_set_fetch_cmd.add_argument("url", help="official ISO message-set download URL")
+    message_set_fetch_cmd.add_argument("--out", required=True, help="ignored source cache")
+    message_set_fetch_cmd.add_argument("--family", help="family label for reporting")
+    message_set_fetch_cmd.add_argument("--message-set-name", help="official message-set name")
+    message_set_fetch_cmd.set_defaults(handler=_cmd_message_set_fetch)
+
+    message_set_inspect_cmd = commands.add_parser(
+        "message-set-inspect", help="safely inspect and index a local ISO message-set ZIP"
+    )
+    message_set_inspect_cmd.add_argument("bundle", help="local message-set ZIP")
+    message_set_inspect_cmd.add_argument("--sources", required=True, help="ignored source cache")
+    message_set_inspect_cmd.add_argument("--family", help="family label for reporting")
+    message_set_inspect_cmd.add_argument("--message-set-name", help="official message-set name")
+    message_set_inspect_cmd.set_defaults(handler=_cmd_message_set_inspect)
+
     source_acquire_cmd = commands.add_parser(
         "source-acquire", help="download every xsdUrl in a manifest into a local source cache"
     )
     source_acquire_cmd.add_argument("--manifest", required=True, help="metadata manifest YAML")
     source_acquire_cmd.add_argument("--sources", required=True, help="ignored source cache")
     source_acquire_cmd.add_argument("--out", help="write updated metadata manifest")
+    source_acquire_cmd.add_argument(
+        "--bundle-only",
+        action="store_true",
+        help="verify message-set bundles only; skip individual XSD fallback requests",
+    )
     source_acquire_cmd.set_defaults(handler=_cmd_source_acquire)
 
     source_inspect_cmd = commands.add_parser(

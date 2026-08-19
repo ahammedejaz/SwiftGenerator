@@ -113,6 +113,12 @@ def render_markdown() -> str:
             "records which messages exercised which constructs and which diagnostics "
             "blocked any candidate.",
             "",
+            "Phase 3B observed official ISO message-set catalogue links for pacs, pain, "
+            "camt, sese, semt and seev on 2026-08-20, but every live message-set archive "
+            "download timed out before source bytes reached the compiler. Therefore no "
+            "construct is marked as real-schema observed or passed in this generated "
+            "matrix.",
+            "",
         ]
     )
     return "\n".join(lines)

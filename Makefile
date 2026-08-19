@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -90,6 +90,10 @@ spec-diff:
 #   make mx-source-fetch URL=https://www.iso20022.org/... OUT=backend/config/mx/xsd/sources
 #   make mx-source-acquire MANIFEST=... SOURCES=... OUT=...
 #   make mx-source-inspect MANIFEST=backend/config/mx/xsd/sources/snapshot.yaml
+#   make mx-message-set-discover FAMILY=pacs
+#   make mx-message-set-fetch URL=https://www.iso20022.org/... OUT=backend/config/mx/xsd/sources MESSAGE_SET_NAME="Payments Clearing and Settlement"
+#   make mx-message-set-inspect BUNDLE=... SOURCES=backend/config/mx/xsd/sources MESSAGE_SET_NAME="Payments Clearing and Settlement"
+#   make verify-real-iso-sources MANIFEST=... SOURCES=... OUT=...
 #   make mx-scaleout MANIFEST=... SOURCES=... OUT=build/mx-candidates REPORT=build/mx-scaleout.md
 mx-source-discover:
 	cd backend && .venv/bin/python -m app.spec_engine source-discover $(LOGICAL) \
@@ -106,6 +110,25 @@ mx-source-acquire:
 
 mx-source-inspect:
 	cd backend && .venv/bin/python -m app.spec_engine source-inspect $(abspath $(MANIFEST))
+
+mx-message-set-discover:
+	cd backend && .venv/bin/python -m app.spec_engine message-set-discover $(FAMILY)
+
+mx-message-set-fetch:
+	cd backend && .venv/bin/python -m app.spec_engine message-set-fetch "$(URL)" \
+		--out $(abspath $(OUT)) $(if $(FAMILY),--family $(FAMILY),) \
+		$(if $(MESSAGE_SET_NAME),--message-set-name "$(MESSAGE_SET_NAME)",)
+
+mx-message-set-inspect:
+	cd backend && .venv/bin/python -m app.spec_engine message-set-inspect $(abspath $(BUNDLE)) \
+		--sources $(abspath $(SOURCES)) $(if $(FAMILY),--family $(FAMILY),) \
+		$(if $(MESSAGE_SET_NAME),--message-set-name "$(MESSAGE_SET_NAME)",)
+
+verify-real-iso-sources:
+	cd backend && .venv/bin/python -m app.spec_engine source-acquire \
+		--manifest $(abspath $(or $(MANIFEST),backend/config/mx/xsd/sources/catalogue-snapshot-2026-08-20.yaml)) \
+		--sources $(abspath $(or $(SOURCES),build/mx-real-sources)) \
+		$(if $(OUT),--out $(abspath $(OUT)),) --bundle-only
 
 mx-scaleout:
 	cd backend && .venv/bin/python -m app.spec_engine scaleout --manifest $(abspath $(MANIFEST)) \

@@ -12,6 +12,7 @@ Phase 3 adds the build-time pipeline needed to scale MX onboarding from legitima
 - ignored source-cache/drop directory for raw XSD bundles;
 - source manifest model with authority and redistribution declarations;
 - ISO-only source discovery/fetch command surface;
+- ISO message-set bundle discovery/fetch/inspection with safe ZIP validation;
 - per-message source acquisition, batch compilation and six-gate reporting;
 - generated XSD compiler compatibility matrix;
 - business-area mapping for `pacs`, `pain`, `camt`, `sese`, `semt` and `seev`;
@@ -20,7 +21,8 @@ Phase 3 adds the build-time pipeline needed to scale MX onboarding from legitima
 
 No raw ISO XSD body is committed. No real generated pack is installed. No business rule is
 created or promoted. The foundation is complete; real ISO-schema proof is not complete
-because official XSD bytes could not be downloaded from this execution environment.
+because official XSD and message-set bundle bytes could not be downloaded from this
+execution environment.
 
 ## Git Safety
 
@@ -199,6 +201,94 @@ bytes and compiled candidates for the exact namespace/version being compared.
 No standards-version structural diff was performed because both source versions must be
 downloaded and compiled first.
 
+## PASS 3: Message-Set Bundle Acquisition
+
+This continuation added official ISO message-set bundle acquisition without weakening
+source authority or redistribution controls.
+
+Observed ISO catalogue message-set links were added to
+`backend/config/mx/xsd/sources/catalogue-snapshot-2026-08-20.yaml` for:
+
+| Message set | Download URL | Families covered in snapshot |
+| --- | --- | --- |
+| Payments Clearing and Settlement | `https://www.iso20022.org/message-set/1249/download` | `pacs` |
+| Payments Initiation | `https://www.iso20022.org/message-set/1250/download` | `pain` |
+| Bank-to-Customer Cash Management | `https://www.iso20022.org/message-set/1246/download` | `camt` |
+| Settlement and Reconciliation | `https://www.iso20022.org/message-set/1245/download` | `sese`, `semt` |
+| Settlement and Reconciliation Variant 002 - ISO 15022 Variants | `https://www.iso20022.org/message-set/1124/download` | `sese`, `semt` |
+| Corporate Actions | `https://www.iso20022.org/message-set/1241/download` | `seev` |
+| Corporate Actions Variant 002 - ISO 15022 Variants | `https://www.iso20022.org/message-set/1201/download` | `seev` |
+
+The new acquisition order is:
+
+1. already-present local exact XSD;
+2. already-acquired local message-set bundle;
+3. official message-set download;
+4. official individual-XSD fallback;
+5. operator-supplied source required.
+
+The live verifier target `make verify-real-iso-sources` runs with `--bundle-only` so the
+Phase 3B evidence stays focused on message-set acquisition and does not spend excessive
+time on 29 individual fallbacks when every bundle request has already timed out.
+
+Safe ZIP handling rejects:
+
+- non-HTTPS or non-ISO redirects/final URLs;
+- oversized archives, too many files, oversized members and excessive total expansion;
+- suspicious compression ratios;
+- path traversal, absolute paths, Windows drive paths and destination-root escapes;
+- symlinks, non-regular entries, nested archives and duplicate filenames;
+- `.xsd` candidates that are binary, HTML, DOCTYPE-bearing, not `xs:schema`, or whose
+  filename message ID disagrees with `targetNamespace`.
+
+The local bundle index records exact message ID, target namespace, XSD filename, source
+checksum, bundle checksum, message set, authority and redistribution status. It stores no
+raw source content. Validated XSDs are materialised as exact `<messageDefinition>.xsd`
+files only inside the ignored source cache.
+
+### PASS 3 Live Result
+
+`make verify-real-iso-sources OUT=build/mx-real-sources/acquired-manifest.yaml` was run
+outside the sandbox after the sandboxed attempt failed DNS resolution. All seven observed
+official message-set downloads timed out before archive bytes reached the tool:
+
+| Metric | Result |
+| --- | --- |
+| Message-set bundles attempted | 7 |
+| Message-set bundles downloaded | 0 |
+| Message-set bundle failures | 7 |
+| Raw XSDs discovered from bundles | 0 |
+| Exact manifest definitions resolved from bundles | 0 |
+| Real schemas safe-loaded | 0 |
+| Compiled | 0 |
+| Registry passed | 0 |
+| Samples generated | 0 |
+| Source-XSD validated | 0 |
+| Parsed | 0 |
+| Round-tripped | 0 |
+| Excel | 0 |
+| API | 0 |
+| Exact all-gate passes | none |
+| Exact failures | all 29 exact definitions, category `ACQUISITION` |
+| Generic compiler defects found from real XSDs | 0 |
+| Generic compiler fixes | none; no real XSD reached the compiler |
+| Raw ISO artifacts committed | NO |
+| Generated candidate packs committed | NO; no candidates were produced and redistribution remains `UNKNOWN` |
+
+`make mx-scaleout` against the bundle-only acquired manifest attempted all 29 exact
+definitions and failed each with missing local source. No browser, API or Excel real-XSD
+proof was possible without legitimate source bytes.
+
+`git check-ignore -v` proved the live cache and representative raw-source paths are
+ignored:
+
+```text
+.gitignore:36:build/mx-real-sources/ build/mx-real-sources/acquired-manifest.yaml
+.gitignore:36:build/mx-real-sources/ build/mx-real-sources/scaleout-report.md
+.gitignore:33:backend/config/mx/xsd/sources/* backend/config/mx/xsd/sources/example.xsd
+.gitignore:33:backend/config/mx/xsd/sources/* backend/config/mx/xsd/sources/bundles/example.zip
+```
+
 ## What Changed Our Confidence
 
 The first pass proved the synthetic compiler path and the source-management architecture.
@@ -238,6 +328,14 @@ used npm or pip caching keep explicit cache inputs.
 - binary, HTML, cross-domain redirect, HTTP downgrade, checksum mismatch and oversized
   body rejection;
 - manifest acquisition and checksum recording with mocked official responses;
+- official message-set link parsing;
+- safe message-set ZIP indexing and materialisation;
+- path traversal, absolute path, Windows drive path, symlink, oversized member,
+  excessive file count, zip-bomb ratio, nested archive, duplicate entry, bad XSD binary,
+  HTML renamed as XSD, DOCTYPE and filename/namespace mismatch rejection;
+- bundle-first acquisition deduplication proving 29 exact definitions do not trigger 29
+  bundle downloads;
+- bundle-only live verification mode that skips individual fallback;
 - batch success/failure isolation;
 - Phase 3 business-area mapping.
 
@@ -245,11 +343,13 @@ used npm or pip caching keep explicit cache inputs.
 
 ## Post-Change Verification
 
-- Focused spec-engine tests: 42 passed.
+- Focused spec-engine source tests: 35 passed.
 - `make check`: pass.
-- Backend tests: 1291 passed, 23 skipped, 1 deselected.
+- Backend tests: 1309 passed, 23 skipped, 1 deselected.
 - mypy strict source count: 175 files.
-- Playwright: 80 passed.
+- Playwright: 80 passed in CI-mode local run. A first local run using
+  `reuseExistingServer` was interrupted after the reused backend became unreachable;
+  the clean CI-mode rerun passed.
 - `make secret-scan`: pass.
 - `make coverage`: current.
 - `make demo-pack-check`: current.

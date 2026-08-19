@@ -3,22 +3,29 @@
 from __future__ import annotations
 
 import hashlib
+import io
+import stat
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from app.spec_engine.diagnostics import FindingLog
+from app.spec_engine import source as source_module
+from app.spec_engine.diagnostics import CompilationError, FindingCode, FindingLog
 from app.spec_engine.mapper import map_message
 from app.spec_engine.source import (
     HttpFetchResponse,
     RedistributionStatus,
     acquire_manifest_sources,
     discover_messages,
+    fetch_message_set_bundle,
     fetch_source,
+    index_message_set_bundle_bytes,
     load_manifest,
     manifest_yaml,
     parse_catalogue_html,
+    parse_message_sets_html,
     run_scaleout,
 )
 from app.spec_engine.xsd_loader import load_schema_set
@@ -29,6 +36,8 @@ CATALOGUE_HTML = """
   <h4>Payments Clearing and Settlement</h4>
   <span>Message ID (scheme)</span><span>Message name</span>
   <span>Submitting organisation</span><span>Downloads</span>
+  <span>Last Updated</span><span>19 March 2026</span>
+  <a href="/message-set/1249/download">Download complete message set</a>
   <span>pacs.008.001.14</span>
   <span>FIToFICustomerCreditTransferV14</span>
   <span>SWIFT</span>
@@ -56,6 +65,33 @@ def test_catalogue_parser_resolves_current_versions_and_xsd_links() -> None:
 
     seev = next(item for item in messages if item.logical_message == "seev.031")
     assert seev.business_area == "SECURITIES_EVENTS"
+
+
+def test_message_set_parser_resolves_official_download_links() -> None:
+    message_sets = parse_message_sets_html(
+        CATALOGUE_HTML,
+        source_url="https://www.iso20022.org/iso-20022-message-definitions?search=pacs.008",
+    )
+
+    assert len(message_sets) == 1
+    assert message_sets[0].message_set_name == "Payments Clearing and Settlement"
+    assert message_sets[0].download_url == "https://www.iso20022.org/message-set/1249/download"
+    assert message_sets[0].catalogue_observation == "Download complete message set"
+
+
+def test_message_set_parser_skips_bah_and_variant_labels() -> None:
+    message_sets = parse_message_sets_html(
+        """
+        <h4>Corporate Actions</h4>
+        <a href="/bah">BAH</a>
+        <span>Has variants</span>
+        <span>Last Updated</span><span>17 March 2026</span>
+        <a href="/message-set/1241/download">Download complete message set</a>
+        """,
+        source_url="https://www.iso20022.org/iso-20022-message-definitions?search=seev",
+    )
+
+    assert message_sets[0].message_set_name == "Corporate Actions"
 
 
 def test_discovery_manifest_defaults_to_unknown_redistribution(tmp_path: Path) -> None:
@@ -275,6 +311,258 @@ messages:
     assert updated.messages[0].source_checksum
 
 
+def test_message_set_bundle_valid_zip_is_indexed_and_materialised(tmp_path: Path) -> None:
+    body = _zip_bytes(
+        {
+            "doc/readme.txt": b"reviewed metadata",
+            "schemas/pacs.008.001.14.xsd": _schema_bytes("pacs.008.001.14"),
+        }
+    )
+
+    result = fetch_message_set_bundle(
+        "https://www.iso20022.org/message-set/1249/download",
+        tmp_path / "sources",
+        message_set_name="Payments Clearing and Settlement",
+        fetcher=lambda _url: _response(
+            body,
+            final_url="https://www.iso20022.org/message-set/1249/download",
+            content_type="application/zip",
+        ),
+    )
+
+    assert result.index.entries[0].exact_message_definition == "pacs.008.001.14"
+    assert result.index.entries[0].source_file == "pacs.008.001.14.xsd"
+    assert (tmp_path / "sources" / "pacs.008.001.14.xsd").read_bytes() == _schema_bytes(
+        "pacs.008.001.14"
+    )
+    assert result.path == tmp_path / "sources" / "bundles" / "payments-clearing-and-settlement.zip"
+
+
+@pytest.mark.parametrize(
+    ("name", "code"),
+    [
+        ("../pacs.008.001.14.xsd", FindingCode.ISO_BUNDLE_PATH_TRAVERSAL),
+        ("/pacs.008.001.14.xsd", FindingCode.ISO_BUNDLE_PATH_TRAVERSAL),
+        ("C:/pacs.008.001.14.xsd", FindingCode.ISO_BUNDLE_PATH_TRAVERSAL),
+    ],
+)
+def test_message_set_bundle_rejects_unsafe_paths(
+    tmp_path: Path, name: str, code: FindingCode
+) -> None:
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({name: _schema_bytes("pacs.008.001.14")}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is code
+
+
+def test_message_set_bundle_rejects_symlink(tmp_path: Path) -> None:
+    info = zipfile.ZipInfo("schemas/pacs.008.001.14.xsd")
+    info.external_attr = (stat.S_IFLNK | 0o777) << 16
+
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({info: b"target"}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_SYMLINK_REJECTED
+
+
+def test_message_set_bundle_rejects_oversized_member(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(source_module, "MAX_BUNDLE_MEMBER_BYTES", 64)
+
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({"schemas/pacs.008.001.14.xsd": _schema_bytes("pacs.008.001.14")}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_OVERSIZED
+
+
+def test_message_set_bundle_rejects_too_many_entries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(source_module, "MAX_BUNDLE_FILE_COUNT", 1)
+
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({"a.txt": b"a", "b.txt": b"b"}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_OVERSIZED
+
+
+def test_message_set_bundle_rejects_zip_bomb_ratio(tmp_path: Path) -> None:
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({"schemas/bomb.txt": b"0" * 50000}, compression=zipfile.ZIP_DEFLATED),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_ZIP_BOMB
+
+
+def test_message_set_bundle_rejects_nested_archive(tmp_path: Path) -> None:
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({"nested/archive.zip": _zip_bytes({"a.txt": b"a"})}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_NESTED_ARCHIVE_REJECTED
+
+
+def test_message_set_bundle_rejects_duplicate_entries(tmp_path: Path) -> None:
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes(
+                [
+                    ("schemas/pacs.008.001.14.xsd", _schema_bytes("pacs.008.001.14")),
+                    ("schemas/pacs.008.001.14.xsd", _schema_bytes("pacs.008.001.14")),
+                ]
+            ),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_DUPLICATE_ENTRY
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"\x00\x01binary",
+        b"<html><body>not a schema</body></html>",
+        b'<!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]><x>&e;</x>',
+    ],
+)
+def test_message_set_bundle_rejects_bad_xsd_content(tmp_path: Path, body: bytes) -> None:
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({"schemas/pacs.008.001.14.xsd": body}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_BAD_XSD
+
+
+def test_message_set_bundle_rejects_filename_namespace_mismatch(tmp_path: Path) -> None:
+    with pytest.raises(CompilationError) as error:
+        index_message_set_bundle_bytes(
+            _zip_bytes({"schemas/pacs.008.001.14.xsd": _schema_bytes("pacs.009.001.13")}),
+            destination=tmp_path,
+            message_set_name="Payments Clearing and Settlement",
+        )
+
+    assert error.value.findings[0].code is FindingCode.ISO_BUNDLE_BAD_XSD
+
+
+def test_manifest_acquisition_reuses_one_bundle_for_many_definitions(tmp_path: Path) -> None:
+    definitions = [f"pacs.{index:03d}.001.01" for index in range(1, 30)]
+    manifest = _write_text(
+        tmp_path / "manifest.yaml",
+        "manifestVersion: mx-source-manifest/1\n"
+        "retrievedAt: '2026-08-19T00:00:00+00:00'\n"
+        "sourceUrl: https://www.iso20022.org/iso-20022-message-definitions\n"
+        "messageSets:\n"
+        "  - messageSetName: Payments Clearing and Settlement\n"
+        "    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?search=pacs\n"
+        "    messageSetDownloadUrl: https://www.iso20022.org/message-set/1249/download\n"
+        "messages:\n"
+        + "\n".join(
+            [
+                f"  - logicalMessage: pacs.{index:03d}\n"
+                f"    messageDefinition: {definition}\n"
+                "    messageSet: Payments Clearing and Settlement\n"
+                "    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=pacs\n"
+                f"    sourceLocation: {definition}.xsd"
+                for index, definition in enumerate(definitions, start=1)
+            ]
+        )
+        + "\n",
+    )
+    bundle = _zip_bytes(
+        {f"schemas/{definition}.xsd": _schema_bytes(definition) for definition in definitions}
+    )
+    bundle_calls = 0
+    individual_calls = 0
+
+    def bundle_fetcher(url: str) -> HttpFetchResponse:
+        nonlocal bundle_calls
+        bundle_calls += 1
+        assert url == "https://www.iso20022.org/message-set/1249/download"
+        return _response(
+            bundle,
+            content_type="application/zip",
+            final_url="https://www.iso20022.org/message-set/1249/download",
+        )
+
+    def individual_fetcher(url: str) -> HttpFetchResponse:
+        nonlocal individual_calls
+        individual_calls += 1
+        return _response(_schema_bytes("pacs.001.001.01"), final_url=url)
+
+    updated = acquire_manifest_sources(
+        manifest,
+        source_dir=tmp_path / "sources",
+        bundle_fetcher=bundle_fetcher,
+        fetcher=individual_fetcher,
+    )
+
+    assert bundle_calls == 1
+    assert individual_calls == 0
+    assert len([item for item in updated.messages if item.source_checksum]) == 29
+    assert updated.message_sets[0].bundle_checksum
+
+
+def test_bundle_only_acquisition_skips_individual_fallback(tmp_path: Path) -> None:
+    manifest = _write_text(
+        tmp_path / "manifest.yaml",
+        """
+manifestVersion: mx-source-manifest/1
+retrievedAt: '2026-08-19T00:00:00+00:00'
+sourceUrl: https://www.iso20022.org/iso-20022-message-definitions
+messages:
+  - logicalMessage: pacs.008
+    messageDefinition: pacs.008.001.14
+    sourceUrl: https://www.iso20022.org/iso-20022-message-definitions?search=pacs.008
+""",
+    )
+    individual_calls = 0
+
+    def individual_fetcher(url: str) -> HttpFetchResponse:
+        nonlocal individual_calls
+        individual_calls += 1
+        return _response(_schema_bytes("pacs.008.001.14"), final_url=url)
+
+    updated = acquire_manifest_sources(
+        manifest,
+        source_dir=tmp_path / "sources",
+        fetcher=individual_fetcher,
+        allow_individual_fallback=False,
+    )
+
+    assert individual_calls == 0
+    assert updated.messages[0].source_checksum is None
+    assert updated.unresolved == [
+        "pacs.008.001.14: not resolved from message-set bundles"
+    ]
+
+
 def test_batch_scaleout_compiles_good_sources_and_isolates_bad_ones(tmp_path: Path) -> None:
     sources = tmp_path / "sources"
     sources.mkdir()
@@ -368,6 +656,19 @@ def _schema_bytes(version: str) -> bytes:
   </xs:complexType>
 </xs:schema>
 """.encode()
+
+
+def _zip_bytes(
+    entries: dict[str | zipfile.ZipInfo, bytes] | list[tuple[str | zipfile.ZipInfo, bytes]],
+    *,
+    compression: int = zipfile.ZIP_STORED,
+) -> bytes:
+    buffer = io.BytesIO()
+    items = entries.items() if isinstance(entries, dict) else entries
+    with zipfile.ZipFile(buffer, mode="w", compression=compression) as archive:
+        for name, body in items:
+            archive.writestr(name, body)
+    return buffer.getvalue()
 
 
 def _response(

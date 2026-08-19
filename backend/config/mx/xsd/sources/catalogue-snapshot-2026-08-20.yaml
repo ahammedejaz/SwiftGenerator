@@ -4,9 +4,61 @@ sourceUrl: https://www.iso20022.org/iso-20022-message-definitions
 messageSetsInspected:
   - Bank-to-Customer Cash Management
   - Corporate Actions
+  - Corporate Actions Variant 002 - ISO 15022 Variants
   - Payments Clearing and Settlement
   - Payments Initiation
   - Settlement and Reconciliation
+  - Settlement and Reconciliation Variant 002 - ISO 15022 Variants
+messageSets:
+  - messageSetName: Payments Clearing and Settlement
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?search=Pacs.008
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1249/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 19 March 2026
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - messageSetName: Payments Initiation
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?search=pain.001
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1250/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 19 March 2026
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - messageSetName: Bank-to-Customer Cash Management
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?search=camt.053
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1246/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 19 March 2026
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - messageSetName: Settlement and Reconciliation
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?business-domain%5B0%5D=6
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1245/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 17 March 2026
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - messageSetName: Settlement and Reconciliation Variant 002 - ISO 15022 Variants
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?business-domain%5B0%5D=6
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1124/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 27 February 2025
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - messageSetName: Corporate Actions
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?search=seev
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1241/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 17 March 2026
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
+  - messageSetName: Corporate Actions Variant 002 - ISO 15022 Variants
+    messageSetSourcePage: https://www.iso20022.org/iso-20022-message-definitions?search=seev
+    messageSetDownloadUrl: https://www.iso20022.org/message-set/1201/download
+    catalogueObservation: Observed current ISO catalogue link text "Download complete message set" on 2026-08-20.
+    lastUpdated: 27 February 2025
+    redistributionStatus: UNKNOWN
+    rawSourceCommitted: false
 unresolved: []
 logicalMessages:
   - logicalMessage: pacs.008
