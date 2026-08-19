@@ -12,6 +12,19 @@ from app.spec_engine.structdiff import diff_packs
 from app.studio.mx.models import MxMessageSpec
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "xsd" / "test.001.001.01.xsd"
+NS = "urn:iso:std:iso:20022:tech:xsd:test.001.001.01"
+
+
+def _write_schema(tmp_path: Path, body: str, namespace: str = NS) -> Path:
+    path = tmp_path / "schema.xsd"
+    path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" '
+        f'targetNamespace="{namespace}" xmlns="{namespace}" elementFormDefault="qualified">'
+        f"{body}</xs:schema>",
+        encoding="utf-8",
+    )
+    return path
 
 
 def test_every_gate_passes_for_the_fixture_pack() -> None:
@@ -35,6 +48,26 @@ def test_the_source_schema_rejects_the_broken_variants() -> None:
     assert "missing mandatory element" in rejected
     assert "invalid datatype" in rejected
     assert "wrong element order" in rejected
+
+
+def test_sample_gate_repairs_required_blocks_with_optional_children(tmp_path: Path) -> None:
+    schema = _write_schema(
+        tmp_path,
+        '<xs:element name="Document" type="Document"/>'
+        '<xs:complexType name="Document"><xs:sequence>'
+        '<xs:element name="Msg" type="Msg"/></xs:sequence></xs:complexType>'
+        '<xs:complexType name="Msg"><xs:sequence>'
+        '<xs:element name="Pty" type="Party"/></xs:sequence></xs:complexType>'
+        '<xs:complexType name="Party"><xs:sequence>'
+        '<xs:element name="Nm" type="xs:string" minOccurs="0"/>'
+        "</xs:sequence></xs:complexType>",
+    )
+    pack = compile_schema(schema)
+    result = validate_pack(pack.yaml_text, pack.version, schema)
+
+    assert result.sample.passed
+    assert result.compose.passed, result.compose.detail
+    assert result.source_xsd.passed, result.source_xsd.detail
 
 
 def test_a_corrupt_pack_fails_the_registry_gate_loudly() -> None:

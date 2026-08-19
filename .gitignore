@@ -28,6 +28,14 @@ data/
 # Licensed ISO 20022 schemas are dropped in locally, never committed.
 backend/config/mx/xsd/official/*.xsd
 
+# Phase 3 ISO 20022 source bundles and downloads are local/operator-owned. Metadata such
+# as README files and reviewed manifests may be tracked; raw source bodies are not.
+backend/config/mx/xsd/sources/*
+!backend/config/mx/xsd/sources/README.md
+!backend/config/mx/xsd/sources/*.yaml
+build/mx-real-sources/
+build/mx-real-candidates/
+
 # The autonomous engagement brief. Kept locally, never committed.
 workPrompt.txt
 

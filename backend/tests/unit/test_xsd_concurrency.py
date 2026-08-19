@@ -40,6 +40,7 @@ def test_validation_is_serialised_against_the_shared_schema() -> None:
     """The compiled schemas are cached and therefore shared; validating on them is not safe
     to do concurrently, so it must be behind a lock."""
     assert isinstance(xsd_module._VALIDATION_LOCK, type(threading.Lock()))  # noqa: SLF001
+    assert isinstance(xsd_module._COMPILE_LOCK, type(threading.Lock()))  # noqa: SLF001
 
 
 @pytest.mark.parametrize("message_type", [s.message_type for s in mx_registry.all_specs()])

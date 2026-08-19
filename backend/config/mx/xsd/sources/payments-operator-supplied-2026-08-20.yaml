@@ -1,0 +1,168 @@
+manifestVersion: mx-source-manifest/1
+retrievedAt: '2026-08-20T00:00:00+05:30'
+sourceUrl: https://www.iso20022.org/iso-20022-message-definitions
+messageSetsInspected:
+- Payments Clearing and Settlement
+unresolved: []
+logicalMessages:
+- logicalMessage: pacs.002
+  currentDefinitions:
+  - pacs.002.001.16
+  archivedDefinitions: []
+- logicalMessage: pacs.003
+  currentDefinitions:
+  - pacs.003.001.12
+  archivedDefinitions: []
+- logicalMessage: pacs.004
+  currentDefinitions:
+  - pacs.004.001.15
+  archivedDefinitions: []
+- logicalMessage: pacs.007
+  currentDefinitions:
+  - pacs.007.001.14
+  archivedDefinitions: []
+- logicalMessage: pacs.008
+  currentDefinitions:
+  - pacs.008.001.14
+  archivedDefinitions: []
+- logicalMessage: pacs.009
+  currentDefinitions:
+  - pacs.009.001.13
+  archivedDefinitions: []
+- logicalMessage: pacs.010
+  currentDefinitions:
+  - pacs.010.001.06
+  archivedDefinitions: []
+- logicalMessage: pacs.028
+  currentDefinitions:
+  - pacs.028.001.07
+  archivedDefinitions: []
+messages:
+- logicalMessage: pacs.002
+  messageDefinition: pacs.002.001.16
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.002.001.16.xsd
+  sourceChecksum: sha256:fa35ba75f6f22654bf82eadef689cd0c95ab620a7683bbad7602cef665e7c2f6
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.003
+  messageDefinition: pacs.003.001.12
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.003.001.12.xsd
+  sourceChecksum: sha256:29d8bd67a711b0407c485715f5d396084eed51b48ac6f900928231e5ec0dd7e9
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.004
+  messageDefinition: pacs.004.001.15
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.004.001.15.xsd
+  sourceChecksum: sha256:d325d76d83a95087850919f9e19d9187da6d4534766e0049a6f97285364db7a1
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.007
+  messageDefinition: pacs.007.001.14
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.007.001.14.xsd
+  sourceChecksum: sha256:72906d810bbcd0d5ec5dc06c4c41ab9362f85e8d1a40f1467c68eb6c14a69354
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.008
+  messageDefinition: pacs.008.001.14
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.008.001.14.xsd
+  sourceChecksum: sha256:e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.009
+  messageDefinition: pacs.009.001.13
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.009.001.13.xsd
+  sourceChecksum: sha256:81b1fcedad68faae63f56424db2e39a3ce873cb4537b6a284e3fafd3fab9691b
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.010
+  messageDefinition: pacs.010.001.06
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.010.001.06.xsd
+  sourceChecksum: sha256:d8557fe0dcb4dd99c2461b329f18f858f44344b76cbceda904b766f35fa018b2
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false
+- logicalMessage: pacs.028
+  messageDefinition: pacs.028.001.07
+  messageName: ''
+  messageSet: Payments Clearing and Settlement
+  businessArea: PAYMENTS_CLEARING_SETTLEMENT
+  submittingOrganisation: ''
+  catalogueState: CURRENT
+  sourceType: OPERATOR_SUPPLIED_XSD
+  sourceUrl: operator-local:archive_payments_clearing_and_settlement_15_52355c2554
+  sourceLocation: pacs.028.001.07.xsd
+  sourceChecksum: sha256:0618a23c104d68dd74d3e54f849c8a4d2bff6985da18c744df1c7ec74c90453f
+  contentType: application/xml
+  authorityDeclaration: OPERATOR_SUPPLIED_FROM_OFFICIAL_ISO_CATALOGUE
+  redistributionStatus: UNKNOWN
+  derivedMetadataRedistributionStatus: UNKNOWN
+  rawSourceCommitted: false

@@ -21,7 +21,16 @@ from app.spec_engine.ir import (
 )
 from app.spec_engine.xsd_loader import XS, SchemaSet
 
-_SUPPORTED_BASES = {"xs:string", "xs:decimal", "xs:boolean", "xs:date", "xs:dateTime"}
+_SUPPORTED_BASES = {
+    "xs:string",
+    "xs:decimal",
+    "xs:boolean",
+    "xs:date",
+    "xs:dateTime",
+    "xs:time",
+    "xs:gYear",
+    "xs:base64Binary",
+}
 _INT_FACETS = ("minLength", "maxLength", "length", "totalDigits", "fractionDigits")
 _STR_FACETS = ("minInclusive", "maxInclusive")
 
@@ -177,6 +186,7 @@ class SchemaReader:
                     location=name,
                 )
             elif child.tag == _tag("any"):
+                result.open_content = True
                 self._log.warning(
                     FindingCode.XSD_UNSUPPORTED_CONSTRUCT,
                     f"complexType {name or '(anonymous)'} allows xs:any content, which "

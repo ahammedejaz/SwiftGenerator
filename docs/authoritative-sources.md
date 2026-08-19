@@ -53,6 +53,22 @@ structural description — may be committed to a repository is a licensing judge
 belongs to you, not to this tool; when in doubt, keep packs in a drop directory alongside
 the schema and point `MX_SPECIFICATION_DIRECTORY` at it.
 
+For a real-schema scale-out batch, first create or inspect a metadata manifest:
+
+```bash
+make mx-source-discover LOGICAL="pacs.008 pain.001 camt.053" OUT=backend/config/mx/xsd/sources/catalogue-snapshot.yaml
+make mx-source-inspect MANIFEST=backend/config/mx/xsd/sources/catalogue-snapshot.yaml
+make mx-source-acquire MANIFEST=backend/config/mx/xsd/sources/catalogue-snapshot.yaml SOURCES=backend/config/mx/xsd/sources OUT=backend/config/mx/xsd/sources/catalogue-snapshot-acquired.yaml
+make mx-scaleout MANIFEST=backend/config/mx/xsd/sources/catalogue-snapshot-acquired.yaml SOURCES=backend/config/mx/xsd/sources OUT=build/mx-candidates REPORT=build/mx-scaleout.md
+```
+
+The source-cache directory `backend/config/mx/xsd/sources/` tracks README and YAML
+metadata only. Raw source files remain ignored. `UNKNOWN` redistribution is the default
+and means raw source must not be committed; generated pack redistribution is a separate
+operator decision. ISO may serve XSD bytes as `application/octet-stream`; the acquisition
+tool accepts that only after verifying HTTPS ISO redirects, bounded size, safe XML parsing,
+an `xs:schema` root and the exact ISO 20022 target namespace.
+
 ---
 
 ## 2. ISO 20022 message definition reports

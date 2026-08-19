@@ -24,7 +24,12 @@ class MessageFormat(StrEnum):
 
 
 class BusinessArea(StrEnum):
+    PAYMENTS_CLEARING_SETTLEMENT = "PAYMENTS_CLEARING_SETTLEMENT"
+    PAYMENT_INITIATION = "PAYMENT_INITIATION"
+    CASH_MANAGEMENT = "CASH_MANAGEMENT"
     SECURITIES_SETTLEMENT = "SECURITIES_SETTLEMENT"
+    SECURITIES_MANAGEMENT = "SECURITIES_MANAGEMENT"
+    SECURITIES_EVENTS = "SECURITIES_EVENTS"
     SETTLEMENT_COMMANDS = "SETTLEMENT_COMMANDS"
     PENALTIES = "PENALTIES"
     CORPORATE_ACTIONS = "CORPORATE_ACTIONS"
@@ -34,7 +39,12 @@ class BusinessArea(StrEnum):
 
 
 BUSINESS_AREA_LABELS: dict[BusinessArea, str] = {
+    BusinessArea.PAYMENTS_CLEARING_SETTLEMENT: "Payments Clearing & Settlement",
+    BusinessArea.PAYMENT_INITIATION: "Payment Initiation",
+    BusinessArea.CASH_MANAGEMENT: "Cash Management",
     BusinessArea.SECURITIES_SETTLEMENT: "Securities Settlement",
+    BusinessArea.SECURITIES_MANAGEMENT: "Securities Management",
+    BusinessArea.SECURITIES_EVENTS: "Securities Events",
     BusinessArea.SETTLEMENT_COMMANDS: "Settlement Commands",
     BusinessArea.PENALTIES: "Penalties",
     BusinessArea.CORPORATE_ACTIONS: "Corporate Actions",

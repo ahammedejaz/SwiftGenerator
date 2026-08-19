@@ -177,6 +177,7 @@ MX_TYPE_FALLBACKS: dict[str, str] = {
 }
 
 MAX_REPAIR_ROUNDS = 6
+MAX_GENERATE_REQUEST_ITEMS = 500
 
 
 # --------------------------------------------------------------------------------------
@@ -374,6 +375,8 @@ def _fields_named_by_validator(
     from app.studio.service import studio_service
 
     fields, elements = _to_request_inputs(format_, pairs)
+    if len(fields) > MAX_GENERATE_REQUEST_ITEMS or len(elements) > MAX_GENERATE_REQUEST_ITEMS:
+        return set()
     result = studio_service.generate(
         GenerateRequest(
             format=format_,
@@ -454,6 +457,8 @@ def available_variants(format_: MessageFormat, message_type: str) -> tuple[Sampl
     for variant in SampleVariant:
         sample = build_sample(format_, message_type, variant)
         if sample.field_count == 0:
+            continue
+        if sample.field_count > MAX_GENERATE_REQUEST_ITEMS:
             continue
         if sample.field_count in seen_sizes and variant is not SampleVariant.MINIMAL:
             continue

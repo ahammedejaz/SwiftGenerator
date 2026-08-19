@@ -28,12 +28,36 @@ make spec-compile SOURCE=path/to/sese.023.001.11.xsd OUT=backend/config/mx
 # Prove an existing pack against its source schema
 make spec-validate PACK=backend/config/mx/sese.023.001.11.yaml SOURCE=path/to/schema.xsd
 
+# Resolve logical message IDs from the official ISO catalogue into a metadata manifest
+make mx-source-discover LOGICAL="pacs.008 pain.001 camt.053" OUT=backend/config/mx/xsd/sources/catalogue-snapshot.yaml
+
+# Fetch one official catalogue artifact into a local source cache
+make mx-source-fetch URL=https://www.iso20022.org/... OUT=backend/config/mx/xsd/sources \
+  EXPECTED_MESSAGE_DEFINITION=pacs.008.001.14
+
+# Acquire every XSD listed in, or resolvable from, a metadata manifest
+make mx-source-acquire MANIFEST=backend/config/mx/xsd/sources/catalogue-snapshot.yaml \
+  SOURCES=backend/config/mx/xsd/sources \
+  OUT=backend/config/mx/xsd/sources/catalogue-snapshot-acquired.yaml
+
+# Compile and gate every manifest entry whose raw source is present locally
+make mx-scaleout MANIFEST=backend/config/mx/xsd/sources/catalogue-snapshot.yaml SOURCES=backend/config/mx/xsd/sources OUT=build/mx-candidates REPORT=build/mx-scaleout.md
+
 # What changed between two pack versions (for standards-release upgrades)
 make spec-diff BEFORE=old.yaml AFTER=new.yaml
 
 # The CLI underneath, with more options (--root, --bundle, --source-type, inspect)
 cd backend && .venv/bin/python -m app.spec_engine --help
 ```
+
+`mx-source-discover`, `mx-source-fetch` and `mx-source-acquire` are developer/operator
+commands. They accept only HTTPS `iso20022.org` URLs for remote structural authority, and
+they reject cross-domain redirects or HTTP downgrade. The fetcher accepts
+`application/octet-stream` only after safe XML parsing proves the body is an `xs:schema`
+whose `targetNamespace` matches the expected exact message definition. Raw source bodies
+are kept in the ignored source cache; the committed manifest records safe metadata such as
+logical message, exact message definition, catalogue state, source location, checksums when
+available and redistribution status.
 
 ## The gates
 

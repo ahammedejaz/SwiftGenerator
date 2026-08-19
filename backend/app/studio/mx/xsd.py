@@ -78,6 +78,9 @@ _RESTRICTION_XSD_BASES = {
     MxRestrictionBase.DECIMAL: "xs:decimal",
     MxRestrictionBase.DATE: "xs:date",
     MxRestrictionBase.DATE_TIME: "xs:dateTime",
+    MxRestrictionBase.TIME: "xs:time",
+    MxRestrictionBase.YEAR: "xs:gYear",
+    MxRestrictionBase.BINARY: "xs:base64Binary",
     MxRestrictionBase.BOOLEAN: "xs:boolean",
 }
 
@@ -210,7 +213,8 @@ def official_schema_path(spec: MxMessageSpec) -> Path | None:
 def _compiled(version: str, source: str, schema_text: str):  # type: ignore[no-untyped-def]
     from lxml import etree
 
-    return etree.XMLSchema(etree.fromstring(schema_text.encode()))
+    with _COMPILE_LOCK:
+        return etree.XMLSchema(etree.fromstring(schema_text.encode()))
 
 
 #: Serialises validation against the cached schemas.
@@ -231,6 +235,7 @@ def _compiled(version: str, source: str, schema_text: str):  # type: ignore[no-u
 #: Compilation stays cached, which is the expensive part. Validating a settlement message
 #: takes microseconds, so serialising it costs nothing measurable.
 _VALIDATION_LOCK = threading.Lock()
+_COMPILE_LOCK = threading.Lock()
 
 
 def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
