@@ -521,16 +521,21 @@ def compile_pack(
     for rule in pack.rules:
         from app.rule_engine.dsl import references as expression_references
 
-        refs = list(expression_references(rule.assert_))
-        if rule.when is not None:
-            refs = list(expression_references(rule.when)) + refs
-        bindings = _bind(refs, index, pack, log, rule.rule_id)
+        asserted = list(expression_references(rule.assert_))
+        conditional = list(expression_references(rule.when)) if rule.when is not None else []
+        bindings = _bind([*conditional, *asserted], index, pack, log, rule.rule_id)
         if rule.when is not None:
             _check_expression(rule.when, bindings, log, subject, rule.rule_id)
         _check_expression(rule.assert_, bindings, log, subject, rule.rule_id)
         _check_against_structure(rule, bindings, log, subject)
+        # A finding points at the field a tester has to change, which is the one the
+        # *assertion* names — never the one the condition happened to mention first.
         primary = next(
-            (bindings[ref.canonical()] for ref in refs if ref.canonical() in bindings),
+            (
+                bindings[ref.canonical()]
+                for ref in [*asserted, *conditional]
+                if ref.canonical() in bindings
+            ),
             None,
         )
         if primary is not None:

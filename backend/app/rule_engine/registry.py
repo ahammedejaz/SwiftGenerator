@@ -41,6 +41,17 @@ def rule_pack_directory() -> Path:
 
 
 @dataclass(frozen=True)
+class FieldRuleFact:
+    """What Message Intelligence is told about a rule that names a field."""
+
+    layer: RuleLayer
+    rule_id: str
+    title: str
+    meaning: str
+    source_reference: str
+
+
+@dataclass(frozen=True)
 class _Target:
     format: MessageFormat
     message_type: str
@@ -242,32 +253,40 @@ class RulePackRegistry:
 
     def rules_for_field(
         self, format_: MessageFormat, message_type: str, location: str
-    ) -> list[tuple[RuleLayer, str, str, str]]:
-        """(layer, id, title, source reference) for every installed rule naming a field."""
-        from app.rule_engine.evaluator import source_reference
+    ) -> list[FieldRuleFact]:
+        """Every installed rule that names a field, in layer order.
 
-        found: list[tuple[RuleLayer, str, str, str]] = []
-        for pack in self._packs:
+        Only reviewed packs are loaded, so this can never surface a candidate — which is
+        the same reason a candidate never produces a validation finding.
+        """
+        from app.rule_engine.evaluator import source_reference
+        from app.rule_engine.layers import LAYER_ORDER
+
+        found: list[FieldRuleFact] = []
+        for pack in sorted(self._packs, key=lambda item: LAYER_ORDER.index(item.pack.layer)):
             if pack.pack.format is not format_ or pack.pack.message_type != message_type:
                 continue
             for rule in pack.rules:
                 if any(item.location == location for item in rule.bindings.values()):
                     found.append(
-                        (
-                            pack.pack.layer,
-                            rule.rule.rule_id,
-                            rule.rule.title,
-                            source_reference(rule.rule.evidence) or "",
+                        FieldRuleFact(
+                            layer=pack.pack.layer,
+                            rule_id=rule.rule.rule_id,
+                            title=rule.rule.title,
+                            meaning=rule.rule.finding.message,
+                            source_reference=source_reference(rule.rule.evidence) or "",
                         )
                     )
             for restriction in pack.restrictions:
                 if restriction.field.location == location:
+                    item = restriction.restriction
                     found.append(
-                        (
-                            pack.pack.layer,
-                            restriction.restriction.restriction_id,
-                            restriction.restriction.finding.message,
-                            source_reference(restriction.restriction.evidence) or "",
+                        FieldRuleFact(
+                            layer=pack.pack.layer,
+                            rule_id=item.restriction_id,
+                            title=f"{restriction.field.display_name} is restricted",
+                            meaning=item.finding.message,
+                            source_reference=source_reference(item.evidence) or "",
                         )
                     )
         return found

@@ -534,6 +534,24 @@ class IntelligenceSearchResponse(ApiModel):
     llm_used: bool = False
 
 
+class FieldRuleSummary(ApiModel):
+    """One installed, reviewed rule that names a field.
+
+    Candidate rules never appear here. A candidate is a reviewer's artifact; showing one
+    to a tester would present a model's proposal as a property of the standard.
+    """
+
+    rule_id: str
+    #: The authority layer in words — "Market practice rule".
+    layer: str
+    title: str
+    #: What the rule asks for, in a sentence.
+    meaning: str
+    #: The source identity and location that established it. Never licensed prose.
+    source_reference: str
+    review_status: str
+
+
 class IntelligenceDetail(ApiModel):
     id: str
     format: MessageFormat
@@ -567,6 +585,8 @@ class IntelligenceDetail(ApiModel):
     source_reference: str
     standards_release: str
     sample_lines: list[str] = Field(default_factory=list)
+    #: Reviewed rules that name this field, in layer order. Empty when none are installed.
+    rules: list[FieldRuleSummary] = Field(default_factory=list)
 
 
 class SampleMessage(ApiModel):
