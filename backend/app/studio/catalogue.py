@@ -11,7 +11,7 @@ from functools import lru_cache
 
 from app.knowledge.code_lists import code_lists
 from app.knowledge.loader import knowledge_repository
-from app.knowledge.models import WorkflowModuleId
+from app.knowledge.models import RuleLayer, WorkflowModuleId
 from app.profiles.loader import profiles
 from app.specifications.registry import specification_registry
 from app.studio.capability import (
@@ -72,6 +72,22 @@ def _profile_configured(message_type: str) -> bool:
     )
 
 
+def _installed_rule_layers(format_: MessageFormat, message_type: str) -> dict[str, bool]:
+    """Which authority layers have a reviewed rule pack installed for this message.
+
+    Measured from the registry, which loads reviewed packs only — so a candidate rule can
+    never move a dimension, just as it can never produce a validation finding.
+    """
+    from app.rule_engine.registry import rule_pack_registry
+
+    layers = rule_pack_registry.layers_for(format_, message_type)
+    return {
+        "reviewed_business_rules": RuleLayer.BASE_STANDARD in layers,
+        "market_practice_configured": RuleLayer.MARKET_PRACTICE in layers,
+        "client_rules_configured": RuleLayer.CLIENT_PROFILE in layers,
+    }
+
+
 @lru_cache(maxsize=64)
 def capability_dimensions(format_: MessageFormat, message_type: str) -> CapabilityDimensions:
     if format_ is MessageFormat.MT:
@@ -80,6 +96,7 @@ def capability_dimensions(format_: MessageFormat, message_type: str) -> Capabili
             generated_from_schema=False,
             has_business_rules=True,
             profile_configured=_profile_configured(message_type),
+            **_installed_rule_layers(format_, message_type),
         )
     spec = mx_registry.get(message_type)
     has_rules = bool(spec.require_one_of) or any(
@@ -89,6 +106,7 @@ def capability_dimensions(format_: MessageFormat, message_type: str) -> Capabili
         generated_from_schema=spec.source.generated,
         has_business_rules=has_rules,
         profile_configured=_profile_configured(spec.message_type),
+        **_installed_rule_layers(format_, spec.message_type),
     )
 
 

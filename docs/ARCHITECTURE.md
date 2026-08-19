@@ -144,6 +144,8 @@ backend/config/knowledge/*.yaml     MT: what each tag means, in business languag
 backend/config/specifications/      MT: which sequences and rows each message has
 backend/config/mx/*.yaml            MX: the full element tree
 backend/config/profiles/*.yaml      Per-client settings and envelope values
+backend/config/rules/*.yaml         Reviewed business rules: base, market practice, client
+backend/config/rule_sources/        The documents rules were derived from (synthetic only)
 ```
 
 **MT** is defined in two halves. The *knowledge base* describes each tag once — meaning,
@@ -256,6 +258,35 @@ and the reason it is blank.
 
 ---
 
+## Rules are configuration too — `backend/app/rule_engine/`
+
+Structure is one authority; business rules are another. A **rule pack** says what a valid
+*use* of an already-valid structure looks like — and reads structure without ever writing
+it, which is a property of the architecture rather than a promise: there is no writer in
+the package at all.
+
+```
+Structure          elements, order, cardinality, datatype, code set
+   ↓
+BASE_STANDARD  →  MARKET_PRACTICE  →  CLIENT_PROFILE      each may narrow, never widen
+   ↓
+Effective rules → deterministic evaluator → ValidationIssue[], each naming its layer
+```
+
+Every layer runs; none suppresses another. A contradiction between layers is reported with
+both rule identifiers at *installation*, not when a tester eventually trips over it.
+
+Rules become active the way any configuration does. An offline pipeline reads a source
+document, segments it deterministically, asks two isolated model passes for candidates from
+a closed vocabulary, compares them without picking a side, attacks them with a refuter, and
+runs them through the same compiler that guards an installed pack. What comes out is a
+*candidate* — and the registry loads only reviewed, source-controlled packs, refusing
+rather than skipping anything else. Runtime evaluation calls no model at all.
+
+See [specification-rule-engine.md](specification-rule-engine.md).
+
+---
+
 ## Two ways to validate MX, and why
 
 XSD validation runs against one of two schemas, and the response always says which:
@@ -357,9 +388,16 @@ module, description) plus its field records in `backend/config/knowledge/`. The 
 is the single authority for which MT messages exist — there is no message list in code.
 
 **A new validation rule**
-MT rules live in `MtGenerator._business_rules` and `._profile_rules`; MX rules in
-`MxGenerator._business_rules`. Prefer expressing a rule in the specification when you can —
-`requireOneOf` in the MX YAML is an example of a rule that is configuration, not code.
+Prefer configuration. A reviewed rule pack in `backend/config/rules/` expresses a
+conditional requirement, a prohibition, a code restriction, a date relation or a
+cross-field dependency declaratively, carries the source location that established it, and
+applies to the browser, the JSON API and the Excel path through one call site. See
+[rule-pack-format.md](rule-pack-format.md).
+
+The older hand-written rules still live in `MtGenerator._business_rules` /
+`._profile_rules` and `MxGenerator._business_rules`, and `requireOneOf` in the MX YAML is
+a third, narrower form of the same idea. Nothing was migrated: those rules are working,
+tested and unaffected by the engine.
 
 **A new output format**
 Add it to `OutputMode`, produce it in `StudioService`, and give it a file extension in

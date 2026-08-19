@@ -12,12 +12,14 @@ business phrase (``settlement amount``) or a message type (``sese.023``).
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from functools import lru_cache
 
 from app.knowledge.loader import knowledge_repository
 from app.studio.catalogue import message_spec
 from app.studio.models import (
     FieldExample,
+    FieldRuleSummary,
     IntelligenceDetail,
     IntelligenceHit,
     IntelligenceSearchResponse,
@@ -117,6 +119,36 @@ def _mx_terms(field: SpecField, message_type: str) -> set[str]:
         terms.add(field.xpath.lower())
     terms.update(code.lower() for code in field.allowed_codes)
     return terms
+
+
+
+def _field_rules(field: SpecField, message_types: Iterable[str]) -> list[FieldRuleSummary]:
+    """Reviewed rules that name this field, across the messages it appears in.
+
+    Read from the registry, which loads reviewed packs only — so a candidate rule is
+    invisible here for exactly the reason it is invisible to validation.
+    """
+    from app.rule_engine.layers import LAYER_LABEL
+    from app.rule_engine.registry import rule_pack_registry
+
+    location = field.xpath if field.format is MessageFormat.MX else field.id
+    if not location:
+        return []
+    summaries: dict[str, FieldRuleSummary] = {}
+    for message_type in sorted(message_types):
+        for fact in rule_pack_registry.rules_for_field(field.format, message_type, location):
+            summaries.setdefault(
+                fact.rule_id,
+                FieldRuleSummary(
+                    rule_id=fact.rule_id,
+                    layer=LAYER_LABEL[fact.layer],
+                    title=fact.title,
+                    meaning=fact.meaning,
+                    source_reference=fact.source_reference,
+                    review_status="REVIEWED",
+                ),
+            )
+    return list(summaries.values())
 
 
 def _address(field: SpecField) -> str:
@@ -260,6 +292,7 @@ def _detail(field: SpecField, message_types: list[str]) -> IntelligenceDetail:
         source_reference=field.source_reference,
         standards_release=field.standards_release,
         sample_lines=_sample_lines(field, message_types),
+        rules=_field_rules(field, message_types),
     )
 
 

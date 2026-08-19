@@ -1,0 +1,51 @@
+# A synthetic profile that exists to demonstrate the rule-overlay stack end to end:
+# structure -> market practice -> client. Both overlays are derived from the synthetic
+# documents in config/rule_sources/ and are clearly labelled as such. Neither describes a
+# real market or a real client, and the two existing demo profiles are untouched by them.
+profileId: DEMO_MARKET_CLIENT_V1
+name: Demo Market and Client Overlay Profile
+version: 1.0.0
+standardsRelease: DEMO_SR2026
+status: DEMO
+# The market-practice rule packs this profile applies. A market is a convention several
+# clients share, so it is named once here rather than copied into each client profile.
+marketProfileId: DEMO_MARKET_V1
+supportedMessageTypes:
+  - MT541
+  - MT543
+defaults:
+  function: NEWM
+  security.quantity_type: UNIT
+allowedCurrencies:
+  - USD
+  - EUR
+  - GBP
+requiredFields:
+  MT541: []
+  MT543: []
+clientRequiredFields:
+  MT541: []
+  MT543: []
+enabledNegativeMutations: []
+validation:
+  senderReference:
+    maxLength: 16
+    uppercase: true
+
+finEnvelope:
+  senderLogicalTerminal: DEMOGB2LAXXX
+  receiverAddress: DEMOUS33XXXX
+  applicationId: F
+  serviceId: "01"
+  sessionNumber: "0003"
+  sequenceNumber: "000001"
+  priority: "N"
+  includeMessageUserReference: true
+  trailerFields: {}
+
+mxEnvelope:
+  fromBic: DEMOGB2LXXX
+  toBic: DEMOUS33XXX
+  businessService: swift.demo.subset
+  priority: NORM
+  wrapperElement: BusinessMessage

@@ -1,6 +1,6 @@
 # Testing
 
-**1,109 automated tests.** 1,036 backend, 73 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
+**1,354 automated tests.** 1,274 backend, 80 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
 
 ---
 
@@ -50,10 +50,11 @@ npx playwright test --debug                                   # step through it
 
 | Folder | Tests | Covers |
 |---|---|---|
-| `studio/` | 693 | FIN envelope, MT and MX generation, import, the comparison, coverage, Excel, capability dimensions, the `/api/v1` contract |
+| `studio/` | 694 | FIN envelope, MT and MX generation, import, the comparison, coverage, Excel, capability dimensions, the `/api/v1` contract |
 | `unit/` | 193 | Resolver, profiles, identifiers, validation, AI service, cache, telemetry, security |
 | `api/` | 63 | The original scenario API, bulk, samples, security, lifecycle |
-| `spec_engine/` | 36 | XSD loader security, the compiler, pack gates, structural diff, the end-to-end pack integration |
+| `spec_engine/` | 40 | XSD loader security, the compiler, pack gates, structural diff, provenance honesty, the end-to-end pack integration |
+| `rule_engine/` | 233 | The rule DSL and its semantics, reference resolution, every compiler refusal, layer narrowing and conflict, the review gate, source ingestion and segmentation, the extraction pipeline against scripted providers, the injection boundary, the evaluation corpus, and the synthetic end-to-end proof |
 | `knowledge/` | 17 | The MT knowledge base |
 | `golden/` | 17 | Byte-for-byte MT output regression |
 | `workflows/` | 16 | Settlement processing, penalties, corporate actions |
@@ -120,6 +121,7 @@ The studio suite is worth knowing in detail, because it encodes the rules that m
 | `mt-authoring.spec.ts` | ISIN entry, SETR semantics, settlement parties, dropdowns, Guided/Expert mode switching |
 | `studio-import.spec.ts` | Importing MT and MX back into the builder, the message-type picker, refusals, the cancellation lifecycle |
 | `message-diff.spec.ts` | Original versus regenerated: the verdict, every reason, show-only-changes, copy, download, return to edit, phone width |
+| `rule-overlays.spec.ts` | Reviewed market and client rule packs: narrowing, which layer refused, the evidence behind Technical details, correcting a value, Message Intelligence, phone width |
 | `studio-screens.spec.ts` | Excel round trip both formats, Intelligence search, Validate, Automation examples, Recent Messages, responsive behaviour, accessibility basics |
 | `guided`, `bulk`, `lifecycle`, `penalties`, … | The pre-existing Advanced screens |
 

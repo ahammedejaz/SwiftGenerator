@@ -96,7 +96,7 @@ One word cannot say which claims a message actually holds, so each authority lay
 | MT567 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
 | MT568 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
 | sese.020 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
-| sese.023 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
+| sese.023 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | CONFIGURED | CONFIGURED | NOT_RUN |
 | sese.024 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
 | sese.025 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
 | sese.027 | CONFIGURED_SUBSET | CONFIGURED_SUBSET | NOT_CONFIGURED | NOT_CONFIGURED | NOT_RUN |
@@ -121,4 +121,4 @@ Nothing licensed is reproduced in this repository. What exists is the receiving 
 | Official ISO 20022 schemas | `REPOSITORY_CONFIGURED` | 0 of 7 configured messages have an official schema; the rest validate against a schema derived from this repository's own YAML. | `backend/config/mx/xsd/official` | `MX_OFFICIAL_XSD_DIRECTORY` |
 | ISO 20022 message definition reports | `REPOSITORY_CONFIGURED` | 7 repository-configured subsets, of which 4 (sese.020, sese.027, sese.030, sese.031) have not been reconciled against any message-definition report at all. | `backend/config/mx` | `MX_SPECIFICATION_DIRECTORY` |
 | Licensed SWIFT MT specification | `REPOSITORY_CONFIGURED` | 16 messages and 220 rows, all ISO15022_CONFIGURED_SUBSET_V1. | `backend/config/specifications/supported_subset_v1.yaml` | `MT_SPECIFICATION_MANIFEST` |
-| Client MyStandards usage guidelines | `REPOSITORY_CONFIGURED` | 2 demonstration profiles (BASE_DEMO_V1, BFS_CLIENT_DEMO_V1); none derived from a client guideline. | `backend/config/profiles` | `CLIENT_PROFILE_DIRECTORY` |
+| Client MyStandards usage guidelines | `REPOSITORY_CONFIGURED` | 3 demonstration profiles (BASE_DEMO_V1, BFS_CLIENT_DEMO_V1, DEMO_MARKET_CLIENT_V1); none derived from a client guideline. | `backend/config/profiles` | `CLIENT_PROFILE_DIRECTORY` |

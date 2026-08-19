@@ -27,3 +27,13 @@ data/
 
 # Licensed ISO 20022 schemas are dropped in locally, never committed.
 backend/config/mx/xsd/official/*.xsd
+
+# The autonomous engagement brief. Kept locally, never committed.
+workPrompt.txt
+
+# Business-rule source documents are dropped in locally, never committed. Only the
+# synthetic fixtures this repository owns are tracked.
+backend/config/rule_sources/*
+!backend/config/rule_sources/README.md
+!backend/config/rule_sources/sources.yaml
+!backend/config/rule_sources/synthetic-*.md

@@ -9,6 +9,9 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.profiles.loader import ClientProfile, profiles
+from app.rule_engine.binding import value_bag
+from app.rule_engine.evaluator import evaluate_rules
+from app.rule_engine.registry import rule_pack_registry
 from app.studio.catalogue import known_message_type, message_spec
 from app.studio.models import (
     MT_OUTPUT_MODES,
@@ -73,11 +76,20 @@ class StudioService:
             envelope=request.envelope,
             want_fin=OutputMode.FIN in wants or OutputMode.TXT in wants,
         )
+        _apply_rule_packs(
+            MessageFormat.MT,
+            request.message_type,
+            profile,
+            [(item.row.row_id, item.value) for item in build.resolved],
+            build.errors,
+            build.warnings,
+        )
         layers = [
             _layer(ValidationLayer.CANONICAL, build.errors),
             _layer(ValidationLayer.STRUCTURE, build.errors),
             _layer(ValidationLayer.FORMAT, build.errors),
             _layer(ValidationLayer.BUSINESS_RULES, build.errors),
+            _layer(ValidationLayer.MARKET_PRACTICE, build.errors),
             _layer(ValidationLayer.CLIENT_PROFILE, build.errors),
         ]
         if build.fin is not None:
@@ -176,6 +188,14 @@ class StudioService:
         )
         errors = list(build.errors)
         warnings = list(build.warnings)
+        _apply_rule_packs(
+            MessageFormat.MX,
+            request.message_type,
+            profile,
+            [(item.flat.path, item.value) for item in build.resolved],
+            errors,
+            warnings,
+        )
 
         well_formed_issue = check_well_formed(build.xml)
         if well_formed_issue is not None:
@@ -189,6 +209,7 @@ class StudioService:
             _layer(ValidationLayer.STRUCTURE, errors),
             _layer(ValidationLayer.FORMAT, errors),
             _layer(ValidationLayer.BUSINESS_RULES, errors),
+            _layer(ValidationLayer.MARKET_PRACTICE, errors),
             _layer(ValidationLayer.CLIENT_PROFILE, errors),
             LayerResult(
                 layer=ValidationLayer.FIN_ENVELOPE,
@@ -296,6 +317,30 @@ class StudioService:
         spec = mx_generator.specification(message_type)
         outcome = validate_document(spec, mx_generator.compose_document(spec, []))
         return outcome.schema_source
+
+
+def _apply_rule_packs(
+    format_: MessageFormat,
+    message_type: str,
+    profile: ClientProfile,
+    entries: list[tuple[str, str]],
+    errors: list[ValidationIssue],
+    warnings: list[ValidationIssue],
+) -> None:
+    """Evaluate the installed reviewed rule packs and file their findings.
+
+    One call site for both formats and all three entry points, so the browser, the JSON
+    API and the Excel path cannot execute different rules. Nothing here calls a model:
+    evaluation is a pure walk over the values the composer already resolved.
+    """
+    effective = rule_pack_registry.effective(format_, message_type, profile.profile_id)
+    if effective.empty:
+        return
+    for issue in evaluate_rules(effective, value_bag(entries)):
+        if issue.severity is IssueSeverity.ERROR:
+            errors.append(issue)
+        else:
+            warnings.append(issue)
 
 
 def _layer(layer: ValidationLayer, issues: list[ValidationIssue]) -> LayerResult:

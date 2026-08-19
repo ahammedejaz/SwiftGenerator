@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -77,6 +77,46 @@ spec-validate:
 
 spec-diff:
 	cd backend && .venv/bin/python -m app.spec_engine diff $(abspath $(BEFORE)) $(abspath $(AFTER))
+
+# Rule engine: business rules as reviewed configuration. Extraction is offline and never
+# runs inside the application. Usage:
+#   make rule-source-ingest SOURCE_ID=SYNTH-DEMO-MARKET-V1
+#   make rule-extract SOURCE_ID=... MESSAGE=sese.023 [LAYER=MARKET_PRACTICE PROFILE=...]
+#   make rule-review CANDIDATE=path/to.yaml REVIEWER="Your Name" [OUT=backend/config/rules]
+#   make rule-validate PACK=backend/config/rules/....yaml
+#   make rule-inspect [MESSAGE=sese.023 PROFILE=DEMO_MARKET_CLIENT_V1]
+#   make rule-diff BEFORE=... AFTER=...
+rule-source-ingest:
+	cd backend && .venv/bin/python -m app.rule_engine ingest $(SOURCE_ID) --stamp
+
+rule-extract:
+	cd backend && .venv/bin/python -m app.rule_engine extract --source-id $(SOURCE_ID) \
+		--message $(MESSAGE) $(if $(FORMAT),--format $(FORMAT),) $(if $(LAYER),--layer $(LAYER),) \
+		$(if $(PROFILE),--profile $(PROFILE),) $(if $(OUT),--out $(abspath $(OUT)),)
+
+rule-review:
+	cd backend && .venv/bin/python -m app.rule_engine review $(abspath $(CANDIDATE)) --approve \
+		--reviewer "$(REVIEWER)" $(if $(OUT),--out $(abspath $(OUT)),)
+
+rule-validate:
+	cd backend && .venv/bin/python -m app.rule_engine validate $(abspath $(PACK)) --require-reviewed
+
+rule-inspect:
+	cd backend && .venv/bin/python -m app.rule_engine inspect \
+		$(if $(MESSAGE),--message $(MESSAGE),) $(if $(PROFILE),--profile $(PROFILE),)
+
+rule-diff:
+	cd backend && .venv/bin/python -m app.rule_engine diff $(abspath $(BEFORE)) $(abspath $(AFTER))
+
+# The offline run stages scripted answers and measures the deterministic half of the
+# pipeline. It costs nothing and calls nothing.
+evaluate-rule-extraction:
+	cd backend && .venv/bin/python -m app.rule_engine evaluate
+
+# The live run calls the configured models and is the only thing that measures extraction
+# quality. It costs money and is never part of `make check`.
+test-live-rule-extraction:
+	cd backend && .venv/bin/python -m app.rule_engine evaluate --live
 
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark

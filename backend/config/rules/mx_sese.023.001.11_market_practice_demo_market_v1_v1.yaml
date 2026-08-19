@@ -1,0 +1,103 @@
+packId: MX:sese.023.001.11:MARKET_PRACTICE:DEMO_MARKET_V1:v1
+format: MX
+messageType: sese.023
+messageVersion: sese.023.001.11
+layer: MARKET_PRACTICE
+profileId: DEMO_MARKET_V1
+packVersion: v1
+title: Synthetic demo market practice for securities settlement instructions
+engineVersion: rule-engine/1
+dslVersion: rule-dsl/1
+structureCompatibility:
+  structureVersion: sese.023.001.11
+  structureChecksum: sha256:c7a3c1271a4afa1fe294bf5eb54aee1a199961fe0cb548d26afc1810084c18b6
+review:
+  status: REVIEWED
+  reviewedBy: Repository maintainers
+  reviewedAt: SOURCE_CONTROLLED
+sources:
+- sourceId: SYNTH-DEMO-MARKET-V1
+  sourceType: SYNTHETIC_FIXTURE
+  title: Synthetic Demo Market Practice — Securities Settlement
+  version: '1.0'
+  sourceLocation: synthetic-demo-market-v1.md
+  sourceChecksum: sha256:9c364cdb5291f9ccfd0fc30991ca61f1c3f4c7f745805e731620c274487756c8
+  excerptsMayBeCommitted: true
+authoritativeCompletenessKnown: false
+limitations:
+- DEMO_MARKET_V1 is a synthetic market invented for this repository. It is not a market practice,
+  and no market infrastructure publishes it.
+- Reviewed against the cited synthetic document only. Nothing here establishes that the document covers
+  the standard, or that the standard says any of this.
+rules:
+- ruleId: DEMO-MKT-SESE023-CREDIT-DEBIT-WITH-AMOUNT
+  title: Credit or debit indicator accompanies a settlement amount
+  severity: ERROR
+  when:
+    field:
+      format: MX
+      path: /Document/SctiesSttlmTxInstr/SttlmAmt/Amt
+    operator: EXISTS
+  assert:
+    field:
+      format: MX
+      path: /Document/SctiesSttlmTxInstr/SttlmAmt/CdtDbtInd
+    operator: EXISTS
+  finding:
+    message: An instruction carrying a settlement amount must say whether the cash is credited or
+      debited.
+    suggestion: Add the credit or debit indicator, or remove the amount.
+  evidence:
+  - sourceId: SYNTH-DEMO-MARKET-V1
+    segmentId: SYNTH-DEMO-MARKET-V1#S0004
+    sourceLocation: synthetic-demo-market-v1.md
+    sourceVersion: '1.0'
+    sourceChecksum: sha256:9c364cdb5291f9ccfd0fc30991ca61f1c3f4c7f745805e731620c274487756c8
+    segmentHash: sha256:8d159c59ff13fcea4af98cdf88badd1f986abd81dc538428bffbf10eacb6bcfd
+    excerptHash: sha256:8d159c59ff13fcea4af98cdf88badd1f986abd81dc538428bffbf10eacb6bcfd
+    excerpt: 'Where an instruction carries a settlement amount, the credit or debit indicator must
+      be
+
+      present so that the direction of the cash movement is explicit.'
+    heading: 3 Credit and debit indicator
+    lineStart: 21
+    lineEnd: 22
+  review:
+    status: REVIEWED
+    reviewedBy: Repository maintainers
+    reviewedAt: SOURCE_CONTROLLED
+    candidateHash: sha256:5ba4d64df59e0afeb0c8b8b8dde27a167e9503af6781adf4c9961aa0bd8d92bc
+    ruleHash: sha256:5ba4d64df59e0afeb0c8b8b8dde27a167e9503af6781adf4c9961aa0bd8d92bc
+codeRestrictions:
+- restrictionId: DEMO-MKT-SESE023-SETTLEMENT-CONDITION
+  field:
+    format: MX
+    path: /Document/SctiesSttlmTxInstr/SttlmParams/SttlmTxCond/Cd
+  codes:
+  - NOMC
+  - PART
+  - CLEN
+  finding:
+    message: This market accepts only the settlement conditions NOMC, PART and CLEN.
+    suggestion: Choose NOMC, PART or CLEN.
+  evidence:
+  - sourceId: SYNTH-DEMO-MARKET-V1
+    segmentId: SYNTH-DEMO-MARKET-V1#S0003
+    sourceLocation: synthetic-demo-market-v1.md
+    sourceVersion: '1.0'
+    sourceChecksum: sha256:9c364cdb5291f9ccfd0fc30991ca61f1c3f4c7f745805e731620c274487756c8
+    segmentHash: sha256:69e43a096a51a10b59ee6d89b941f62780c930d79998bb91f80340371ede7a2a
+    excerptHash: sha256:69e43a096a51a10b59ee6d89b941f62780c930d79998bb91f80340371ede7a2a
+    excerpt: 'Instructions sent in this market carry a settlement transaction condition of NOMC, PART
+
+      or CLEN. No other condition code is accepted.'
+    heading: 2 Settlement transaction condition
+    lineStart: 16
+    lineEnd: 17
+  review:
+    status: REVIEWED
+    reviewedBy: Repository maintainers
+    reviewedAt: SOURCE_CONTROLLED
+    candidateHash: sha256:d492031f18f69db442ac464784b1e9ce495d0b06c41dbcd4693967792d7d0f94
+    ruleHash: sha256:d492031f18f69db442ac464784b1e9ce495d0b06c41dbcd4693967792d7d0f94
+  severity: ERROR

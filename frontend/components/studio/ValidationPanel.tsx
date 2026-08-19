@@ -170,7 +170,11 @@ function IssueRow({
           )}
           {/* The rule id and the layer stay available for an automation tester filing a
               defect, and stay out of the way of a manual tester fixing one. `ruleId` is a
-              stable API value and is never the sentence a person is asked to decode. */}
+              stable API value and is never the sentence a person is asked to decode.
+              Where the finding came from an installed rule pack, the pack and the source
+              location that established the rule sit here too — a reviewer's trail, not a
+              tester's reading. Candidate rules never reach this screen: only reviewed,
+              source-controlled packs are ever loaded. */}
           <details className="mt-1.5 group">
             <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[0.6875rem] text-ink-3 transition-colors duration-150 hover:text-ink-2">
               <Icon
@@ -192,8 +196,26 @@ function IssueRow({
               )}
               <div className="flex gap-1.5">
                 <dt>Layer</dt>
-                <dd className="text-ink-2">{issue.layer}</dd>
+                <dd className="text-ink-2">{issue.ruleLayer ?? issue.layer}</dd>
               </div>
+              {issue.rulePackId && (
+                <div className="flex gap-1.5">
+                  <dt>Rule pack</dt>
+                  <dd className="text-ink-2">{issue.rulePackId}</dd>
+                </div>
+              )}
+              {issue.sourceReference && (
+                <div className="flex gap-1.5">
+                  <dt>Source</dt>
+                  <dd className="text-ink-2">{issue.sourceReference}</dd>
+                </div>
+              )}
+              {issue.reviewStatus && (
+                <div className="flex gap-1.5">
+                  <dt>Review</dt>
+                  <dd className="text-ink-2">{issue.reviewStatus}</dd>
+                </div>
+              )}
             </dl>
           </details>
         </div>

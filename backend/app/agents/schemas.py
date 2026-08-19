@@ -123,7 +123,18 @@ def _normalised_interpretation_schema() -> dict[str, object]:
     return cast(dict[str, object], normalised)
 
 
-def normalise_provider_schema(value: Any, path: str = "#") -> Any:
+#: Schema keywords the provider does not accept, stripped wherever a *schema* declares
+#: them. Never stripped from a name map — a property genuinely called `title` is a field
+#: the model must return, and dropping it silently produced a schema that asked for one
+#: field fewer than the application then required, so every response was rejected.
+STRIPPED_KEYWORDS = frozenset({"default", "title"})
+#: Dictionaries whose keys are *names*, not schema keywords.
+NAME_MAPS = frozenset({"properties", "$defs", "definitions", "patternProperties"})
+
+
+def normalise_provider_schema(
+    value: Any, path: str = "#", *, is_name_map: bool = False
+) -> Any:
     if isinstance(value, list):
         return [
             normalise_provider_schema(item, f"{path}/{index}") for index, item in enumerate(value)
@@ -133,9 +144,11 @@ def normalise_provider_schema(value: Any, path: str = "#") -> Any:
 
     result: dict[str, Any] = {}
     for key, item in value.items():
-        if key in {"default", "title"}:
+        if not is_name_map and key in STRIPPED_KEYWORDS:
             continue
-        result[key] = normalise_provider_schema(item, f"{path}/{key}")
+        result[key] = normalise_provider_schema(
+            item, f"{path}/{key}", is_name_map=not is_name_map and key in NAME_MAPS
+        )
 
     properties = result.get("properties")
     if properties is not None:

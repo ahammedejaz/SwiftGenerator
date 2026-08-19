@@ -101,6 +101,23 @@ class Settings(BaseSettings):
     mx_specification_directory: str = ""
     mx_official_xsd_directory: str = ""
     client_profile_directory: str = ""
+    #: Reviewed, source-controlled rule packs. Only fully reviewed packs load from here.
+    rule_pack_directory: str = ""
+    #: Where business-rule source documents are dropped. Licensed material stays here and
+    #: is never committed; only synthetic fixtures live in the repository copy.
+    rule_source_directory: str = ""
+    #: Candidate rules produced by extraction. Never loaded at runtime, never committed.
+    rule_candidate_directory: str = "./data/rule_candidates"
+
+    # Rule extraction (offline developer tooling; no runtime path calls a model).
+    rule_extractor_model: str = ""
+    rule_secondary_extractor_model: str = ""
+    rule_refuter_model: str = ""
+    rule_extraction_cache_enabled: bool = True
+    rule_extraction_cache_directory: str = "./data/rule_extraction_cache"
+    rule_extraction_max_fields: int = 400
+    #: The synthetic corpus the extraction evaluation runs against.
+    rule_evaluation_directory: str = ""
 
     @field_validator("automation_api_keys")
     @classmethod

@@ -31,6 +31,7 @@ export type ValidationLayer =
   | "STRUCTURE"
   | "FORMAT"
   | "BUSINESS_RULES"
+  | "MARKET_PRACTICE"
   | "CLIENT_PROFILE"
   | "FIN_ENVELOPE"
   | "XML_WELL_FORMED"
@@ -250,6 +251,15 @@ export interface ValidationIssue {
   expected: string | null;
   currentValue: string | null;
   suggestion: string | null;
+  /**
+   * Present only when the finding came from an installed rule pack. The platform's own
+   * built-in checks leave these null, which is itself the honest answer: they have no
+   * external source to cite.
+   */
+  ruleLayer?: string | null;
+  rulePackId?: string | null;
+  sourceReference?: string | null;
+  reviewStatus?: string | null;
 }
 
 export interface LayerResult {
@@ -381,6 +391,17 @@ export interface IntelligenceSearchResponse {
   llmUsed: boolean;
 }
 
+export interface FieldRuleSummary {
+  ruleId: string;
+  /** The authority layer in words — "Market practice rule". */
+  layer: string;
+  title: string;
+  meaning: string;
+  /** Source identity and location. Never licensed prose. */
+  sourceReference: string;
+  reviewStatus: string;
+}
+
 export interface IntelligenceDetail {
   id: string;
   format: MessageFormat;
@@ -411,6 +432,7 @@ export interface IntelligenceDetail {
   sourceReference: string;
   standardsRelease: string;
   sampleLines: string[];
+  rules?: FieldRuleSummary[];
 }
 
 export const PRESENCE_LABEL: Record<Presence, string> = {
@@ -434,6 +456,7 @@ export const LAYER_LABEL: Record<ValidationLayer, string> = {
   STRUCTURE: "Message structure",
   FORMAT: "Field formats",
   BUSINESS_RULES: "Business rules",
+  MARKET_PRACTICE: "Market practice",
   CLIENT_PROFILE: "Client profile",
   FIN_ENVELOPE: "FIN envelope",
   XML_WELL_FORMED: "XML is well formed",
