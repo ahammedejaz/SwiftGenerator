@@ -34,7 +34,9 @@ overnight-implementation-report → what the plan actually produced
      │
      ├─ v0-1-0-release-readiness-report       → what was verified for v0.1.0
      │
-     └─ ci-implementation-report              → GitHub Actions pipeline set up
+     ├─ ci-implementation-report              → GitHub Actions pipeline set up
+     │
+     └─ specification-engine-phase-04-report  → Prowide-derived MT structure evidence
 ```
 
 ---
@@ -53,6 +55,7 @@ overnight-implementation-report → what the plan actually produced
 | [mt-import-and-coverage-hardening-report.md](mt-import-and-coverage-hardening-report.md) | MT import, unified coverage reporting, authoritative-source drop points. |
 | [v0-1-0-release-readiness-report.md](v0-1-0-release-readiness-report.md) | What was verified for the v0.1.0 baseline. |
 | [ci-implementation-report.md](ci-implementation-report.md) | The GitHub Actions pipeline and the two defects it found. |
+| [specification-engine-phase-04-report.md](specification-engine-phase-04-report.md) | Prowide-derived MT structure evidence, source locks, reports and verification. |
 
 ---
 

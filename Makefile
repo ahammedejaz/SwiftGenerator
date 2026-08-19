@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -43,7 +43,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage xsd-compatibility demo-pack-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -71,6 +71,29 @@ demo-pack:
 
 demo-pack-check:
 	cd backend && .venv/bin/python -m app.studio.demo_pack --check
+
+MT_PROWIDE_LOCK ?= backend/config/mt_prowide_sru2025_10_3_18.lock.yaml
+MT_PROWIDE_FIXTURE ?= backend/tests/fixtures/mt_prowide/category5-sru2025-10.3.18.json
+MT_PROWIDE_CACHE ?= build/mt-prowide-cache
+MT_PROWIDE_FRESH ?= build/mt-prowide-candidates/category5-sru2025-10.3.18.json
+
+mt-prowide-extract:
+	cd backend && .venv/bin/python -m app.spec_engine mt-prowide-extract \
+		--lock $(abspath $(MT_PROWIDE_LOCK)) --cache $(abspath $(MT_PROWIDE_CACHE)) \
+		--out $(abspath $(MT_PROWIDE_FIXTURE))
+
+mt-prowide-reports-write:
+	cd backend && .venv/bin/python -m app.spec_engine mt-prowide-reports \
+		--fixture $(abspath $(MT_PROWIDE_FIXTURE)) --write
+
+mt-prowide-check:
+	cd backend && .venv/bin/python -m app.spec_engine mt-prowide-reports \
+		--fixture $(abspath $(MT_PROWIDE_FIXTURE)) --check
+
+verify-prowide-mt-source:
+	cd backend && .venv/bin/python -m app.spec_engine mt-prowide-verify \
+		--lock $(abspath $(MT_PROWIDE_LOCK)) --cache $(abspath $(MT_PROWIDE_CACHE)) \
+		--fixture $(abspath $(MT_PROWIDE_FIXTURE)) --out $(abspath $(MT_PROWIDE_FRESH))
 
 # Specification engine: compile a source schema into a pack, prove a pack against its
 # source. Usage: make spec-compile SOURCE=path/to/schema.xsd [OUT=backend/config/mx]

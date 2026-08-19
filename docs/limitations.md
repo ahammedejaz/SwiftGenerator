@@ -98,6 +98,32 @@ missing-source failures rather than fabricating schemas.
 
 ---
 
+## Prowide MT evidence is structural and build-time only
+
+Phase 4 adds a pinned Prowide Core extractor for MT Category 5 structure evidence. It is a
+developer tool, not a runtime dependency and not a conformance authority.
+
+What it can say:
+
+- a Prowide message class exists in the pinned artifact
+- a generated Prowide source scheme listed a sequence, fieldset or field group
+- a global Prowide field class exposed parser and validator patterns
+- the repository's generated MT541 tag stream can be parsed by Prowide into the same tags
+
+What it cannot say:
+
+- the repository is Swift-certified or ISO 15022 compliant
+- a message is complete against the Swift UHB
+- a qualifier or code is legal in a particular message
+- a field is mandatory in a message because a global field class exists
+- network validation, market practice or client usage rules are covered
+
+All non-configured Prowide Category 5 message classes remain inert candidates. The reports
+name structural differences between Prowide evidence and the configured subset, but this
+phase deliberately does not rewrite runtime MT structures from those differences.
+
+---
+
 ## Per-message limits
 
 | Message | What is not covered |
@@ -220,6 +246,6 @@ To be equally honest in the other direction:
   it refused to.
 - **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **1,354 automated tests** cover it: 1,274 backend, 80 in a real browser.
+- **1,397 automated tests** cover it: 1,317 backend, 80 in a real browser.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
   `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

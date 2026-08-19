@@ -311,9 +311,9 @@ reports, browser/API/Excel proof for installed candidates, and green CI-equivale
 
 ## 51. Phase 4 Prerequisites
 
-Phase 4 can build on exact-version identity, manifest checksums, version coexistence,
+Phase 4 used the same exact-version identity, manifest checksums, version coexistence,
 candidate reports, source-diff reports and honest separation of structure from business
-rules.
+rules for the Prowide-derived MT structure importer.
 
 ## Self-Review Corrections
 
