@@ -43,6 +43,8 @@ def binding(
     max_occurs: int = 1,
     codes: tuple[str, ...] = (),
     presence: Presence = Presence.OPTIONAL,
+    sequence_path: str | None = None,
+    sequence_max_occurs: int = 1,
     always_present: bool = False,
 ) -> ResolvedFieldRef:
     """A hand-made binding, for the DSL tests that exercise semantics rather than lookup."""
@@ -55,6 +57,8 @@ def binding(
         max_occurs=max_occurs,
         codes=codes,
         location=path,
+        sequence_path=sequence_path,
+        sequence_max_occurs=sequence_max_occurs,
         always_present=always_present,
     )
 

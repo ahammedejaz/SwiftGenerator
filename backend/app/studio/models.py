@@ -395,12 +395,20 @@ class ValidateRequest(GenerateRequest):
 # --------------------------------------------------------------------------------------
 
 
+class ValidationOccurrence(ApiModel):
+    sequence_path: str
+    occurrence: int = Field(ge=1)
+    path: str
+    lineage: list[str] = Field(default_factory=list)
+
+
 class ValidationIssue(ApiModel):
     rule_id: str
     severity: IssueSeverity
     layer: ValidationLayer
     field: str | None = None
     location: str | None = None
+    occurrence: ValidationOccurrence | None = None
     message: str
     expected: str | None = None
     current_value: str | None = None

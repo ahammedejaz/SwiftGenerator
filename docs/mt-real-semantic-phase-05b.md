@@ -108,18 +108,25 @@ Every translated rule is classified:
 | `UNSUPPORTED` | no sound expression exists; the reason is recorded, never approximated |
 | `NOT_RECOGNISED` | the guide states the rule in a form this reader does not know |
 
-### What cannot be expressed, and why no operator was added
+### Occurrence scope after Phase 5C
 
-Five of the 38 rules constrain fields **within one occurrence** of a repeating subsequence —
-"if `:95a::PSET` is present, then `:97a::` is not allowed in the same subsequence". The
-evaluator's value bag addresses a field, not a field-in-an-occurrence, so an
-occurrence-blind version would forbid a combination the source permits.
+Phase 5B deliberately refused occurrence-blind approximations for rules that constrain
+fields **within one occurrence** of a repeating subsequence. Phase 5C added a generic
+`rule-dsl/2` primitive, `forEachOccurrence`, so the deterministic evaluator can run an
+assertion separately inside each structural repeat occurrence.
 
-No DSL operator was added for it. Occurrence-aware values would change the value model of
-the **live** runtime — the composer, both parsers, the MX path and the evaluator's core
-type — for the benefit of candidate rules that are active nowhere. The rules are recorded
-`UNSUPPORTED` with reason `OCCURRENCE_SCOPE_NOT_EXPRESSIBLE`, which is the single
-highest-value DSL gap for a later phase, taken deliberately rather than by omission.
+That closed the eight Phase 5B `UNSUPPORTED` MT540/MT541 candidates. The current counts
+are:
+
+| Message | Exact | Partial | Unsupported |
+|---|---:|---:|---:|
+| `MT540` | 11 | 7 | 0 |
+| `MT541` | 12 | 8 | 0 |
+
+The remaining partial candidates are still weaker than the source. They drop clauses the
+DSL still does not claim to understand, such as data-source-scheme exceptions, field
+component scope, format-option tests, paired-code semantics and "another occurrence"
+relationships. No candidate became active or reviewed as part of this change.
 
 ### Refutation without a second opinion
 

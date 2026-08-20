@@ -285,6 +285,7 @@ class MrgStructureIndex(StructureIndex):
         return self._structure.checksum()
 
     def _resolved(self, field: MrgField, canonical: str) -> ResolvedFieldRef:
+        sequence = self._structure.sequence(field.sequence_path)
         return ResolvedFieldRef(
             canonical=canonical,
             key=field.key,
@@ -294,5 +295,9 @@ class MrgStructureIndex(StructureIndex):
             max_occurs=field.max_occurs,
             codes=field.codes,
             location=field.key,
+            sequence_path=field.sequence_path,
+            sequence_max_occurs=(
+                UNBOUNDED_OCCURRENCES if sequence is not None and sequence.repetitive else 1
+            ),
             always_present=field.always_present,
         )

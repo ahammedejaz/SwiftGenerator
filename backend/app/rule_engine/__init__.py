@@ -16,7 +16,9 @@ from __future__ import annotations
 
 #: Identifies the engine and its pack contract, the way ``spec-engine/1`` identifies the
 #: structure compiler. Bump when the pack format or evaluation semantics change.
-RULE_ENGINE_VERSION = "rule-engine/1"
+RULE_ENGINE_VERSION = "rule-engine/2"
+SUPPORTED_RULE_ENGINE_VERSIONS = ("rule-engine/1", RULE_ENGINE_VERSION)
 
 #: The declarative language version recorded in every compiled pack.
-DSL_VERSION = "rule-dsl/1"
+DSL_VERSION = "rule-dsl/2"
+SUPPORTED_DSL_VERSIONS = ("rule-dsl/1", DSL_VERSION)

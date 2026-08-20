@@ -24,16 +24,16 @@ a future release becoming readable is not the same as it becoming effective.
 | Message | Lane | Release | Structure source | Semantic source | Rules discovered | Candidates compiled | Reviewed | Runtime active |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `MT540` | `CURRENT_LIVE` | `PUBLIC_UHB_REVIEW_2026_08_05` | `repository configuration` | `NONE` | `0` | `0` | `0` | `YES` |
-| `MT540` | `FUTURE_TEST` | `SR2026` | `SWIFT MRG Format Specifications` | `SWIFT-MT-SR2026-MT540-MRG` | `18` | `14` | `0` | `NO` |
+| `MT540` | `FUTURE_TEST` | `SR2026` | `SWIFT MRG Format Specifications` | `SWIFT-MT-SR2026-MT540-MRG` | `18` | `18` | `0` | `NO` |
 | `MT541` | `CURRENT_LIVE` | `PUBLIC_UHB_REVIEW_2026_08_05` | `repository configuration` | `NONE` | `0` | `0` | `0` | `YES` |
-| `MT541` | `FUTURE_TEST` | `SR2026` | `SWIFT MRG Format Specifications` | `SWIFT-MT-SR2026-MT541-MRG` | `20` | `16` | `0` | `NO` |
+| `MT541` | `FUTURE_TEST` | `SR2026` | `SWIFT MRG Format Specifications` | `SWIFT-MT-SR2026-MT541-MRG` | `20` | `20` | `0` | `NO` |
 
 ## Rule representation, per message
 
 | Message | Discovered | Exact | Weaker than stated | Not representable | Form not recognised |
 | --- | --- | --- | --- | --- | --- |
-| `MT540` | `18` | `7` | `7` | `4` | `0` |
-| `MT541` | `20` | `8` | `8` | `4` | `0` |
+| `MT540` | `18` | `11` | `7` | `0` | `0` |
+| `MT541` | `20` | `12` | `8` | `0` | `0` |
 
 ## What this does not say
 

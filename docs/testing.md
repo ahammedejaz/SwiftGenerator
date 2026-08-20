@@ -1,6 +1,6 @@
 # Testing
 
-**1,354 automated tests.** 1,274 backend, 80 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
+**1,526 passing automated tests.** 1,446 backend, 80 in a real browser (plus 23 backend tests that skip unless their optional dependency is configured, and 1 live-AI test that is deselected by default).
 
 ---
 
@@ -53,8 +53,8 @@ npx playwright test --debug                                   # step through it
 | `studio/` | 694 | FIN envelope, MT and MX generation, import, the comparison, coverage, Excel, capability dimensions, the `/api/v1` contract |
 | `unit/` | 193 | Resolver, profiles, identifiers, validation, AI service, cache, telemetry, security |
 | `api/` | 63 | The original scenario API, bulk, samples, security, lifecycle |
-| `spec_engine/` | 40 | XSD loader security, the compiler, pack gates, structural diff, provenance honesty, the end-to-end pack integration |
-| `rule_engine/` | 233 | The rule DSL and its semantics, reference resolution, every compiler refusal, layer narrowing and conflict, the review gate, source ingestion and segmentation, the extraction pipeline against scripted providers, the injection boundary, the evaluation corpus, and the synthetic end-to-end proof |
+| `spec_engine/` | 86 | XSD loader security, the compiler, pack gates, structural diff, provenance honesty, Prowide MT structural evidence, the end-to-end pack integration |
+| `rule_engine/` | 359 | The rule DSL and its semantics, occurrence-scoped evaluation, reference resolution, every compiler refusal, layer narrowing and conflict, the review gate, source ingestion and segmentation, the extraction pipeline against scripted providers, the injection boundary, the evaluation corpus, real-guide MRG candidates, and the synthetic end-to-end proof |
 | `knowledge/` | 17 | The MT knowledge base |
 | `golden/` | 17 | Byte-for-byte MT output regression |
 | `workflows/` | 16 | Settlement processing, penalties, corporate actions |

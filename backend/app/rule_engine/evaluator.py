@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from app.rule_engine.dsl import ValueBag, evaluate
+from app.rule_engine.dsl import EvaluationInput, ValueBag, evaluate, failing_occurrences
 from app.rule_engine.layers import (
     LAYER_LABEL,
     VALIDATION_LAYER,
@@ -20,7 +20,8 @@ from app.rule_engine.layers import (
     LayeredRule,
 )
 from app.rule_engine.models import Evidence
-from app.studio.models import ValidationIssue
+from app.rule_engine.occurrences import OccurrenceIdentity, as_context
+from app.studio.models import ValidationIssue, ValidationOccurrence
 
 
 def source_reference(evidence: Sequence[Evidence]) -> str | None:
@@ -36,7 +37,22 @@ def source_reference(evidence: Sequence[Evidence]) -> str | None:
     return " · ".join(parts)
 
 
-def _issue_from_rule(item: LayeredRule, bag: ValueBag) -> ValidationIssue:
+def _occurrence_payload(
+    occurrence: OccurrenceIdentity | None,
+) -> ValidationOccurrence | None:
+    if occurrence is None:
+        return None
+    return ValidationOccurrence(
+        sequence_path=occurrence.sequence_path,
+        occurrence=occurrence.occurrence,
+        path=occurrence.display_path,
+        lineage=list(occurrence.lineage),
+    )
+
+
+def _issue_from_rule(
+    item: LayeredRule, bag: ValueBag, occurrence: OccurrenceIdentity | None = None
+) -> ValidationIssue:
     rule = item.rule
     primary = item.compiled.primary
     current = next(iter(bag.get(primary.key, ())), None)
@@ -46,6 +62,7 @@ def _issue_from_rule(item: LayeredRule, bag: ValueBag) -> ValidationIssue:
         layer=VALIDATION_LAYER[item.layer],
         field=primary.display_name,
         location=primary.location,
+        occurrence=_occurrence_payload(occurrence),
         message=rule.finding.message,
         suggestion=rule.finding.suggestion,
         current_value=current,
@@ -85,7 +102,7 @@ def _issues_from_restriction(
     return issues
 
 
-def evaluate_rules(effective: EffectiveRules, bag: ValueBag) -> list[ValidationIssue]:
+def evaluate_rules(effective: EffectiveRules, bag: EvaluationInput) -> list[ValidationIssue]:
     """Every finding the installed rules produce, in layer order.
 
     Every layer's rules run. A higher layer never suppresses a lower one — it can only add
@@ -93,14 +110,16 @@ def evaluate_rules(effective: EffectiveRules, bag: ValueBag) -> list[ValidationI
     both, each naming the layer that produced it.
     """
     issues: list[ValidationIssue] = []
+    context = as_context(bag)
     for item in effective.rules:
         rule = item.rule
         bindings = item.compiled.bindings
-        if rule.when is not None and not evaluate(rule.when, bag, bindings):
+        if rule.when is not None and not evaluate(rule.when, context, bindings):
             continue
-        if evaluate(rule.assert_, bag, bindings):
+        if evaluate(rule.assert_, context, bindings):
             continue
-        issues.append(_issue_from_rule(item, bag))
+        failed = failing_occurrences(rule.assert_, context, bindings)
+        issues.append(_issue_from_rule(item, context.bag, failed[0] if failed else None))
     for restriction in effective.restrictions:
-        issues.extend(_issues_from_restriction(restriction, bag))
+        issues.extend(_issues_from_restriction(restriction, context.bag))
     return issues

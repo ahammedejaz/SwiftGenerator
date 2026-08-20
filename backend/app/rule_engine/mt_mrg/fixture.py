@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.rule_engine.dsl import ForEachOccurrence, walk
 from app.rule_engine.mt_mrg import MRG_READER_VERSION
 from app.rule_engine.mt_mrg.pipeline import MrgReading, MrgRun, source_fingerprint
 from app.rule_engine.mt_mrg.rules import RuleFidelity
@@ -27,7 +28,7 @@ from app.rule_engine.mt_mrg.rules import RuleFidelity
 #: Bumped when the shape of the fixture changes, so a stale file is refused rather than
 #: half-read. The reader version travels beside it: a change to how the guide is read must
 #: invalidate every candidate derived from the old reading.
-FIXTURE_SCHEMA = "mt-mrg-evidence/1"
+FIXTURE_SCHEMA = "mt-mrg-evidence/2"
 
 FIXTURE_PATH = (
     Path(__file__).resolve().parents[3]
@@ -130,6 +131,7 @@ def _rules(reading: MrgReading) -> list[dict[str, Any]]:
                 "reason": translation.reason.value if translation.reason else None,
                 "residual": list(translation.residual),
                 "interpretation": translation.interpretation,
+                "occurrenceScopes": _occurrence_scopes(translation),
                 "compiled": candidate_id in compiled,
                 "references": [
                     {
@@ -145,6 +147,20 @@ def _rules(reading: MrgReading) -> list[dict[str, Any]]:
             }
         )
     return entries
+
+
+def _occurrence_scopes(translation: Any) -> list[str]:
+    scopes: list[str] = []
+    for node in (translation.when, translation.assertion):
+        if node is None:
+            continue
+        for item in walk(node):
+            if not isinstance(item, ForEachOccurrence):
+                continue
+            scope = item.for_each_occurrence.sequence_path
+            if scope not in scopes:
+                scopes.append(scope)
+    return scopes
 
 
 def _segment_sections(reading: MrgReading) -> dict[str, int]:

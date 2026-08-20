@@ -34,10 +34,13 @@ from typing import Union
 
 from pydantic import Field, model_validator
 
+from app.rule_engine.occurrences import EvaluationContext, OccurrenceIdentity, as_context
 from app.rule_engine.refs import FieldRef, ResolvedFieldRef, RuleModel
 
 #: A resolved message: field key -> the values present, in occurrence order.
 ValueBag = Mapping[str, Sequence[str]]
+#: A plain resolved message or the occurrence-aware internal projection of one.
+EvaluationInput = ValueBag | EvaluationContext
 #: Canonical field reference -> what the structure says about it.
 Bindings = Mapping[str, ResolvedFieldRef]
 
@@ -172,6 +175,23 @@ class Implies(RuleModel):
     implies: Implication
 
 
+class OccurrenceAssertion(RuleModel):
+    """Evaluate an assertion inside every occurrence of one structural scope."""
+
+    sequence_path: str = Field(alias="sequencePath", min_length=1, max_length=80)
+    assert_: Expression = Field(alias="assert")
+
+    @model_validator(mode="after")
+    def check_scope(self) -> OccurrenceAssertion:
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(/[A-Za-z][A-Za-z0-9]*)*", self.sequence_path):
+            raise ValueError("An occurrence scope must be a slash-separated sequence path")
+        return self
+
+
+class ForEachOccurrence(RuleModel):
+    for_each_occurrence: OccurrenceAssertion = Field(alias="forEachOccurrence")
+
+
 class ExactlyOne(RuleModel):
     exactly_one: tuple[FieldRef, ...] = Field(alias="exactlyOne", min_length=2)
 
@@ -185,10 +205,18 @@ class AtMostOne(RuleModel):
 
 
 Expression = Union[  # noqa: UP007 - pydantic resolves the annotation at rebuild time
-    Predicate, AllOf, AnyOf, Not, Implies, ExactlyOne, AtLeastOne, AtMostOne
+    Predicate,
+    AllOf,
+    AnyOf,
+    Not,
+    Implies,
+    ForEachOccurrence,
+    ExactlyOne,
+    AtLeastOne,
+    AtMostOne,
 ]
 
-for _model in (AllOf, AnyOf, Not, Implication, Implies):
+for _model in (AllOf, AnyOf, Not, Implication, Implies, OccurrenceAssertion, ForEachOccurrence):
     _model.model_rebuild()
 
 
@@ -212,6 +240,8 @@ def walk(node: Expression) -> list[Expression]:
         case Implies():
             found.extend(walk(node.implies.if_))
             found.extend(walk(node.implies.then))
+        case ForEachOccurrence():
+            found.extend(walk(node.for_each_occurrence.assert_))
         case _:
             pass
     return found
@@ -227,6 +257,8 @@ def depth(node: Expression) -> int:
             return 1 + depth(node.not_)
         case Implies():
             return 1 + max(depth(node.implies.if_), depth(node.implies.then))
+        case ForEachOccurrence():
+            return 1 + depth(node.for_each_occurrence.assert_)
         case _:
             return 1
 
@@ -414,25 +446,69 @@ def _present_count(fields: Sequence[FieldRef], bag: ValueBag, bindings: Bindings
     return total
 
 
-def evaluate(node: Expression, bag: ValueBag, bindings: Bindings) -> bool:
+def evaluate(node: Expression, bag: EvaluationInput, bindings: Bindings) -> bool:
     """Whether an expression holds for a resolved message. Pure and total."""
+    context = as_context(bag)
     match node:
         case Predicate():
-            return _evaluate_predicate(node, bag, bindings)
+            return _evaluate_predicate(node, context.bag, bindings)
         case AllOf():
-            return all(evaluate(child, bag, bindings) for child in node.all_of)
+            return all(evaluate(child, context, bindings) for child in node.all_of)
         case AnyOf():
-            return any(evaluate(child, bag, bindings) for child in node.any_of)
+            return any(evaluate(child, context, bindings) for child in node.any_of)
         case Not():
-            return not evaluate(node.not_, bag, bindings)
+            return not evaluate(node.not_, context, bindings)
         case Implies():
-            if not evaluate(node.implies.if_, bag, bindings):
+            if not evaluate(node.implies.if_, context, bindings):
                 return True
-            return evaluate(node.implies.then, bag, bindings)
+            return evaluate(node.implies.then, context, bindings)
+        case ForEachOccurrence():
+            scope = node.for_each_occurrence.sequence_path
+            return all(
+                evaluate(
+                    node.for_each_occurrence.assert_,
+                    context.for_occurrence(occurrence),
+                    bindings,
+                )
+                for occurrence in context.occurrences(scope)
+            )
         case ExactlyOne():
-            return _present_count(node.exactly_one, bag, bindings) == 1
+            return _present_count(node.exactly_one, context.bag, bindings) == 1
         case AtLeastOne():
-            return _present_count(node.at_least_one, bag, bindings) >= 1
+            return _present_count(node.at_least_one, context.bag, bindings) >= 1
         case AtMostOne():
-            return _present_count(node.at_most_one, bag, bindings) <= 1
+            return _present_count(node.at_most_one, context.bag, bindings) <= 1
     raise TypeError(f"Unknown expression node: {type(node).__name__}")
+
+
+def failing_occurrences(
+    node: Expression, bag: EvaluationInput, bindings: Bindings
+) -> tuple[OccurrenceIdentity, ...]:
+    """Occurrence identities that make a scoped assertion fail.
+
+    This is used only for finding metadata. Truth still comes from ``evaluate``.
+    """
+    context = as_context(bag)
+    match node:
+        case ForEachOccurrence():
+            scope = node.for_each_occurrence.sequence_path
+            return tuple(
+                occurrence
+                for occurrence in context.occurrences(scope)
+                if not evaluate(
+                    node.for_each_occurrence.assert_,
+                    context.for_occurrence(occurrence),
+                    bindings,
+                )
+            )
+        case AllOf():
+            found: list[OccurrenceIdentity] = []
+            for child in node.all_of:
+                found.extend(failing_occurrences(child, context, bindings))
+            return tuple(dict.fromkeys(found))
+        case Implies():
+            if not evaluate(node.implies.if_, context, bindings):
+                return ()
+            return failing_occurrences(node.implies.then, context, bindings)
+        case _:
+            return ()

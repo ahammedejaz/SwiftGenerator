@@ -13,7 +13,7 @@ the ordinary review path; there is no approval switch here.
 Source: `SWIFT-MT-SR2026-MT541-MRG`
 Document digest: `sha256:b15cbfcb4e15fd056aede2d92bd522d75c28bd92b560066cc50b8c6031233a39`
 Structure digest: `sha256:6274fe38d70d50351ad947832cff2b5bb274450c41e0f8be00bc7f05c27db27b`
-Reader: `mt-mrg-reader/1` · fingerprint `sha256:bd3e7c3bdb6e25f4…`
+Reader: `mt-mrg-reader/2` · fingerprint `sha256:3917f0a9b104e45b…`
 
 No source text is reproduced below. A reviewer needs the guide open; a reader who
 does not have it learns nothing from this file that they were not licensed to.
@@ -32,6 +32,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:e6f7db451885a664…` |
 | Representation | `EXACT` |
 | Sentence form | `AMOUNT_FIELDS_UNIQUE_PER_SUBSEQUENCE` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -88,6 +89,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:58fd19f65802bf68…` |
 | Representation | `EXACT` |
 | Sentence form | `MANDATORY_QUALIFIED_FIELD` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -118,6 +120,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:4b0167818a203439…` |
 | Representation | `EXACT` |
 | Sentence form | `CONDITIONAL_PRESENCE` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -147,19 +150,16 @@ does not have it learns nothing from this file that they were not licensed to.
 | Source page | `13` |
 | Source section | `Network Validated Rules` |
 | Rule text digest | `sha256:06d072426f47c66a…` |
-| Representation | `PARTIAL` |
+| Representation | `EXACT` |
 | Sentence form | `EXCHANGE_RATE_REQUIRES_RESULTING_AMOUNT` |
+| Occurrence scope | `E3` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
 
 **What the candidate says** (this repository's words, derived from the expression):
 
-> :19A::RESU in E3 must be present when :92B::EXCH in E3 is, and must be absent when it is not.
-
-**What the expression leaves out:**
-
-- The source requires the resulting amount in the *same* occurrence of the subsequence; this expression only requires it somewhere in the message.
+> Within each occurrence of E3, :19A::RESU in E3 must be present when :92B::EXCH in E3 is, and must be absent when it is not.
 
 **Canonical references:**
 
@@ -184,6 +184,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:b66eb4c84779a0c6…` |
 | Representation | `EXACT` |
 | Sentence form | `PARTY_FIELDS_UNIQUE_IN_MESSAGE` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -236,6 +237,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:af29d8a5c19dbdf0…` |
 | Representation | `PARTIAL` |
 | Sentence form | `ABSENT_INDICATOR_REQUIRES_TWO_PARTIES` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -272,6 +274,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:6bafa97d6169fc1b…` |
 | Representation | `PARTIAL` |
 | Sentence form | `PARTY_CHAIN_COMPLETENESS` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -317,6 +320,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:8d395a21e9358508…` |
 | Representation | `EXACT` |
 | Sentence form | `CANCELLATION_REQUIRES_ONE_PREVIOUS_REFERENCE` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -338,7 +342,7 @@ does not have it learns nothing from this file that they were not licensed to.
 
 | Field | Value |
 | --- | --- |
-| Candidate rule id | `NOT_COMPILED` |
+| Candidate rule id | `SWIFT-SR2026-MT541-C9` |
 | Source rule id | `C9` |
 | SWIFT error code | `E52` |
 | Message | `MT541` |
@@ -346,17 +350,16 @@ does not have it learns nothing from this file that they were not licensed to.
 | Source page | `14`–`15` |
 | Source section | `Network Validated Rules` |
 | Rule text digest | `sha256:fdaeace39ac16016…` |
-| Representation | `UNSUPPORTED` |
+| Representation | `EXACT` |
 | Sentence form | `SAME_OCCURRENCE_EXCLUSION` |
-| Compiled | `NO` |
+| Occurrence scope | `E1` |
+| Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
 
-**Why it is not represented:** `OCCURRENCE_SCOPE_NOT_EXPRESSIBLE`
+**What the candidate says** (this repository's words, derived from the expression):
 
-**What the expression leaves out:**
-
-- The source forbids :97a: in E1 only in the occurrence of E1 that carries :95a::PSET in E1. Forbidding it anywhere in E1 would reject messages the source allows.
+> Within each occurrence of E1, when :95a::PSET in E1 is present, :97a: in E1 must be absent.
 
 **Canonical references:**
 
@@ -382,6 +385,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:d3025a9f9af60ece…` |
 | Representation | `PARTIAL` |
 | Sentence form | `FOREX_INDICATOR_REQUIRES_MESSAGE_FUNCTION` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -417,6 +421,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:cc60742d4d62f42e…` |
 | Representation | `EXACT` |
 | Sentence form | `PRESENT_INDICATOR_REQUIRES_PARTY` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -448,6 +453,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:9f4be4f513ab4880…` |
 | Representation | `PARTIAL` |
 | Sentence form | `PRESENT_INDICATOR_REQUIRES_PARTY` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -483,6 +489,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:7e04d8af36d30b15…` |
 | Representation | `PARTIAL` |
 | Sentence form | `LINKED_QUANTITY_REQUIRES_TRANSACTION_TYPE` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -520,6 +527,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:d7be8322231d1eb2…` |
 | Representation | `PARTIAL` |
 | Sentence form | `AT_MOST_TWICE_WITH_PAIRED_CODES` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -554,17 +562,18 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:30e2a070d0e6ee4a…` |
 | Representation | `PARTIAL` |
 | Sentence form | `VALUE_DATE_REQUIRES_SPLIT_SETTLEMENT` |
+| Occurrence scope | `E3` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
 
 **What the candidate says** (this repository's words, derived from the expression):
 
-> When :98a::VALU in E3 is present, :22F::STCO in E must carry SPST and :19A::SETT in E3 must be present.
+> When :98a::VALU in E3 is present, :22F::STCO in E must carry SPST and :19A::SETT in E3 must be present in the same subsequence occurrence.
 
 **What the expression leaves out:**
 
-- The source ties the settlement amount to the *same* occurrence of the subsequence as the value date, and requires no data source scheme on the condition indicator.
+- The source also requires no data source scheme on the condition indicator.
 
 **Canonical references:**
 
@@ -580,7 +589,7 @@ does not have it learns nothing from this file that they were not licensed to.
 
 | Field | Value |
 | --- | --- |
-| Candidate rule id | `NOT_COMPILED` |
+| Candidate rule id | `SWIFT-SR2026-MT541-C16` |
 | Source rule id | `C16` |
 | SWIFT error code | `E63` |
 | Message | `MT541` |
@@ -588,17 +597,16 @@ does not have it learns nothing from this file that they were not licensed to.
 | Source page | `16` |
 | Source section | `Network Validated Rules` |
 | Rule text digest | `sha256:6a8b4fdcfc27b0ee…` |
-| Representation | `UNSUPPORTED` |
+| Representation | `EXACT` |
 | Sentence form | `SAME_OCCURRENCE_EXCLUSION` |
-| Compiled | `NO` |
+| Occurrence scope | `F` |
+| Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
 
-**Why it is not represented:** `OCCURRENCE_SCOPE_NOT_EXPRESSIBLE`
+**What the candidate says** (this repository's words, derived from the expression):
 
-**What the expression leaves out:**
-
-- The source forbids :97a: in F only in the occurrence of F that carries :95a::EXCH in F. Forbidding it anywhere in F would reject messages the source allows.
+> Within each occurrence of F, when :95a::EXCH in F or :95a::TRRE in F is present, :97a: in F must be absent.
 
 **Canonical references:**
 
@@ -624,6 +632,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:089e0f7ebfdf7c4b…` |
 | Representation | `EXACT` |
 | Sentence form | `CONDITIONAL_PRESENCE` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
@@ -645,7 +654,7 @@ does not have it learns nothing from this file that they were not licensed to.
 
 | Field | Value |
 | --- | --- |
-| Candidate rule id | `NOT_COMPILED` |
+| Candidate rule id | `SWIFT-SR2026-MT541-C18` |
 | Source rule id | `C18` |
 | SWIFT error code | `E99` |
 | Message | `MT541` |
@@ -653,17 +662,20 @@ does not have it learns nothing from this file that they were not licensed to.
 | Source page | `16`–`17` |
 | Source section | `Network Validated Rules` |
 | Rule text digest | `sha256:02ea9ff6960ff3ca…` |
-| Representation | `UNSUPPORTED` |
+| Representation | `PARTIAL` |
 | Sentence form | `AT_MOST_TWICE_WITH_ONE_OPTION` |
-| Compiled | `NO` |
+| Occurrence scope | `E1, E2, F` |
+| Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
 
-**Why it is not represented:** `OCCURRENCE_SCOPE_NOT_EXPRESSIBLE`
+**What the candidate says** (this repository's words, derived from the expression):
+
+> Within each relevant occurrence, each listed field may appear at most twice.
 
 **What the expression leaves out:**
 
-- Part of the source rule limits the count *within each occurrence* of a repeating subsequence. A message-wide count would reject messages the source allows.
+- The source also requires exactly one of the two occurrences to use a named format option; a reference resolves to a field, not to a format option.
 
 **Canonical references:**
 
@@ -682,7 +694,7 @@ does not have it learns nothing from this file that they were not licensed to.
 
 | Field | Value |
 | --- | --- |
-| Candidate rule id | `NOT_COMPILED` |
+| Candidate rule id | `SWIFT-SR2026-MT541-C19` |
 | Source rule id | `C19` |
 | SWIFT error code | `E88` |
 | Message | `MT541` |
@@ -690,17 +702,16 @@ does not have it learns nothing from this file that they were not licensed to.
 | Source page | `17` |
 | Source section | `Network Validated Rules` |
 | Rule text digest | `sha256:b362699aa0186f00…` |
-| Representation | `UNSUPPORTED` |
+| Representation | `EXACT` |
 | Sentence form | `SAME_OCCURRENCE_EXCLUSION` |
-| Compiled | `NO` |
+| Occurrence scope | `F` |
+| Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |
 
-**Why it is not represented:** `OCCURRENCE_SCOPE_NOT_EXPRESSIBLE`
+**What the candidate says** (this repository's words, derived from the expression):
 
-**What the expression leaves out:**
-
-- The source forbids :95a::MEOR in F only in the occurrence of F that carries :95a::ALTE in F. Forbidding it anywhere in F would reject messages the source allows.
+> Within each occurrence of F, when :95a::ALTE in F is present, :95a::MEOR in F and :95a::MERE in F must be absent.
 
 **Canonical references:**
 
@@ -726,6 +737,7 @@ does not have it learns nothing from this file that they were not licensed to.
 | Rule text digest | `sha256:0b598c35e070a5fd…` |
 | Representation | `EXACT` |
 | Sentence form | `CROSS_SUBSEQUENCE_EXCLUSION` |
+| Occurrence scope | `NONE` |
 | Compiled | `YES` |
 | Reference resolution | `ALL_RESOLVED` |
 | Review status | `REVIEW_REQUIRED` |

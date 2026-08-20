@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "mt-mrg-evidence/1",
-  "readerVersion": "mt-mrg-reader/1",
+  "schemaVersion": "mt-mrg-evidence/2",
+  "readerVersion": "mt-mrg-reader/2",
   "sources": [
     {
       "sourceId": "SWIFT-MT-SR2026-MT540-MRG",
@@ -13,7 +13,7 @@
       "pageCount": 109,
       "sourceChecksum": "sha256:ef69b239e6483dbbebbc0fe531c3d91f386039012a14715ce0e16d503a86fe8c",
       "structureChecksum": "sha256:ba34f2d3bd452723d9ec12703024e4f94a1ed33a0b4951584698af43d439e221",
-      "fingerprint": "sha256:e1878a882fd6334203f3679812b89de62809af08d8d6642a477d5fabb1f8137c",
+      "fingerprint": "sha256:afaded874eb88ab633ddb57d61365bda5c06922bf89beb1eb4e3aec7907f0f6c",
       "sections": [
         {
           "section": "COVER",
@@ -7087,6 +7087,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "Each of 28 listed fields may appear at most once across the occurrences of E3.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7331,6 +7332,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :99a::TOSE in A is present, :99a::SETT in A must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7362,13 +7364,14 @@
           "lastPage": 13,
           "textHash": "sha256:94993c27c470efcd7d5664bdd12bc5cf2072b69d71a44049dd61173faac52f0a",
           "characterCount": 398,
-          "fidelity": "PARTIAL",
+          "fidelity": "EXACT",
           "template": "EXCHANGE_RATE_REQUIRES_RESULTING_AMOUNT",
           "reason": null,
-          "residual": [
-            "The source requires the resulting amount in the *same* occurrence of the subsequence; this expression only requires it somewhere in the message."
+          "residual": [],
+          "interpretation": "Within each occurrence of E3, :19A::RESU in E3 must be present when :92B::EXCH in E3 is, and must be absent when it is not.",
+          "occurrenceScopes": [
+            "E3"
           ],
-          "interpretation": ":19A::RESU in E3 must be present when :92B::EXCH in E3 is, and must be absent when it is not.",
           "compiled": true,
           "references": [
             {
@@ -7405,6 +7408,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "Each of 23 listed fields may appear at most once in the message.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7611,6 +7615,7 @@
             "The source requires :95a::DEAG in E1 and :95a::PSET in E1 in *different* occurrences of E1; this expression only requires both to be present."
           ],
           "interpretation": "When :22F::DBNM in E is absent, both :95a::DEAG in E1 and :95a::PSET in E1 must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7657,6 +7662,7 @@
             "The source requires the next party in *another* occurrence of the subsequence; this expression only requires it to be present."
           ],
           "interpretation": "6 party-chain links: naming a party requires the next party in its chain to be named as well.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7773,6 +7779,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When the message function is CANC, exactly one :20C::PREV in A1 must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7804,14 +7811,15 @@
           "lastPage": 15,
           "textHash": "sha256:de2367be61fcc1be3d01a6650d57da7e2bc50cb3ebc9a966bc56e6f3f602775b",
           "characterCount": 283,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "EXACT",
           "template": "SAME_OCCURRENCE_EXCLUSION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
-          "residual": [
-            "The source forbids :97a: in E1 only in the occurrence of E1 that carries :95a::PSET in E1. Forbidding it anywhere in E1 would reject messages the source allows."
+          "reason": null,
+          "residual": [],
+          "interpretation": "Within each occurrence of E1, when :95a::PSET in E1 is present, :97a: in E1 must be absent.",
+          "occurrenceScopes": [
+            "E1"
           ],
-          "interpretation": "",
-          "compiled": false,
+          "compiled": true,
           "references": [
             {
               "sequencePath": "E1",
@@ -7849,6 +7857,7 @@
             "The source suspends the rule when a data source scheme is present on the indicator; a reference resolves to a field, not to one of its components."
           ],
           "interpretation": ":22F::FXCX in E carrying FXNO or FXYE requires message function CANC; SINO requires NEWM.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7885,6 +7894,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :22F::DBNM in E is present, :95a::SELL in E1 must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7923,6 +7933,7 @@
             "The guide suspends this rule where a data source scheme is present; a reference resolves to a field, not to one of its components."
           ],
           "interpretation": "When :22F::DBNM in E carries VEND, :95a::VEND in F must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7961,6 +7972,7 @@
             "The source also requires no data source scheme on the indicator; a reference resolves to a field, not to one of its components."
           ],
           "interpretation": "When :36B: in A1 is present, :22F::SETR in E must be PAIR or TURN.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -7999,6 +8011,7 @@
             "The source also requires the two occurrences to carry different quantity type codes; this expression only limits the count."
           ],
           "interpretation": ":36B::SETT in C may appear at most twice.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -8022,14 +8035,15 @@
           "lastPage": 16,
           "textHash": "sha256:c5e7e46da69975b1c0be78ba208dd55132060083845e8db839856830a16313e5",
           "characterCount": 321,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "EXACT",
           "template": "SAME_OCCURRENCE_EXCLUSION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
-          "residual": [
-            "The source forbids :97a: in F only in the occurrence of F that carries :95a::EXCH in F. Forbidding it anywhere in F would reject messages the source allows."
+          "reason": null,
+          "residual": [],
+          "interpretation": "Within each occurrence of F, when :95a::EXCH in F or :95a::TRRE in F is present, :97a: in F must be absent.",
+          "occurrenceScopes": [
+            "F"
           ],
-          "interpretation": "",
-          "compiled": false,
+          "compiled": true,
           "references": [
             {
               "sequencePath": "F",
@@ -8073,6 +8087,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :95L::ALTE in C is present, :95a::ACOW in C must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -8104,14 +8119,19 @@
           "lastPage": 16,
           "textHash": "sha256:421efd357833d9bf93465ad8d4f563c05eab9d72b9ae18e8a6cc4be18739b2a6",
           "characterCount": 1130,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "PARTIAL",
           "template": "AT_MOST_TWICE_WITH_ONE_OPTION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
+          "reason": null,
           "residual": [
-            "Part of the source rule limits the count *within each occurrence* of a repeating subsequence. A message-wide count would reject messages the source allows."
+            "The source also requires exactly one of the two occurrences to use a named format option; a reference resolves to a field, not to a format option."
           ],
-          "interpretation": "",
-          "compiled": false,
+          "interpretation": "Within each relevant occurrence, each listed field may appear at most twice.",
+          "occurrenceScopes": [
+            "E1",
+            "E2",
+            "F"
+          ],
+          "compiled": true,
           "references": [
             {
               "sequencePath": "B",
@@ -8174,14 +8194,15 @@
           "lastPage": 16,
           "textHash": "sha256:c5044b97eb66f909576321b1ee23bdf410980252fbe0aa0c56ad56f36e1aeeee",
           "characterCount": 213,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "EXACT",
           "template": "SAME_OCCURRENCE_EXCLUSION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
-          "residual": [
-            "The source forbids :95a::MEOR in F only in the occurrence of F that carries :95a::ALTE in F. Forbidding it anywhere in F would reject messages the source allows."
+          "reason": null,
+          "residual": [],
+          "interpretation": "Within each occurrence of F, when :95a::ALTE in F is present, :95a::MEOR in F and :95a::MERE in F must be absent.",
+          "occurrenceScopes": [
+            "F"
           ],
-          "interpretation": "",
-          "compiled": false,
+          "compiled": true,
           "references": [
             {
               "sequencePath": "F",
@@ -8225,6 +8246,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :19A::NTWK in E3 is present, :36D::NTWK in E4 must be absent.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -8285,7 +8307,7 @@
       ],
       "candidatePack": {
         "packId": "MT:MT540:BASE_STANDARD:v1",
-        "ruleCount": 14,
+        "ruleCount": 18,
         "reviewStatus": "REVIEW_REQUIRED",
         "ruleReviewStatuses": [
           "REVIEW_REQUIRED"
@@ -8295,8 +8317,7 @@
           "Derived from the SR2026 Message Reference Guide, which is future-test material until that release goes live. Nothing here applies to the current-live release.",
           "Every rule is REVIEW_REQUIRED. Machine checks establish that a candidate is well formed, never that it is correct.",
           "Candidate rules are compiled against the structure the guide itself states, not against the installed runtime structure, and are not loadable by the runtime registry.",
-          "4 source rule(s) are not represented at all: C8, C14, C16, C17.",
-          "7 rule(s) are represented more weakly than the source states them, so they can miss a violation but never invent one: C3, C5, C6, C9, C11, C12, C13."
+          "7 rule(s) are represented more weakly than the source states them, so they can miss a violation but never invent one: C5, C6, C9, C11, C12, C13, C16."
         ]
       },
       "problems": [],
@@ -8313,7 +8334,7 @@
       "pageCount": 110,
       "sourceChecksum": "sha256:b15cbfcb4e15fd056aede2d92bd522d75c28bd92b560066cc50b8c6031233a39",
       "structureChecksum": "sha256:6274fe38d70d50351ad947832cff2b5bb274450c41e0f8be00bc7f05c27db27b",
-      "fingerprint": "sha256:bd3e7c3bdb6e25f4ad4e5958b436cbfe6bcda99f4965bafee719b88bf8e313d9",
+      "fingerprint": "sha256:3917f0a9b104e45bcc8af461013ca58c039fc08582a983c08a47ff6b133c7490",
       "sections": [
         {
           "section": "COVER",
@@ -15387,6 +15408,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "Each of 27 listed fields may appear at most once across the occurrences of E3.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -15623,6 +15645,7 @@
           "reason": null,
           "residual": [],
           "interpretation": ":19A::SETT in E3 must be present in every message.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -15651,6 +15674,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :99a::TOSE in A is present, :99a::SETT in A must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -15682,13 +15706,14 @@
           "lastPage": 13,
           "textHash": "sha256:06d072426f47c66a7e7e3955201d75f2739485c76fe7980bd5feda6d94de9151",
           "characterCount": 398,
-          "fidelity": "PARTIAL",
+          "fidelity": "EXACT",
           "template": "EXCHANGE_RATE_REQUIRES_RESULTING_AMOUNT",
           "reason": null,
-          "residual": [
-            "The source requires the resulting amount in the *same* occurrence of the subsequence; this expression only requires it somewhere in the message."
+          "residual": [],
+          "interpretation": "Within each occurrence of E3, :19A::RESU in E3 must be present when :92B::EXCH in E3 is, and must be absent when it is not.",
+          "occurrenceScopes": [
+            "E3"
           ],
-          "interpretation": ":19A::RESU in E3 must be present when :92B::EXCH in E3 is, and must be absent when it is not.",
           "compiled": true,
           "references": [
             {
@@ -15725,6 +15750,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "Each of 23 listed fields may appear at most once in the message.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -15931,6 +15957,7 @@
             "The source requires :95a::DEAG in E1 and :95a::PSET in E1 in *different* occurrences of E1; this expression only requires both to be present."
           ],
           "interpretation": "When :22F::DBNM in E is absent, both :95a::DEAG in E1 and :95a::PSET in E1 must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -15977,6 +16004,7 @@
             "The source requires the next party in *another* occurrence of the subsequence; this expression only requires it to be present."
           ],
           "interpretation": "6 party-chain links: naming a party requires the next party in its chain to be named as well.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16093,6 +16121,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When the message function is CANC, exactly one :20C::PREV in A1 must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16124,14 +16153,15 @@
           "lastPage": 15,
           "textHash": "sha256:fdaeace39ac160163e22933efd55e2299ef8edad0ce6143e9add1531e691816b",
           "characterCount": 283,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "EXACT",
           "template": "SAME_OCCURRENCE_EXCLUSION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
-          "residual": [
-            "The source forbids :97a: in E1 only in the occurrence of E1 that carries :95a::PSET in E1. Forbidding it anywhere in E1 would reject messages the source allows."
+          "reason": null,
+          "residual": [],
+          "interpretation": "Within each occurrence of E1, when :95a::PSET in E1 is present, :97a: in E1 must be absent.",
+          "occurrenceScopes": [
+            "E1"
           ],
-          "interpretation": "",
-          "compiled": false,
+          "compiled": true,
           "references": [
             {
               "sequencePath": "E1",
@@ -16169,6 +16199,7 @@
             "The source suspends the rule when a data source scheme is present on the indicator; a reference resolves to a field, not to one of its components."
           ],
           "interpretation": ":22F::FXCX in E carrying FXNO or FXYE requires message function CANC; SINO requires NEWM.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16205,6 +16236,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :22F::DBNM in E is present, :95a::SELL in E1 must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16243,6 +16275,7 @@
             "The guide suspends this rule where a data source scheme is present; a reference resolves to a field, not to one of its components."
           ],
           "interpretation": "When :22F::DBNM in E carries VEND, :95a::VEND in F must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16281,6 +16314,7 @@
             "The source also requires no data source scheme on the indicator; a reference resolves to a field, not to one of its components."
           ],
           "interpretation": "When :36B: in A1 is present, :22F::SETR in E must be PAIR or TURN.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16319,6 +16353,7 @@
             "The source also requires the two occurrences to carry different quantity type codes; this expression only limits the count."
           ],
           "interpretation": ":36B::SETT in C may appear at most twice.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16346,9 +16381,12 @@
           "template": "VALUE_DATE_REQUIRES_SPLIT_SETTLEMENT",
           "reason": null,
           "residual": [
-            "The source ties the settlement amount to the *same* occurrence of the subsequence as the value date, and requires no data source scheme on the condition indicator."
+            "The source also requires no data source scheme on the condition indicator."
           ],
-          "interpretation": "When :98a::VALU in E3 is present, :22F::STCO in E must carry SPST and :19A::SETT in E3 must be present.",
+          "interpretation": "When :98a::VALU in E3 is present, :22F::STCO in E must carry SPST and :19A::SETT in E3 must be present in the same subsequence occurrence.",
+          "occurrenceScopes": [
+            "E3"
+          ],
           "compiled": true,
           "references": [
             {
@@ -16388,14 +16426,15 @@
           "lastPage": 16,
           "textHash": "sha256:6a8b4fdcfc27b0eea4d94c580f50034a35b499283d873e50aba4037dc84926a4",
           "characterCount": 321,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "EXACT",
           "template": "SAME_OCCURRENCE_EXCLUSION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
-          "residual": [
-            "The source forbids :97a: in F only in the occurrence of F that carries :95a::EXCH in F. Forbidding it anywhere in F would reject messages the source allows."
+          "reason": null,
+          "residual": [],
+          "interpretation": "Within each occurrence of F, when :95a::EXCH in F or :95a::TRRE in F is present, :97a: in F must be absent.",
+          "occurrenceScopes": [
+            "F"
           ],
-          "interpretation": "",
-          "compiled": false,
+          "compiled": true,
           "references": [
             {
               "sequencePath": "F",
@@ -16439,6 +16478,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :95L::ALTE in C is present, :95a::ACOW in C must be present.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16470,14 +16510,19 @@
           "lastPage": 17,
           "textHash": "sha256:02ea9ff6960ff3caeac74ebd8af0257e93a865d23b2f277545bd9dd048ca7b67",
           "characterCount": 1130,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "PARTIAL",
           "template": "AT_MOST_TWICE_WITH_ONE_OPTION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
+          "reason": null,
           "residual": [
-            "Part of the source rule limits the count *within each occurrence* of a repeating subsequence. A message-wide count would reject messages the source allows."
+            "The source also requires exactly one of the two occurrences to use a named format option; a reference resolves to a field, not to a format option."
           ],
-          "interpretation": "",
-          "compiled": false,
+          "interpretation": "Within each relevant occurrence, each listed field may appear at most twice.",
+          "occurrenceScopes": [
+            "E1",
+            "E2",
+            "F"
+          ],
+          "compiled": true,
           "references": [
             {
               "sequencePath": "B",
@@ -16540,14 +16585,15 @@
           "lastPage": 17,
           "textHash": "sha256:b362699aa0186f00ee98cec4036844fad5e0c1f1fafac11ee4d7b830f47e7976",
           "characterCount": 216,
-          "fidelity": "UNSUPPORTED",
+          "fidelity": "EXACT",
           "template": "SAME_OCCURRENCE_EXCLUSION",
-          "reason": "OCCURRENCE_SCOPE_NOT_EXPRESSIBLE",
-          "residual": [
-            "The source forbids :95a::MEOR in F only in the occurrence of F that carries :95a::ALTE in F. Forbidding it anywhere in F would reject messages the source allows."
+          "reason": null,
+          "residual": [],
+          "interpretation": "Within each occurrence of F, when :95a::ALTE in F is present, :95a::MEOR in F and :95a::MERE in F must be absent.",
+          "occurrenceScopes": [
+            "F"
           ],
-          "interpretation": "",
-          "compiled": false,
+          "compiled": true,
           "references": [
             {
               "sequencePath": "F",
@@ -16591,6 +16637,7 @@
           "reason": null,
           "residual": [],
           "interpretation": "When :19A::NTWK in E3 is present, :36D::NTWK in E4 must be absent.",
+          "occurrenceScopes": [],
           "compiled": true,
           "references": [
             {
@@ -16646,7 +16693,7 @@
       ],
       "candidatePack": {
         "packId": "MT:MT541:BASE_STANDARD:v1",
-        "ruleCount": 16,
+        "ruleCount": 20,
         "reviewStatus": "REVIEW_REQUIRED",
         "ruleReviewStatuses": [
           "REVIEW_REQUIRED"
@@ -16656,8 +16703,7 @@
           "Derived from the SR2026 Message Reference Guide, which is future-test material until that release goes live. Nothing here applies to the current-live release.",
           "Every rule is REVIEW_REQUIRED. Machine checks establish that a candidate is well formed, never that it is correct.",
           "Candidate rules are compiled against the structure the guide itself states, not against the installed runtime structure, and are not loadable by the runtime registry.",
-          "4 source rule(s) are not represented at all: C9, C16, C18, C19.",
-          "8 rule(s) are represented more weakly than the source states them, so they can miss a violation but never invent one: C4, C6, C7, C10, C12, C13, C14, C15."
+          "8 rule(s) are represented more weakly than the source states them, so they can miss a violation but never invent one: C6, C7, C10, C12, C13, C14, C15, C18."
         ]
       },
       "problems": [],
