@@ -212,7 +212,25 @@ Observed results:
 
 ## Pull Request and CI
 
-Pending until the Phase 4B branch is pushed and its final pull request head finishes CI.
+Pull request:
+
+- PR: `https://github.com/ahammedejaz/SwiftGenerator/pull/13`
+- State when opened: `OPEN`
+- Base: `main`
+- Head branch: `feat/mt-prowide-multicategory-scaleout`
+
+Initial PR CI run on implementation commit `49e85f901c5bb0337c4c149ae5f1bf9d05d6430e`:
+
+- Run: `https://github.com/ahammedejaz/SwiftGenerator/actions/runs/32333087002`
+- Required Checks: PASS in 2m0s
+- MT Prowide Source: PASS in 28s
+- Clean Clone: PASS in 1m18s
+- Docker: PASS in 1m22s
+- Security Audit: PASS in 58s
+- Browser E2E: PASS in 4m49s
+
+The PR was intentionally left unmerged. GitHub branch protection and the PR checks remain
+the authority for the final head after any documentation-only report update.
 
 ## Boundaries Preserved
 
