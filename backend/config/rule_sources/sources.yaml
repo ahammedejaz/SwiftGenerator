@@ -23,3 +23,19 @@ sources:
     redistribution:
       sourceMayBeCommitted: true
       excerptsMayBeCommitted: true
+
+  - sourceId: SYNTH-MT-SEMANTIC-V1
+    sourceType: SYNTHETIC_FIXTURE
+    title: Synthetic MT Semantic Fixture V1
+    version: "1.0"
+    sourceLocation: synthetic-mt-semantics-v1.md
+    adapter: MARKDOWN
+    sourceChecksum: sha256:e96783668aa8e1c3f76e5c94eb59981d863dd1b9b7f931cdc3321e21db98d139
+    standardsRelease: SR2025
+    applicableMessageCategories: [5]
+    messageIdentifiers: [MT541]
+    sourceAllowsExternalModelProcessing: true
+    providerApprovedForSourceClassification: true
+    redistribution:
+      sourceMayBeCommitted: true
+      excerptsMayBeCommitted: true

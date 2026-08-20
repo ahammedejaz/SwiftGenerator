@@ -146,7 +146,7 @@ backend/config/mt_prowide_*.yaml    MT: pinned Prowide structural-evidence locks
 backend/config/mx/*.yaml            MX: the full element tree
 backend/config/profiles/*.yaml      Per-client settings and envelope values
 backend/config/rules/*.yaml         Reviewed business rules: base, market practice, client
-backend/config/rule_sources/        The documents rules were derived from (synthetic only)
+backend/config/rule_sources/        The documents rules were derived from (synthetic only here)
 ```
 
 **MT** is defined in two halves. The *knowledge base* describes each tag once — meaning,
@@ -291,6 +291,13 @@ runs them through the same compiler that guards an installed pack. What comes ou
 *candidate* — and the registry loads only reviewed, source-controlled packs, refusing
 rather than skipping anything else. Runtime evaluation calls no model at all.
 
+MT semantic-rule ingestion uses that same path with MT source metadata, canonical
+Prowide-derived structural references and runtime row-id compilation. The canonical
+`MT:SR2025:...` reference is provenance only; installed rules still point at existing MT
+row ids such as `MT541-E-22F-SETR`. Phase 5A ships no real MT semantic source and no
+runtime MT Rule Pack. See
+[mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md).
+
 See [specification-rule-engine.md](specification-rule-engine.md).
 
 ---
@@ -406,6 +413,11 @@ conditional requirement, a prohibition, a code restriction, a date relation or a
 cross-field dependency declaratively, carries the source location that established it, and
 applies to the browser, the JSON API and the Excel path through one call site. See
 [rule-pack-format.md](rule-pack-format.md).
+
+For MT semantic rules, first declare and ingest an authorised source in
+`backend/config/rule_sources/` or an override directory, then use `make mt-rule-check` to
+verify readiness and the synthetic MT corpus. Without a real source, the MT path stays
+foundation-only.
 
 The older hand-written rules still live in `MtGenerator._business_rules` /
 `._profile_rules` and `MxGenerator._business_rules`, and `requireOneOf` in the MX YAML is

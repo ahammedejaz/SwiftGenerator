@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -43,7 +43,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -197,6 +197,33 @@ evaluate-rule-extraction:
 # quality. It costs money and is never part of `make check`.
 test-live-rule-extraction:
 	cd backend && .venv/bin/python -m app.rule_engine evaluate --live
+
+# Phase 5A MT semantic-source foundation. The MT evaluation corpus is synthetic and
+# deterministic; live evaluation remains explicit and is never part of `make check`.
+mt-rule-source-ingest:
+	cd backend && .venv/bin/python -m app.rule_engine ingest $(SOURCE_ID) --stamp
+
+mt-rule-extract:
+	cd backend && .venv/bin/python -m app.rule_engine extract --format MT \
+		--source-id $(SOURCE_ID) --message $(MESSAGE) \
+		$(if $(LAYER),--layer $(LAYER),) $(if $(PROFILE),--profile $(PROFILE),) \
+		$(if $(OUT),--out $(abspath $(OUT)),)
+
+mt-rule-readiness-write:
+	cd backend && .venv/bin/python -m app.rule_engine mt-readiness --write
+
+evaluate-mt-rule-extraction:
+	cd backend && .venv/bin/python -m app.rule_engine evaluate \
+		--corpus config/rule_evaluation/mt-corpus.yaml
+
+test-live-mt-rule-extraction:
+	cd backend && .venv/bin/python -m app.rule_engine evaluate --live \
+		--corpus config/rule_evaluation/mt-corpus.yaml
+
+mt-rule-check:
+	cd backend && .venv/bin/python -m app.rule_engine mt-readiness --check
+	cd backend && .venv/bin/python -m app.rule_engine evaluate \
+		--corpus config/rule_evaluation/mt-corpus.yaml
 
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark

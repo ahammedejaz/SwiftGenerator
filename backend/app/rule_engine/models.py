@@ -53,6 +53,11 @@ class RuleSourceType(StrEnum):
     OPERATOR_SUPPLIED_GUIDELINE = "OPERATOR_SUPPLIED_GUIDELINE"
     OPERATOR_SUPPLIED_MARKET_PRACTICE = "OPERATOR_SUPPLIED_MARKET_PRACTICE"
     OPERATOR_SUPPLIED_CLIENT_GUIDELINE = "OPERATOR_SUPPLIED_CLIENT_GUIDELINE"
+    OPERATOR_SUPPLIED_MT_GUIDE = "OPERATOR_SUPPLIED_MT_GUIDE"
+    OPERATOR_SUPPLIED_MYSTANDARDS_EXPORT = "OPERATOR_SUPPLIED_MYSTANDARDS_EXPORT"
+    OPERATOR_SUPPLIED_INTERNAL_RULE_SOURCE = "OPERATOR_SUPPLIED_INTERNAL_RULE_SOURCE"
+    OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL = "OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL"
+    OFFICIAL_ISO_15022_DOCUMENTATION = "OFFICIAL_ISO_15022_DOCUMENTATION"
     OFFICIAL_ISO_20022_MESSAGE_DEFINITION_REPORT = (
         "OFFICIAL_ISO_20022_MESSAGE_DEFINITION_REPORT"
     )
@@ -286,6 +291,17 @@ class SourceReference(RuleModel):
     source_location: str = Field(alias="sourceLocation", max_length=200)
     source_checksum: str = Field(alias="sourceChecksum")
     excerpts_may_be_committed: bool = Field(default=False, alias="excerptsMayBeCommitted")
+    standards_release: str | None = Field(default=None, alias="standardsRelease", max_length=64)
+    applicable_message_categories: tuple[int, ...] = Field(
+        default=(), alias="applicableMessageCategories"
+    )
+    message_identifiers: tuple[str, ...] = Field(default=(), alias="messageIdentifiers")
+    source_allows_external_model_processing: bool | None = Field(
+        default=None, alias="sourceAllowsExternalModelProcessing"
+    )
+    provider_approved_for_source_classification: bool | None = Field(
+        default=None, alias="providerApprovedForSourceClassification"
+    )
 
     @model_validator(mode="after")
     def check_identity(self) -> SourceReference:
@@ -293,6 +309,8 @@ class SourceReference(RuleModel):
             raise ValueError(f"Not a source id: {self.source_id}")
         if not CHECKSUM_PATTERN.fullmatch(self.source_checksum):
             raise ValueError("sourceChecksum must be sha256:<64 hex characters>")
+        if any(item < 0 or item > 9 for item in self.applicable_message_categories):
+            raise ValueError("MT message categories must be digits 0 through 9")
         return self
 
 

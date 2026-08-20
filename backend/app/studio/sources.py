@@ -18,6 +18,8 @@ from enum import StrEnum
 from app.config import get_settings, source_path
 from app.domain.models import ApiModel
 from app.profiles.loader import profiles
+from app.rule_engine.models import RuleSourceType
+from app.rule_engine.sources import SourceManifest, rule_source_directory
 from app.specifications.registry import specification_registry
 from app.studio.mx.registry import mx_registry
 from app.studio.mx.xsd import official_schema_directory, official_schema_path
@@ -65,6 +67,29 @@ def build_readiness() -> SourceReadinessReport:
     ]
     profile_ids = sorted(item.profile_id for item in profiles.list())
     mt_specs = specification_registry.list()
+    rule_sources = SourceManifest()
+    real_mt_semantic = [
+        rule_sources.get(source_id)
+        for source_id in rule_sources.ids()
+        if rule_sources.get(source_id).source_type
+        in {
+            RuleSourceType.OPERATOR_SUPPLIED_MT_GUIDE,
+            RuleSourceType.OPERATOR_SUPPLIED_MYSTANDARDS_EXPORT,
+            RuleSourceType.OPERATOR_SUPPLIED_INTERNAL_RULE_SOURCE,
+            RuleSourceType.OPERATOR_SUPPLIED_CLIENT_GUIDELINE,
+            RuleSourceType.OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL,
+            RuleSourceType.OFFICIAL_ISO_15022_DOCUMENTATION,
+        }
+    ]
+    synthetic_mt_semantic = [
+        rule_sources.get(source_id)
+        for source_id in rule_sources.ids()
+        if rule_sources.get(source_id).source_type is RuleSourceType.SYNTHETIC_FIXTURE
+        and (
+            rule_sources.get(source_id).message_identifiers
+            or "MT" in rule_sources.get(source_id).source_id
+        )
+    ]
 
     sources = [
         SourceReadiness(
@@ -161,6 +186,28 @@ def build_readiness() -> SourceReadinessReport:
             unlocks=[
                 "CLIENT_PROFILE validation reflects a real counterparty.",
                 "Envelope values stop being demonstration placeholders.",
+            ],
+        ),
+        SourceReadiness(
+            id="MT_SEMANTIC_RULE_SOURCES",
+            name="MT semantic business-rule sources",
+            describes=(
+                "Authorised MT standards material, MyStandards exports, market guides, "
+                "client implementation guides or internal rule specifications used to "
+                "derive reviewed MT Rule Packs."
+            ),
+            location=str(rule_source_directory()),
+            setting="RULE_SOURCE_DIRECTORY",
+            state=SourceState.ABSENT if not real_mt_semantic else SourceState.REPOSITORY_CONFIGURED,
+            present=(
+                f"{len(real_mt_semantic)} authorised MT semantic source(s) declared; "
+                f"{len(synthetic_mt_semantic)} synthetic MT fixture(s) available for "
+                "pipeline tests."
+            ),
+            unlocks=[
+                "MT candidate Rule Packs can be extracted from legitimate evidence.",
+                "Reviewed MT business, market or client rules can be installed through PRs.",
+                "Business-rule readiness can move independently from structure readiness.",
             ],
         ),
     ]

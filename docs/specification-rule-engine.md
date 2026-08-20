@@ -198,6 +198,12 @@ Provider policy comes from one settings object, so an offline operation cannot b
 than the runtime one: parameter enforcement, data-collection denial and zero-data-retention
 routing apply identically.
 
+For non-synthetic sources, extraction is blocked before any provider call unless both
+`sourceAllowsExternalModelProcessing` and
+`providerApprovedForSourceClassification` are explicitly `true`. The source can still be
+ingested, segmented and checksummed locally. Synthetic fixtures are the only committed
+sources that may opt in by default.
+
 ## Commands
 
 ```bash
@@ -209,20 +215,29 @@ make rule-inspect [MESSAGE=sese.023 PROFILE=DEMO_MARKET_CLIENT_V1]
 make rule-diff BEFORE=... AFTER=...
 make evaluate-rule-extraction        # offline, scripted, costs nothing
 make test-live-rule-extraction       # calls the configured models; costs money
+make mt-rule-source-ingest SOURCE_ID=SYNTH-MT-SEMANTIC-V1
+make mt-rule-extract SOURCE_ID=SYNTH-MT-SEMANTIC-V1 MESSAGE=MT541
+make evaluate-mt-rule-extraction     # offline MT corpus, scripted
+make mt-rule-check                   # MT readiness docs + MT corpus
 ```
 
 Extraction is offline by design. The running application never extracts a rule, never
 compiles a candidate and never writes to the rules directory. There is no runtime endpoint
 that uploads a document or mutates a rule.
 
+MT semantic-rule ingestion is the same reviewed-pack path with MT source metadata and MT
+reference validation. See
+[mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md).
+
 ## Evaluation
 
 Two runs answering different questions, and the report never blurs them.
 
-**Offline** (`make evaluate-rule-extraction`) stages scripted answers standing in for
+**Offline** (`make evaluate-rule-extraction`, and `make evaluate-mt-rule-extraction` for
+the MT fixture corpus) stages scripted answers standing in for
 realistic model behaviours — a correct reading, a wrong field, an over-broad reading, a
 hallucinated code, an answer that obeyed an injected instruction, a no-rule answer — over a
-54-case synthetic corpus. It measures the **deterministic half**: diff classification,
+synthetic corpus. It measures the **deterministic half**: diff classification,
 reference validation, the injection boundary, no-rule handling. It cannot measure model
 precision or recall and does not claim to.
 
@@ -239,6 +254,7 @@ one.
 | Path | What |
 |---|---|
 | `backend/app/rule_engine/` | the engine: DSL, models, refs, compiler, layers, registry, evaluator, packdiff, sources |
+| `backend/app/rule_engine/mt_semantics.py` | MT semantic-source readiness and canonical structural-reference validation |
 | `backend/app/rule_engine/extraction/` | schemas, prompts, provider seam, canonicalisation, diff, cache, pipeline, review |
 | `backend/app/rule_engine/evaluation/` | the corpus and its runner |
 | `backend/config/rules/` | reviewed packs, loaded at startup |

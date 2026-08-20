@@ -91,6 +91,17 @@ dependency, not Swift certification and not a conformance claim. See
 [mt-source-versioning.md](mt-source-versioning.md) and
 [generated/mt-importer-compatibility.md](generated/mt-importer-compatibility.md).
 
+**The MT semantic-rule ingestion foundation exists (Phase 5A).** It is an offline
+`app/rule_engine` path with MT source metadata, source privacy gating, canonical
+Prowide-derived structural-reference validation, an MT synthetic extraction corpus and
+readiness reports. It installs zero real MT Rule Packs, activates zero candidate messages
+and leaves runtime MT structures untouched. No authorised MT semantic source is present;
+`SYNTH-MT-SEMANTIC-V1` is synthetic only. See
+[mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md),
+[mt-semantic-source-handling.md](mt-semantic-source-handling.md),
+[generated/mt-semantic-readiness.md](generated/mt-semantic-readiness.md) and
+[generated/mt-semantic-source-readiness.md](generated/mt-semantic-source-readiness.md).
+
 **Verification status (all passing):**
 
 ```
@@ -188,6 +199,7 @@ app/specifications/registry.py   MT specification registry (string-keyed; manife
 app/specifications/manifest.py   the manifest index — the single authority for which MT messages exist
 app/spec_engine/                 XSD -> specification-pack compiler (offline CLI; never in the request path)
 app/spec_engine/mt_prowide/      pinned Prowide MT extractor; build-time only
+app/rule_engine/mt_semantics.py  MT semantic source readiness + canonical reference checks
 app/studio/capability.py         derived capability dimensions + plain-language summary
 app/studio/registry.py           format-neutral message-definition projection (catalogue metadata only)
 app/knowledge/loader.py          MT knowledge base
@@ -211,6 +223,7 @@ backend/config/mt_prowide_*.yaml       MT: pinned Prowide structural-evidence lo
 backend/config/mx/*.yaml               MX: complete nested element tree, one per message
 backend/config/mx/xsd/official/        drop licensed .xsd files here; see its README
 backend/config/profiles/*.yaml         client profiles: currencies, rules, envelope values
+backend/config/rule_sources/           business-rule sources; raw licensed drops ignored
 ```
 
 Each of those four locations has a setting that redirects it — `MT_SPECIFICATION_MANIFEST`,
@@ -262,6 +275,7 @@ backend/tests/studio/test_mx_import.py        the MX round trip, and every refus
 backend/tests/studio/test_coverage_and_sources.py  coverage is measured, not declared
 backend/tests/studio/test_message_diff.py     every difference is attributed correctly
 backend/tests/studio/test_mx_lifecycle.py     the four cancellation/modification messages
+backend/tests/rule_engine/test_mt_semantics.py Phase 5A MT source/reference/runtime boundaries
 backend/tests/studio/test_excel_api.py        templates, parsing, upload guards
 backend/tests/studio/test_studio_api.py       the /api/v1 contract
 backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay readable
@@ -307,6 +321,11 @@ Prowide Core evidence does not change that boundary. Treat it as
 `PROWIDE_DERIVED_STRUCTURAL_EVIDENCE`: useful for message/sequence/field-group comparison,
 never sufficient for qualifier legality, code-list legality, network validation, market
 practice, client rules, Swift certification or ISO 15022 completeness.
+
+MT semantic canonical references have the same boundary. `MT:SR2025:MT541:SETDET:22F:SETR`
+is evidence metadata, not a runtime field definition. Runtime Rule Packs must still compile
+through installed MT row ids or exact MT triples, and candidate-only MT messages remain
+inactive.
 
 ### Prowide stays build-time only
 
@@ -391,6 +410,9 @@ operator **declaration**, and the platform never converts it into a compliance c
   evidence origins; the engine never picks a winner.
 - **Source text is untrusted prompt data.** It is fenced, never followed, and the closed
   response schema means an injected instruction cannot change the answer's shape.
+- **Non-synthetic source text needs two explicit approvals before model calls.**
+  `sourceAllowsExternalModelProcessing` and
+  `providerApprovedForSourceClassification` must both be true. Unknown is blocked.
 - **No chain-of-thought is persisted.** It is never requested, and only the closed schema's
   fields are stored.
 - **Live extraction is not part of normal CI.** `make check` must pass with no provider
@@ -492,6 +514,8 @@ make spec-validate PACK=pack.yaml SOURCE=schema.xsd
 make spec-diff BEFORE=old.yaml AFTER=new.yaml
 make mt-prowide-check          # generated Prowide reports are current; offline
 make verify-prowide-mt-source  # pinned Prowide source reproduction + MT541 parser proof
+make mt-rule-check             # MT semantic readiness docs + synthetic MT corpus
+make evaluate-mt-rule-extraction
 docker compose up --build
 ```
 

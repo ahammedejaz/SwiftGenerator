@@ -20,6 +20,7 @@ row from the table below based on why you are here.
 | Configure it for a client | [configuration.md](configuration.md) |
 | Import a licensed specification, schema or client guideline | [authoritative-sources.md](authoritative-sources.md) |
 | Review MT Prowide structural evidence | [mt-structure-importer.md](mt-structure-importer.md) |
+| Ingest MT semantic rule sources | [mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md) |
 | Demo the platform to a client | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Know what to ask a client for | [AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md) |
 | Know what is and is not supported | [limitations.md](limitations.md) |
@@ -76,6 +77,8 @@ row from the table below based on why you are here.
     ├── rule-source-handling.md        licensed source documents, and what may be committed
     ├── specification-rule-engine-plan.md   the Phase 2 architecture plan
     ├── mt-structure-importer.md       Prowide-derived MT structure evidence, build-time only
+    ├── mt-semantic-rule-ingestion.md  MT semantic rule ingestion foundation
+    ├── mt-semantic-source-handling.md MT semantic source metadata and privacy gate
     ├── mt-structure-importer-plan.md  the Phase 4 implementation plan
     ├── mt-source-versioning.md        live release and Prowide lock policy
     ├── mt-standards-upgrades.md       procedure for SRU/standards upgrades
@@ -103,12 +106,15 @@ row from the table below based on why you are here.
 | [generated/mt-importer-compatibility.md](generated/mt-importer-compatibility.md) | `make mt-prowide-reports-write` |
 | [generated/mt-multicategory-coverage.md](generated/mt-multicategory-coverage.md) | `make mt-prowide-reports-write` |
 | [generated/mt-prowide-structure-diff.md](generated/mt-prowide-structure-diff.md) | `make mt-prowide-reports-write` |
+| [generated/mt-semantic-readiness.md](generated/mt-semantic-readiness.md) | `make mt-rule-readiness-write` |
+| [generated/mt-semantic-source-readiness.md](generated/mt-semantic-source-readiness.md) | `make mt-rule-readiness-write` |
 
 Do not edit generated files by hand. `make coverage` fails the build if message coverage
 is stale. It covers every configured message in both formats, and every figure in it is
 measured from the real component rather than read from a flag. `GET /api/v1/coverage`
 serves the same data. `make mt-prowide-check` fails the build if the Prowide-generated
-reports are stale.
+reports are stale. `make mt-rule-check` fails the build if the MT semantic readiness
+reports or synthetic MT corpus drift.
 
 [authoritative-sources.md](authoritative-sources.md) is the procedure for importing a
 licensed specification, schema or client guideline — where each one goes and what it

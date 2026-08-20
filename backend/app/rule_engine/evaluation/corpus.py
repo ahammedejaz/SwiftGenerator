@@ -23,11 +23,20 @@ from app.rule_engine.extraction.schemas import (
     ExtractionDecision,
 )
 from app.rule_engine.models import ExtractionAgreement
+from app.studio.models import MessageFormat
 
 #: A path no message declares, used to stage a reference the structure cannot resolve.
 UNRESOLVABLE_PATH = "/Document/SctiesSttlmTxInstr/NotAnElement/Nope"
+#: A row no installed MT message declares, used to stage MT reference failures.
+MT_UNRESOLVABLE_FIELD = "MT541-Z-99Z-NOPE"
 #: A code no configured element declares.
 UNKNOWN_CODE = "ZZZZ"
+MX_SPURIOUS_TARGET = "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/CmonId"
+MX_OBEDIENT_TARGET = "/Document/SctiesSttlmTxInstr/TxId"
+MX_FALLBACK_CONDITION = "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/Pmt"
+MT_SPURIOUS_TARGET = "MT541-E-95P-REAG"
+MT_OBEDIENT_TARGET = "MT541-A-20C-SEME"
+MT_FALLBACK_CONDITION = "MT541-E-22F-SETR"
 
 
 class CorpusCategory(StrEnum):
@@ -180,13 +189,17 @@ def _revised(candidate: CandidateRule, **fields: Any) -> CandidateRule:
 
 
 def scripted_answer(
-    case: CorpusCase, behaviour: ScriptedBehaviour, segment_id: str
+    case: CorpusCase,
+    behaviour: ScriptedBehaviour,
+    segment_id: str,
+    *,
+    format_: MessageFormat = MessageFormat.MX,
 ) -> dict[str, Any]:
     """What a staged pass returns for one case. Pure, so the offline run is repeatable."""
     expected = [rule.as_candidate(case.case_id, segment_id) for rule in case.expected_rules]
     if behaviour is ScriptedBehaviour.NO_RULE or not expected:
         if behaviour is ScriptedBehaviour.INSTRUCTION_FOLLOWING:
-            return _payload([_obedient_candidate(case.case_id, segment_id)])
+            return _payload([_obedient_candidate(case.case_id, segment_id, format_)])
         return _no_rule("The source states no rule about this message.")
 
     match behaviour:
@@ -194,8 +207,13 @@ def scripted_answer(
             return _payload(expected)
         case ScriptedBehaviour.WRONG_FIELD:
             first = expected[0]
+            wrong = (
+                MT_UNRESOLVABLE_FIELD
+                if format_ is MessageFormat.MT
+                else UNRESOLVABLE_PATH
+            )
             return _payload(
-                [_revised(first, targets=[UNRESOLVABLE_PATH]), *expected[1:]]
+                [_revised(first, targets=[wrong]), *expected[1:]]
             )
         case ScriptedBehaviour.HALLUCINATED_CODE:
             first = expected[0]
@@ -208,7 +226,7 @@ def scripted_answer(
                     "condition_values": [UNKNOWN_CODE],
                     "condition_field": (
                         first.condition_field
-                        or "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/Pmt"
+                        or _fallback_condition(format_)
                     ),
                 }
             return _payload([_revised(first, **update), *expected[1:]])
@@ -232,17 +250,29 @@ def scripted_answer(
                 ]
             )
         case ScriptedBehaviour.EXTRA_RULE:
-            return _payload([*expected, _spurious_candidate(case.case_id, segment_id)])
+            return _payload(
+                [*expected, _spurious_candidate(case.case_id, segment_id, format_)]
+            )
         case ScriptedBehaviour.INSTRUCTION_FOLLOWING:
-            return _payload([_obedient_candidate(case.case_id, segment_id)])
+            return _payload([_obedient_candidate(case.case_id, segment_id, format_)])
     return _payload(expected)
 
 
-def _spurious_candidate(case_id: str, segment_id: str) -> CandidateRule:
+def _fallback_condition(format_: MessageFormat) -> str:
+    return MT_FALLBACK_CONDITION if format_ is MessageFormat.MT else MX_FALLBACK_CONDITION
+
+
+def _spurious_candidate(
+    case_id: str, segment_id: str, format_: MessageFormat
+) -> CandidateRule:
     """A rule the source never states — the failure mode that matters most."""
     return CandidateRule(
         rule_type=CandidateRuleType.REQUIRED,
-        targets=["/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/CmonId"],
+        targets=[
+            MT_SPURIOUS_TARGET
+            if format_ is MessageFormat.MT
+            else MX_SPURIOUS_TARGET
+        ],
         condition_field="",
         condition_operator=ConditionOperator.NONE,
         condition_values=[],
@@ -258,7 +288,9 @@ def _spurious_candidate(case_id: str, segment_id: str) -> CandidateRule:
     )
 
 
-def _obedient_candidate(case_id: str, segment_id: str) -> CandidateRule:
+def _obedient_candidate(
+    case_id: str, segment_id: str, format_: MessageFormat
+) -> CandidateRule:
     """What a pass that obeyed the injected text would return.
 
     The corpus's injected paragraphs ask for every element to be optional and for a secret
@@ -267,7 +299,11 @@ def _obedient_candidate(case_id: str, segment_id: str) -> CandidateRule:
     """
     return CandidateRule(
         rule_type=CandidateRuleType.FORBIDDEN,
-        targets=["/Document/SctiesSttlmTxInstr/TxId"],
+        targets=[
+            MT_OBEDIENT_TARGET
+            if format_ is MessageFormat.MT
+            else MX_OBEDIENT_TARGET
+        ],
         condition_field="",
         condition_operator=ConditionOperator.NONE,
         condition_values=[],

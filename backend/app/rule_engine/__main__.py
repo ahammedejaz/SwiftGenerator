@@ -97,6 +97,16 @@ def _cmd_extract(args: argparse.Namespace) -> int:
             print(str(error), file=sys.stderr)
         return 1
 
+    if not ingested.bundle.external_model_processing_allowed():
+        print(
+            "RULE_EXTRACTION_PRIVACY_BLOCKED — this source is not approved for external "
+            "model processing. Local ingestion and segmentation are available, but LLM "
+            "extraction requires sourceAllowsExternalModelProcessing and "
+            "providerApprovedForSourceClassification to be explicitly true.",
+            file=sys.stderr,
+        )
+        return 2
+
     client = live_client(settings)
     if client is None:
         print(
@@ -288,9 +298,35 @@ def _cmd_diff(args: argparse.Namespace) -> int:
 def _cmd_evaluate(args: argparse.Namespace) -> int:
     from app.rule_engine.evaluation.runner import run_evaluation
 
-    report = run_evaluation(live=args.live)
+    report = run_evaluation(
+        live=args.live,
+        corpus_path=Path(args.corpus) if args.corpus else None,
+    )
     print(report.render())
     return 0 if report.passed else 1
+
+
+def _cmd_mt_readiness(args: argparse.Namespace) -> int:
+    from app.rule_engine.mt_semantics import (
+        check_reports,
+        render_semantic_readiness,
+        render_source_readiness,
+        write_reports,
+    )
+
+    if args.write:
+        write_reports()
+        print("MT semantic readiness reports written")
+        return 0
+    if args.check:
+        if check_reports():
+            print("MT semantic readiness reports are current")
+            return 0
+        print("MT semantic readiness reports are stale", file=sys.stderr)
+        return 1
+    print(render_semantic_readiness())
+    print(render_source_readiness())
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -360,7 +396,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="call the configured models instead of the scripted ones. Costs money.",
     )
+    evaluate.add_argument("--corpus", help="evaluation corpus YAML (default: configured)")
     evaluate.set_defaults(handler=_cmd_evaluate)
+
+    mt_readiness = commands.add_parser(
+        "mt-readiness", help="render or check MT semantic readiness reports"
+    )
+    mt_readiness.add_argument("--write", action="store_true", help="write generated docs")
+    mt_readiness.add_argument("--check", action="store_true", help="check generated docs")
+    mt_readiness.set_defaults(handler=_cmd_mt_readiness)
 
     args = parser.parse_args(argv)
     return int(args.handler(args))
