@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
@@ -21,19 +22,21 @@ _PACKAGE = re.compile(r"^package\s+(?P<package>[\w.]+);", re.MULTILINE)
 _MESSAGE_NAME = re.compile(r"MT\s+\d{3}\s+-\s+(?P<name>[^.\n]+)\.", re.MULTILINE)
 _SRU = re.compile(r"public static final int SRU = (?P<sru>\d{4});")
 _SEQUENCE_CONSTANT = re.compile(
-    r"public static class Sequence(?P<path>[A-Za-z0-9]+).*?"
+    r"public static class Sequence(?P<path>[A-Za-z0-9_]+).*?"
     r'public static final String START_END_16RS = "(?P<code>[^"]+)";',
     re.DOTALL,
 )
 _SEQUENCE = re.compile(
-    r"^Sequence\s+(?P<path>[A-Za-z0-9]+)(?:\s+-\s*(?P<name>.*?))?\s*"
+    r"^Sequence\s+(?P<path>[A-Za-z0-9_]+)(?:\s+-\s*(?P<name>.*?))?\s*"
     r"\((?P<presence>[MO])\)(?P<tail>.*)$"
 )
 _FIELDSET = re.compile(
-    r"^Fieldset\s+(?P<number>\d{2}[A-Z]?)\s+\((?P<presence>[MO])\)(?P<tail>.*)$"
+    r"^Fieldset\s+(?P<number>\d{2,3}[A-Z]?)\s+\((?P<presence>[MO])"
+    r"\)(?P<tail>.*)$"
 )
 _FIELD = re.compile(
-    r"^Field(?:setItem)?\s+(?P<number>\d{2}[A-Z]?)(?:\s+(?P<options>[A-Z](?:,[A-Z])*))?"
+    r"^Field(?:setItem)?\s+(?P<number>\d{2,3}[A-Z]?)"
+    r"(?:\s+(?P<options>[A-Z]+(?:,[A-Z]+)*))?"
     r"\s+\((?P<presence>[MO])\)(?P<tail>.*)$"
 )
 
@@ -105,21 +108,67 @@ class _ParsedField:
     repeatable: bool
 
 
-def message_source_paths(source_jar: Path, *, category: int = 5) -> list[str]:
+def discovered_categories(source_jar: Path) -> list[int]:
+    categories = {
+        int(match.group("category"))
+        for match in _matched_source_paths(source_jar)
+    }
+    return sorted(categories)
+
+
+def message_source_paths(
+    source_jar: Path,
+    *,
+    category: int | None = None,
+    categories: Iterable[int] | None = None,
+) -> list[str]:
+    selected = _selected_categories(category=category, categories=categories)
+    return sorted(
+        name
+        for match in _matched_source_paths(source_jar)
+        for name in [match.string]
+        if selected is None or int(match.group("category")) in selected
+    )
+
+
+def _matched_source_paths(source_jar: Path) -> list[re.Match[str]]:
     with zipfile.ZipFile(source_jar) as archive:
-        paths = []
-        for name in archive.namelist():
-            match = _SOURCE_PATH.match(name)
-            if match and int(match.group("category")) == category:
-                paths.append(name)
-    return sorted(paths)
+        return [
+            match
+            for name in archive.namelist()
+            for match in [_SOURCE_PATH.match(name)]
+            if match is not None
+        ]
 
 
-def extract_message_schemes(source_jar: Path, *, category: int = 5) -> list[MtMessageEvidence]:
+def _selected_categories(
+    *,
+    category: int | None,
+    categories: Iterable[int] | None,
+) -> set[int] | None:
+    if category is not None and categories is not None:
+        raise ValueError("Pass either category or categories, not both")
+    if category is not None:
+        return {category}
+    if categories is not None:
+        return set(categories)
+    return None
+
+
+def extract_message_schemes(
+    source_jar: Path,
+    *,
+    category: int | None = None,
+    categories: Iterable[int] | None = None,
+) -> list[MtMessageEvidence]:
     with zipfile.ZipFile(source_jar) as archive:
         return [
             _extract_message(archive, source_path)
-            for source_path in message_source_paths(source_jar, category=category)
+            for source_path in message_source_paths(
+                source_jar,
+                category=category,
+                categories=categories,
+            )
         ]
 
 
@@ -129,7 +178,8 @@ def _extract_message(archive: zipfile.ZipFile, source_path: str) -> MtMessageEvi
     if path_match is None:
         raise ValueError(f"Not a Prowide MT source path: {source_path}")
     class_name = path_match.group("class")
-    message_type = class_name.split("_", maxsplit=1)[0]
+    base_message_type = class_name.split("_", maxsplit=1)[0]
+    variant = class_name.split("_", maxsplit=1)[1] if "_" in class_name else None
     package_match = _PACKAGE.search(source)
     if package_match is None:
         raise ValueError(f"{source_path} has no package declaration")
@@ -146,7 +196,7 @@ def _extract_message(archive: zipfile.ZipFile, source_path: str) -> MtMessageEvi
     field_groups: list[MtFieldGroupEvidence] = []
     counters = {"sequence": 0, "fieldset": 0, "field_group": 0}
     _walk_scheme(
-        message_type,
+        class_name,
         scheme.children,
         sequence_codes,
         None,
@@ -157,9 +207,13 @@ def _extract_message(archive: zipfile.ZipFile, source_path: str) -> MtMessageEvi
     )
     distinct_tags = sorted({tag for group in field_groups for tag in group.tags})
     name_match = _MESSAGE_NAME.search(source)
-    name = name_match.group("name").strip() if name_match else message_type
+    name = name_match.group("name").strip() if name_match else class_name
     return MtMessageEvidence(
-        message_type=message_type,
+        message_type=class_name,
+        base_message_type=base_message_type,
+        category=int(path_match.group("category")),
+        source_model=class_name,
+        variant=variant,
         name=name,
         package_name=package_match.group("package"),
         class_name=class_name,
@@ -371,4 +425,4 @@ def _max_occurs(repeatable: bool) -> int | None:
 def _tags(number: str, options: list[str]) -> list[str]:
     if not options:
         return [number]
-    return [f"{number}{option}" for option in options]
+    return [number if option == "NONE" else f"{number}{option}" for option in options]

@@ -100,8 +100,9 @@ missing-source failures rather than fabricating schemas.
 
 ## Prowide MT evidence is structural and build-time only
 
-Phase 4 adds a pinned Prowide Core extractor for MT Category 5 structure evidence. It is a
-developer tool, not a runtime dependency and not a conformance authority.
+Phase 4B extends the pinned Prowide Core extractor to all MT source model classes present
+in the selected artifact. It is a developer tool, not a runtime dependency and not a
+conformance authority.
 
 What it can say:
 
@@ -118,9 +119,9 @@ What it cannot say:
 - a field is mandatory in a message because a global field class exists
 - network validation, market practice or client usage rules are covered
 
-All non-configured Prowide Category 5 message classes remain inert candidates. The reports
-name structural differences between Prowide evidence and the configured subset, but this
-phase deliberately does not rewrite runtime MT structures from those differences.
+All non-configured Prowide source models remain inert candidates. The reports name
+structural differences between Prowide evidence and the configured subset, but this phase
+deliberately does not rewrite runtime MT structures from those differences.
 
 ---
 

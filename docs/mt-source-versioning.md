@@ -9,6 +9,9 @@ then update the lock, fixture, generated reports and docs together.
 The active importer lock is
 `backend/config/mt_prowide_sru2025_10_3_18.lock.yaml`.
 
+The active committed evidence fixture is
+`backend/tests/fixtures/mt_prowide/all-categories-sru2025-10.3.18.json`.
+
 | Field | Value |
 | --- | --- |
 | Source | Prowide Core |

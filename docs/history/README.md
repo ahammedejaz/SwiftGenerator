@@ -37,6 +37,7 @@ overnight-implementation-report → what the plan actually produced
      ├─ ci-implementation-report              → GitHub Actions pipeline set up
      │
      └─ specification-engine-phase-04-report  → Prowide-derived MT structure evidence
+        └─ specification-engine-phase-04b-report → all-category MT source discovery
 ```
 
 ---
@@ -56,6 +57,7 @@ overnight-implementation-report → what the plan actually produced
 | [v0-1-0-release-readiness-report.md](v0-1-0-release-readiness-report.md) | What was verified for the v0.1.0 baseline. |
 | [ci-implementation-report.md](ci-implementation-report.md) | The GitHub Actions pipeline and the two defects it found. |
 | [specification-engine-phase-04-report.md](specification-engine-phase-04-report.md) | Prowide-derived MT structure evidence, source locks, reports and verification. |
+| [specification-engine-phase-04b-report.md](specification-engine-phase-04b-report.md) | All-category Prowide MT source discovery, inert candidate analysis and authoring-readiness blockers. |
 
 ---
 

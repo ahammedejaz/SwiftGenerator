@@ -25,7 +25,7 @@ from app.spec_engine.gates import validate_pack
 from app.spec_engine.mt_prowide.extractor import (
     canonical_json,
     cross_engine_mt541,
-    extract_category5,
+    extract_all_categories,
     verify_fixture_against_source,
     write_extraction,
 )
@@ -310,13 +310,16 @@ def _cmd_scaleout(args: argparse.Namespace) -> int:
 
 
 def _cmd_mt_prowide_extract(args: argparse.Namespace) -> int:
-    extraction = extract_category5(
+    extraction = extract_all_categories(
         lock_path=Path(args.lock),
         cache_dir=Path(args.cache),
     )
     if args.out:
         write_extraction(extraction, Path(args.out))
-        print(f"wrote {args.out} ({len(extraction.messages)} Category 5 MT messages)")
+        print(
+            f"wrote {args.out} "
+            f"({len(extraction.messages)} Prowide MT source model classes)"
+        )
     else:
         print(canonical_json(extraction), end="")
     return 0
@@ -350,7 +353,7 @@ def _cmd_mt_prowide_verify(args: argparse.Namespace) -> int:
     cross = cross_engine_mt541(lock_path=Path(args.lock), cache_dir=Path(args.cache))
     print(
         f"source extraction: {'PASS' if fixture_ok else 'FAIL'} "
-        f"({len(fresh.messages)} Category 5 MT messages)"
+        f"({len(fresh.messages)} Prowide MT source model classes)"
     )
     print(
         f"MT541 Prowide parse proof: {'PASS' if cross.tag_stream_identical else 'FAIL'} "
@@ -491,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
 
     mt_prowide_extract_cmd = commands.add_parser(
         "mt-prowide-extract",
-        help="extract Prowide-derived Category 5 MT structural evidence",
+        help="extract Prowide-derived MT structural evidence",
     )
     mt_prowide_extract_cmd.add_argument("--lock", default=str(DEFAULT_LOCK))
     mt_prowide_extract_cmd.add_argument("--cache", default=str(DEFAULT_CACHE))

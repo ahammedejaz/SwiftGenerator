@@ -30,6 +30,26 @@ class SourceConfidence(StrEnum):
     OBSERVED = "OBSERVED"
     UNKNOWN = "UNKNOWN"
     NOT_PROMOTED = "NOT_PROMOTED"
+    GLOBAL_ONLY = "GLOBAL_ONLY"
+
+
+class CandidateStructureState(StrEnum):
+    SOURCE_DISCOVERED = "SOURCE_DISCOVERED"
+    STRUCTURE_EXTRACTED = "STRUCTURE_EXTRACTED"
+    STRUCTURE_COMPILED = "STRUCTURE_COMPILED"
+    CROSS_ENGINE_PARSED = "CROSS_ENGINE_PARSED"
+    ROUNDTRIP_VERIFIED = "ROUNDTRIP_VERIFIED"
+    AUTHORING_READY = "AUTHORING_READY"
+    INSTALLED = "INSTALLED"
+
+
+class AuthoringReadinessStatus(StrEnum):
+    READY = "READY"
+    PARTIAL = "PARTIAL"
+    BLOCKED_REQUIREDNESS_UNKNOWN = "BLOCKED_REQUIREDNESS_UNKNOWN"
+    BLOCKED_FIELD_USE_UNKNOWN = "BLOCKED_FIELD_USE_UNKNOWN"
+    BLOCKED_QUALIFIER_RULES_UNKNOWN = "BLOCKED_QUALIFIER_RULES_UNKNOWN"
+    STRUCTURAL_EVIDENCE_ONLY = "STRUCTURAL_EVIDENCE_ONLY"
 
 
 class ProwideArtifact(ApiModel):
@@ -111,6 +131,10 @@ class MtFieldGroupEvidence(ApiModel):
 
 class MtMessageEvidence(ApiModel):
     message_type: str
+    base_message_type: str
+    category: int
+    source_model: str
+    variant: str | None = None
     name: str
     package_name: str
     class_name: str
@@ -123,6 +147,16 @@ class MtMessageEvidence(ApiModel):
     sequences: list[MtSequenceEvidence] = Field(default_factory=list)
     fieldsets: list[MtFieldSetEvidence] = Field(default_factory=list)
     field_groups: list[MtFieldGroupEvidence] = Field(default_factory=list)
+    structure_states: list[CandidateStructureState] = Field(
+        default_factory=lambda: [
+            CandidateStructureState.SOURCE_DISCOVERED,
+            CandidateStructureState.STRUCTURE_EXTRACTED,
+        ]
+    )
+    authoring_status: AuthoringReadinessStatus = (
+        AuthoringReadinessStatus.STRUCTURAL_EVIDENCE_ONLY
+    )
+    authoring_blockers: list[str] = Field(default_factory=list)
 
 
 class MtGlobalFieldEvidence(ApiModel):
@@ -132,7 +166,7 @@ class MtGlobalFieldEvidence(ApiModel):
     types_pattern: str | None = None
     parser_pattern: str | None = None
     validator_pattern: str | None = None
-    component_labels: list[str] = Field(default_factory=list)
+    component_labels: list[str | None] = Field(default_factory=list)
     optional_components: list[int] = Field(default_factory=list)
     components_size: int | None = None
     generic: bool | None = None
@@ -141,10 +175,12 @@ class MtGlobalFieldEvidence(ApiModel):
 
 
 class MtProwideExtraction(ApiModel):
-    schema_version: str = "mt-prowide-extraction/1"
+    schema_version: str = "mt-prowide-extraction/2"
     source: ProwideSourceLock
     extracted_scope: str
     selected_message_count: int
+    discovered_categories: list[int] = Field(default_factory=list)
+    category_counts: dict[str, int] = Field(default_factory=dict)
     messages: list[MtMessageEvidence]
     global_fields: list[MtGlobalFieldEvidence]
     activated_messages: list[str] = Field(default_factory=list)

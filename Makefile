@@ -73,9 +73,9 @@ demo-pack-check:
 	cd backend && .venv/bin/python -m app.studio.demo_pack --check
 
 MT_PROWIDE_LOCK ?= backend/config/mt_prowide_sru2025_10_3_18.lock.yaml
-MT_PROWIDE_FIXTURE ?= backend/tests/fixtures/mt_prowide/category5-sru2025-10.3.18.json
+MT_PROWIDE_FIXTURE ?= backend/tests/fixtures/mt_prowide/all-categories-sru2025-10.3.18.json
 MT_PROWIDE_CACHE ?= build/mt-prowide-cache
-MT_PROWIDE_FRESH ?= build/mt-prowide-candidates/category5-sru2025-10.3.18.json
+MT_PROWIDE_FRESH ?= build/mt-prowide-candidates/all-categories-sru2025-10.3.18.json
 
 mt-prowide-extract:
 	cd backend && .venv/bin/python -m app.spec_engine mt-prowide-extract \

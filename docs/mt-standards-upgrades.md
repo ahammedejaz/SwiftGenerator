@@ -39,6 +39,7 @@ The reviewer should inspect these changes together:
 - the JSON fixture
 - `docs/generated/mt-prowide-structure-diff.md`
 - `docs/generated/mt-importer-compatibility.md`
+- `docs/generated/mt-multicategory-coverage.md`
 - `docs/generated/message-coverage.md`
 
 Expected changes include new candidate messages, removed candidate messages, moved

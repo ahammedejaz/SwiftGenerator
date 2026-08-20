@@ -55,7 +55,7 @@ MT_PROWIDE_FIXTURE = (
     / "tests"
     / "fixtures"
     / "mt_prowide"
-    / "category5-sru2025-10.3.18.json"
+    / "all-categories-sru2025-10.3.18.json"
 )
 
 
@@ -601,7 +601,8 @@ def _mt_prowide_evidence_summary() -> str:
     activated_count = len(payload["activatedMessages"])
     return (
         f"`{source['prowidesoftwareVersion']}` / `{source['swiftStandardsRelease']}`; "
-        f"{payload['selectedMessageCount']} Category 5 classes, "
+        f"{payload['selectedMessageCount']} source models across "
+        f"{len(payload.get('discoveredCategories', []))} categories, "
         f"{candidate_count} inert candidates, {activated_count} activated"
     )
 

@@ -156,9 +156,9 @@ gives the ordered list of rows for a message.
 
 The Prowide MT structure importer lives beside the specification engine, not in the
 runtime path. It downloads pinned Prowide Core artifacts into ignored `build/` directories,
-extracts Category 5 structural evidence, writes a deterministic fixture, and renders
-reports comparing that evidence with the configured MT subset. It does not install
-candidate messages or rewrite the manifest. See
+extracts structural evidence for every MT source model discovered in the pinned artifact,
+writes a deterministic fixture, and renders reports comparing that evidence with the
+configured MT subset. It does not install candidate messages or rewrite the manifest. See
 [mt-structure-importer.md](mt-structure-importer.md).
 
 **MX** is one nested tree per message. Document order in the YAML *is* element order in the

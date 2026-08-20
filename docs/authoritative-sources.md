@@ -143,7 +143,7 @@ Prowide-derived structural view.
 
 **Procedure.** Run `make verify-prowide-mt-source` to download the pinned Maven artifacts
 into ignored `build/mt-prowide-cache/`, verify checksums, reproduce the committed
-Category 5 fixture, and prove the repository's generated MT541 tag stream against Prowide
+all-category fixture, and prove the repository's generated MT541 tag stream against Prowide
 parsing. Run `make mt-prowide-reports-write` when the committed fixture intentionally
 changes.
 

@@ -101,6 +101,7 @@ row from the table below based on why you are here.
 |---|---|
 | [generated/message-coverage.md](generated/message-coverage.md) | `make coverage-write` |
 | [generated/mt-importer-compatibility.md](generated/mt-importer-compatibility.md) | `make mt-prowide-reports-write` |
+| [generated/mt-multicategory-coverage.md](generated/mt-multicategory-coverage.md) | `make mt-prowide-reports-write` |
 | [generated/mt-prowide-structure-diff.md](generated/mt-prowide-structure-diff.md) | `make mt-prowide-reports-write` |
 
 Do not edit generated files by hand. `make coverage` fails the build if message coverage
