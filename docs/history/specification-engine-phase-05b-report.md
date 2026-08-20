@@ -566,6 +566,21 @@ passes: the evidence fixture, the Prowide fixture and the generated reports are 
 and no target in `make check` opens a licensed document. The three local targets report
 `SOURCE_NOT_AVAILABLE` and exit 0 where the guides are absent.
 
+### What CI caught that local verification could not
+
+The first push failed **Required Checks** on `git diff --check`. `make check` and
+`make secret-scan` passed; the whitespace gate did not.
+
+All six generated SR2026 reports ended with a blank line. `git diff --check` refuses a *new*
+blank line at end of file, and it only sees one when a base ref is supplied — which the
+workflow does (`git diff --check origin/main...HEAD`) and a bare local run cannot, because
+it compares the worktree to the index and is therefore always clean. Every renderer joined a
+list whose last element was `""` and then appended `"\n"`.
+
+Fixed in a single `_document()` helper rather than in each renderer, so a report added later
+cannot reintroduce it, and recorded in `AGENTS.md` §13. The second run is green on the final
+head.
+
 ## 60. Known limitations
 
 Full list in [../limitations.md](../limitations.md). The ones that matter here:

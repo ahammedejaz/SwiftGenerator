@@ -811,7 +811,13 @@ Defects found and fixed while building this. These are the ones likely to recur:
 46. **`Cn` is a label, not an identity.** MT541 `C2` is the settlement-amount rule (`E92`);
     MT540 `C2` is a linked-count rule (`E90`). Matching rules by number across two books
     attributes one message's rules to another.
-47. **An environment-dependent import needs an environment-independent annotation.**
+47. **A generated document that ends with a blank line fails CI and passes locally.**
+    `git diff --check` refuses a *new* blank line at end of file, and it only sees one when
+    a base ref is supplied — which the workflow does and a bare local run cannot, because
+    it compares the worktree to the index. A renderer that joins a list ending in `""` and
+    then appends `"\n"` produces exactly that. Normalise once, in a shared helper, so the
+    next report cannot reintroduce it.
+48. **An environment-dependent import needs an environment-independent annotation.**
     `# type: ignore[import-not-found]` on the optional `pypdf` import is correct on a runner
     without the package and an *unused-ignore error* on a laptop with it. A
     `[[tool.mypy.overrides]]` entry is the only spelling that is right on both machines.
