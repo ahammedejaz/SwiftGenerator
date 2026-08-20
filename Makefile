@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan swift-mt-discover swift-mt-download mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -7,6 +7,7 @@ PYTHON ?= python3.13
 install:
 	$(PYTHON) -m venv backend/.venv
 	backend/.venv/bin/pip install -r backend/requirements-dev.txt
+	backend/.venv/bin/python -m playwright install chromium
 	cd frontend && npm ci
 	# The browser Playwright drives is a separate download from the npm package, so a
 	# machine that has never run Playwright cannot `make e2e` without this. Only chromium:
@@ -49,6 +50,12 @@ secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
 		"sk-or-v1-[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----" \
 		&& { echo "Secret-shaped string found in a tracked file"; exit 1; } || echo "No secret-shaped strings in tracked files"
+
+swift-mt-discover:
+	backend/.venv/bin/python tools/swift-mystandards-downloader/swift_mystandards_downloader.py --keep-session --dry-run
+
+swift-mt-download:
+	backend/.venv/bin/python tools/swift-mystandards-downloader/swift_mystandards_downloader.py --keep-session
 
 audit:
 	cd backend && .venv/bin/pip-audit -r requirements-dev.txt

@@ -42,6 +42,13 @@ build/mt-mrg/
 
 # The autonomous engagement brief. Kept locally, never committed.
 workPrompt.txt
+automationPrompt.txt
+
+# Local operator browser/session state for the MyStandards downloader. The default output
+# lives under ~/Downloads, but keep repo-local experiments out of Git too.
+tools/swift-mystandards-downloader/.browser-profile/
+tools/swift-mystandards-downloader/downloads/
+tools/swift-mystandards-downloader/debug/
 
 # Business-rule source documents are dropped in locally, never committed. Only the
 # synthetic fixtures this repository owns are tracked.
