@@ -57,6 +57,13 @@ class SequenceSpecification(ApiModel):
     min_occurs: int = Field(ge=0)
     max_occurs: int = Field(ge=1, le=10_000)
     insert_after_tag: str | None = None
+    #: False for the unsequenced body of a message that has no ``:16R:``/``:16S:`` markers
+    #: (most of Categories 1, 2 and 9). The composer writes no markers and the parser
+    #: assigns every field to this sequence. Always True for the configured subset.
+    bracketed: bool = True
+    #: For an unbracketed sequence, the tags that open a new occurrence of it when read
+    #: back (the first field of the sequence in the source's order).
+    leading_tags: list[str] = Field(default_factory=list)
 
 
 class FieldSpecification(ApiModel):
@@ -92,6 +99,17 @@ class FieldSpecification(ApiModel):
     rule_layer: RuleLayer
     knowledge_id: str
     source: SpecificationSource
+    #: A regex for the canonical value, compiled from the source's SWIFT format notation
+    #: by a Structure Pack compiler. Checked before the legacy per-tag table when present.
+    format_pattern: str | None = None
+    #: What the composer writes between the qualifier and the value: ``//`` normally, ``/``
+    #: where the format carries a mandatory data source scheme (``:4!c/8c/34x``).
+    qualifier_separator: str = "//"
+    #: Where the pack's structural evidence came from; empty for the configured subset.
+    structure_source: str | None = None
+    #: A field whose line is its tag alone (``:15A:``): written by the composer whenever its
+    #: sequence is present, never supplied by a caller, read back without a value.
+    value_less: bool = False
     form_supported: bool = True
     composer_supported: bool = True
     parser_supported: bool = True
@@ -113,6 +131,16 @@ class MessageSpecification(ApiModel):
     sequences: list[SequenceSpecification]
     fields: list[FieldSpecification]
     source: SpecificationSource
+    # -- Phase 6: set only by local Structure Packs; empty for the configured subset.
+    #: CONFIGURED or KNOWLEDGE_PREVIEW.
+    lane: str = "CONFIGURED"
+    #: SR2025 / SR2026 for a pack; the configured subset keeps ``standards_release``.
+    release: str | None = None
+    business_area: str | None = None
+    structure_source: str | None = None
+    capability_statement: str | None = None
+    limitations: list[str] = Field(default_factory=list)
+    pack_checksum: str | None = None
 
 
 class CatalogueMessage(ApiModel):

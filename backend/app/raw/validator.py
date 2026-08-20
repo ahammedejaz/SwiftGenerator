@@ -13,7 +13,7 @@ from app.services.generation import DISCLAIMER
 
 HEADER_PATTERN = re.compile(r"^\{2:(MT(?:530|537|54[0-8]|56[4-8]))\}$")
 FIELD_PATTERN = re.compile(
-    r"^:(?P<tag>\d{2}[A-Z]):(?::(?P<qualifier>[A-Z0-9]{4})//)?(?P<value>.+)$"
+    r"^:(?P<tag>\d{2}[A-Z]|\d{3}):(?::(?P<qualifier>[A-Z0-9]{4})(?://|/))?(?P<value>.+)$"
 )
 SEQUENCE_PATTERN = re.compile(r"^:16(?P<boundary>[RS]):(?P<name>[A-Z0-9]+)$")
 

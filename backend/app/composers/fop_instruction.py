@@ -1,6 +1,7 @@
 from app.composers.base import CompositionResult, MessageComposer, swift_decimal
 from app.domain.enums import Direction, GenerationMode, MessageType, NegativeMutation
 from app.domain.models import RenderedField, SettlementScenario
+from app.knowledge.presentation import qualifier_separator_for
 from app.profiles.loader import ClientProfile
 
 #: The transaction type an ordinary settlement of a trade carries in 22F::SETR.
@@ -10,7 +11,6 @@ from app.profiles.loader import ClientProfile
 #: authority for this field. Receive versus deliver is carried by the message type, and a
 #: buy/sell classification is not a settlement transaction type at all.
 SETTLEMENT_TRANSACTION_TYPE_CODE = "TRAD"
-
 
 
 class FopInstructionComposer(MessageComposer):
@@ -56,7 +56,11 @@ class FopInstructionComposer(MessageComposer):
             path: str,
             meaning: str,
         ) -> None:
-            lines.append(f":{tag}::{qualifier}//{value}" if qualifier else f":{tag}:{value}")
+            lines.append(
+                f":{tag}::{qualifier}{qualifier_separator_for(tag)}{value}"
+                if qualifier
+                else f":{tag}:{value}"
+            )
             fields.append(
                 RenderedField(
                     sequence=sequence,

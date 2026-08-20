@@ -22,21 +22,28 @@ Two mechanisms keep samples honest:
 
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 
 from app.domain.identifiers import synthetic_isin
+from app.specifications.models import MessageSpecification
 from app.studio.catalogue import message_spec
 from app.studio.models import (
     ElementInput,
     FieldInput,
+    InputKind,
+    Lane,
     MessageFormat,
     MessageSpec,
     Presence,
     SampleMessage,
     SampleVariant,
     SpecField,
+    SpecGroup,
 )
+from app.studio.mx.registry import MxRegistry
 
 #: Fixed dates keep samples deterministic, which keeps golden tests and demos stable.
 TRADE_DATE = date(2026, 8, 14)
@@ -180,6 +187,35 @@ MAX_REPAIR_ROUNDS = 6
 MAX_GENERATE_REQUEST_ITEMS = 500
 
 
+@dataclass(frozen=True)
+class SampleContext:
+    """Which lane a sample is built in. The configured lane is the default everywhere."""
+
+    lane: Lane = Lane.CONFIGURED
+    release: str | None = None
+
+    def mt_specification(self, message_type: str) -> MessageSpecification:
+        if self.lane is Lane.KNOWLEDGE_PREVIEW:
+            from app.knowledge_base.preview import preview_registries
+
+            return preview_registries().resolve_mt(message_type, self.release)
+        from app.specifications.registry import specification_registry
+
+        return specification_registry.get(message_type)
+
+    def mx_registry(self) -> MxRegistry:
+        if self.lane is Lane.KNOWLEDGE_PREVIEW:
+            from app.knowledge_base.preview import preview_registries
+
+            registry = preview_registries().mx_registry
+            if registry is None:
+                raise KeyError("no knowledge-preview MX packs are loaded")
+            return registry
+        from app.studio.mx.registry import mx_registry
+
+        return mx_registry
+
+
 # --------------------------------------------------------------------------------------
 # Value selection
 # --------------------------------------------------------------------------------------
@@ -213,10 +249,38 @@ def _candidates(field: SpecField, message_type: str) -> list[str]:
             fallback = "SYNTHETICVALUE"
     if fallback:
         options.append(fallback)
+    if field.format is MessageFormat.MT and _looks_like_swift_notation(field.format_explanation):
+        # A pack compiled from source evidence carries the field's own SWIFT notation; a
+        # structurally valid synthetic value follows from it without a per-tag table. It
+        # comes last so a curated value still wins where one exists and is accepted.
+        from app.knowledge_base.structures.swift_format import FormatUnsupported, synthetic_value
+
+        try:
+            derived = synthetic_value(field.format_explanation, codes=field.allowed_codes or None)
+        except FormatUnsupported:
+            derived = ""
+        if derived:
+            options.append(derived)
+    if not options and field.format is MessageFormat.MT and field.input_kind is InputKind.TEXT:
+        # A field whose format the source could not state (Prowide's CUSTOM parser) still
+        # needs a value for a sample; the composer's length check is all that applies.
+        options.append("SYNTHETIC")
     return list(dict.fromkeys(option for option in options if option))
 
 
-def _mt_acceptable(field: SpecField, message_type: str, value: str) -> bool:
+_NOTATION_SHAPE = re.compile(r"[0-9A-Za-z!<>\[\]$*/():,.\-]+")
+_NOTATION_TOKEN = re.compile(r"\d!?[nacxyzhed]\b|<[A-Z]")
+
+
+def _looks_like_swift_notation(text: str) -> bool:
+    """``:4!c//16x`` and ``1a`` are notation; ``Date is rendered as YYYYMMDD`` is prose."""
+    stripped = text.strip()
+    return bool(
+        stripped and _NOTATION_SHAPE.fullmatch(stripped) and _NOTATION_TOKEN.search(stripped)
+    )
+
+
+def _mt_acceptable(field: SpecField, message_type: str, value: str, ctx: SampleContext) -> bool:
     """Whether the platform's own validation accepts this value for this field.
 
     Runs against the real specification row, so a candidate that would fail the identifier
@@ -225,14 +289,9 @@ def _mt_acceptable(field: SpecField, message_type: str, value: str) -> bool:
     """
     from app.authoring.composer import row_format_valid
     from app.knowledge.presentation import is_direct_code_field
-    from app.specifications.registry import specification_registry
 
     row = next(
-        (
-            item
-            for item in specification_registry.get(message_type).fields
-            if item.row_id == field.id
-        ),
+        (item for item in ctx.mt_specification(message_type).fields if item.row_id == field.id),
         None,
     )
     if row is None:
@@ -244,30 +303,27 @@ def _mt_acceptable(field: SpecField, message_type: str, value: str) -> bool:
 
         if not validate_isin(value).check_digit_valid:
             return False
-    return not (
-        is_direct_code_field(row.tag, row.allowed_codes) and value not in row.allowed_codes
-    )
+    return not (is_direct_code_field(row.tag, row.allowed_codes) and value not in row.allowed_codes)
 
 
-def _mx_acceptable(field: SpecField, message_type: str, value: str) -> bool:
+def _mx_acceptable(field: SpecField, message_type: str, value: str, ctx: SampleContext) -> bool:
     from app.studio.mx.generator import validate_value
-    from app.studio.mx.registry import mx_registry
 
-    flat = mx_registry.by_path(message_type).get(field.id)
+    flat = ctx.mx_registry().by_path(message_type).get(field.id)
     if flat is None:
         return True
     _, issue = validate_value(flat, value)
     return issue is None
 
 
-def _sample_value(field: SpecField, message_type: str) -> str | None:
+def _sample_value(field: SpecField, message_type: str, ctx: SampleContext) -> str | None:
     """Return the first candidate the platform's own validation accepts."""
     candidates = _candidates(field, message_type)
     for candidate in candidates:
         acceptable = (
-            _mt_acceptable(field, message_type, candidate)
+            _mt_acceptable(field, message_type, candidate, ctx)
             if field.format is MessageFormat.MT
-            else _mx_acceptable(field, message_type, candidate)
+            else _mx_acceptable(field, message_type, candidate, ctx)
         )
         if acceptable:
             return candidate
@@ -283,11 +339,29 @@ def _choice_parent(branch: str) -> str:
     return branch.rsplit("/", 1)[0]
 
 
+def _optional_groups(spec: MessageSpec) -> set[str]:
+    """Groups that may be absent, including every group inside one that may."""
+    by_id = {group.id: group for group in spec.groups}
+    optional: set[str] = set()
+    for group in spec.groups:
+        current: SpecGroup | None = group
+        while current is not None:
+            if current.min_occurs == 0:
+                optional.add(group.id)
+                break
+            current = by_id.get(current.parent_id) if current.parent_id else None
+    return optional
+
+
 def _initial_selection(spec: MessageSpec, variant: SampleVariant) -> set[str]:
     chosen: set[str] = set()
     branch_per_choice: dict[str, str] = {}
+    optional_groups = _optional_groups(spec)
     for field in sorted(spec.fields, key=lambda item: item.order):
         include = field.presence is Presence.MANDATORY
+        # A mandatory field of an optional block is not part of the smallest message.
+        if include and variant is not SampleVariant.FULL and field.group_id in optional_groups:
+            include = False
         if variant is not SampleVariant.MINIMAL and field.business_path in TYPICAL_OPTIONAL_PATHS:
             include = True
         if variant is SampleVariant.FULL:
@@ -330,13 +404,13 @@ def _apply_consistency(
 
 
 def _valued(
-    spec: MessageSpec, chosen_ids: set[str], message_type: str
+    spec: MessageSpec, chosen_ids: set[str], message_type: str, ctx: SampleContext
 ) -> list[tuple[SpecField, str]]:
     pairs: list[tuple[SpecField, str]] = []
     for field in sorted(spec.fields, key=lambda item: item.order):
         if field.id not in chosen_ids:
             continue
-        value = _sample_value(field, message_type)
+        value = _sample_value(field, message_type, ctx)
         if value is not None:
             pairs.append((field, value))
     return _apply_consistency(spec, pairs)
@@ -369,6 +443,7 @@ def _fields_named_by_validator(
     pairs: list[tuple[SpecField, str]],
     by_id: dict[str, SpecField],
     already: set[str],
+    ctx: SampleContext,
 ) -> set[str]:
     """Ask the real validator what is missing and map its answer back to field ids."""
     from app.studio.models import GenerateRequest
@@ -385,6 +460,8 @@ def _fields_named_by_validator(
             fields=fields,
             elements=elements,
             persist=False,
+            lane=ctx.lane,
+            release=ctx.release,
         )
     )
     additions: set[str] = set()
@@ -397,18 +474,18 @@ def _fields_named_by_validator(
 
 
 def _selected_fields(
-    format_: MessageFormat, message_type: str, variant: SampleVariant
+    format_: MessageFormat, message_type: str, variant: SampleVariant, ctx: SampleContext
 ) -> list[tuple[SpecField, str]]:
-    spec = message_spec(format_, message_type)
+    spec = message_spec(format_, message_type, ctx.lane, ctx.release)
     by_id = {field.id: field for field in spec.fields}
     chosen_ids = _initial_selection(spec, variant)
     for _ in range(MAX_REPAIR_ROUNDS):
-        pairs = _valued(spec, chosen_ids, message_type)
-        additions = _fields_named_by_validator(format_, message_type, pairs, by_id, chosen_ids)
+        pairs = _valued(spec, chosen_ids, message_type, ctx)
+        additions = _fields_named_by_validator(format_, message_type, pairs, by_id, chosen_ids, ctx)
         if not additions:
             break
         chosen_ids |= additions
-    return _valued(spec, chosen_ids, message_type)
+    return _valued(spec, chosen_ids, message_type, ctx)
 
 
 # --------------------------------------------------------------------------------------
@@ -416,12 +493,17 @@ def _selected_fields(
 # --------------------------------------------------------------------------------------
 
 
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=512)
 def build_sample(
-    format_: MessageFormat, message_type: str, variant: SampleVariant
+    format_: MessageFormat,
+    message_type: str,
+    variant: SampleVariant,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
 ) -> SampleMessage:
-    spec = message_spec(format_, message_type)
-    pairs = _selected_fields(format_, message_type, variant)
+    ctx = SampleContext(lane=lane, release=release)
+    spec = message_spec(format_, message_type, lane, release)
+    pairs = _selected_fields(format_, message_type, variant, ctx)
     titles = {
         SampleVariant.MINIMAL: "Minimal valid",
         SampleVariant.TYPICAL: "Typical",
@@ -449,13 +531,18 @@ def build_sample(
     )
 
 
-@lru_cache(maxsize=64)
-def available_variants(format_: MessageFormat, message_type: str) -> tuple[SampleVariant, ...]:
+@lru_cache(maxsize=512)
+def available_variants(
+    format_: MessageFormat,
+    message_type: str,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> tuple[SampleVariant, ...]:
     """Return only variants that produce something distinct and non-empty."""
     variants: list[SampleVariant] = []
     seen_sizes: set[int] = set()
     for variant in SampleVariant:
-        sample = build_sample(format_, message_type, variant)
+        sample = build_sample(format_, message_type, variant, lane, release)
         if sample.field_count == 0:
             continue
         if sample.field_count > MAX_GENERATE_REQUEST_ITEMS:

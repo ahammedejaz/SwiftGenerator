@@ -104,7 +104,7 @@ class SampleService:
             )
             prefix = f":{rendered.tag}:"
             if rendered.qualifier:
-                prefix += f":{rendered.qualifier}//"
+                prefix += f":{rendered.qualifier}{row.qualifier_separator}"
             line_number = next(
                 index for index in range(cursor, len(lines)) if lines[index].startswith(prefix)
             )

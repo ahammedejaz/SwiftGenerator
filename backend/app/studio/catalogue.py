@@ -13,6 +13,7 @@ from app.knowledge.code_lists import code_lists
 from app.knowledge.loader import knowledge_repository
 from app.knowledge.models import RuleLayer, WorkflowModuleId
 from app.profiles.loader import profiles
+from app.specifications.models import MessageSpecification
 from app.specifications.registry import specification_registry
 from app.studio.capability import (
     CapabilityDimensions,
@@ -30,16 +31,18 @@ from app.studio.models import (
     CatalogueFormat,
     FieldExample,
     InputKind,
+    Lane,
     MessageFormat,
     MessageSpec,
     Presence,
+    Readiness,
     SampleVariant,
     SpecField,
     SpecGroup,
     StudioCatalogue,
 )
-from app.studio.mx.models import MxDataType
-from app.studio.mx.registry import mx_registry
+from app.studio.mx.models import MxDataType, MxMessageSpec
+from app.studio.mx.registry import MxRegistry, mx_registry
 
 MODULE_TO_AREA: dict[WorkflowModuleId, BusinessArea] = {
     WorkflowModuleId.SETTLEMENT: BusinessArea.SECURITIES_SETTLEMENT,
@@ -115,32 +118,57 @@ def capability_dimensions(format_: MessageFormat, message_type: str) -> Capabili
 # --------------------------------------------------------------------------------------
 
 
-@lru_cache(maxsize=64)
-def message_spec(format_: MessageFormat, message_type: str) -> MessageSpec:
+@lru_cache(maxsize=256)
+def message_spec(
+    format_: MessageFormat,
+    message_type: str,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> MessageSpec:
+    """The format-neutral projection of one message in one lane.
+
+    The configured lane reads the registries this process was started with. The
+    knowledge-preview lane reads the local Structure Packs the knowledge sync compiled —
+    a separate registry, consulted only when a caller names the lane.
+    """
+    if lane is Lane.KNOWLEDGE_PREVIEW:
+        from app.knowledge_base.preview import preview_registries
+
+        registries = preview_registries()
+        if format_ is MessageFormat.MT:
+            return _mt_spec_from(registries.resolve_mt(message_type, release))
+        spec = registries.resolve_mx(message_type)
+        assert registries.mx_registry is not None
+        return _mx_spec_from(spec, registries.mx_registry)
     if format_ is MessageFormat.MT:
-        return _mt_spec(message_type)
-    return _mx_spec(message_type)
+        return _mt_spec_from(specification_registry.get(message_type))
+    return _mx_spec_from(mx_registry.get(message_type), mx_registry)
 
 
-def _mt_spec(message_type: str) -> MessageSpec:
-    specification = specification_registry.get(message_type)
+def _mt_spec_from(specification: MessageSpecification) -> MessageSpec:
+    preview = specification.lane == Lane.KNOWLEDGE_PREVIEW.value
     groups = [
         SpecGroup(
             id=sequence.path,
-            label=f"{sequence.code} — {_sequence_label(sequence.code)}",
+            label=f"{sequence.code} — {_sequence_label(sequence.code)}"
+            if sequence.bracketed
+            else f"{sequence.path} — {_sequence_label(sequence.code)}",
             description=f"Sequence {sequence.path} ({sequence.code}).",
             order=sequence.order,
             repeatable=sequence.max_occurs > 1,
             max_occurs=sequence.max_occurs,
             parent_id=sequence.parent_path,
+            min_occurs=sequence.min_occurs,
         )
         for sequence in specification.sequences
     ]
     by_path = {sequence.path: sequence for sequence in specification.sequences}
     fields: list[SpecField] = []
     for row in specification.fields:
+        if row.value_less:
+            continue  # written by the composer; never a form control
         sequence = by_path[row.sequence_path]
-        knowledge = _knowledge(row.knowledge_id)
+        knowledge = None if preview else _knowledge(row.knowledge_id)
         fields.append(
             SpecField(
                 id=row.row_id,
@@ -187,12 +215,23 @@ def _mt_spec(message_type: str) -> MessageSpec:
                 standards_release=row.source.standards_release,
             )
         )
+    if preview:
+        capability = derive_dimensions(
+            generated_from_schema=True,
+            has_business_rules=False,
+            profile_configured=False,
+            reviewed_business_rules=False,
+            market_practice_configured=False,
+            client_rules_configured=False,
+        )
+    else:
+        capability = capability_dimensions(MessageFormat.MT, specification.message_type)
     return MessageSpec(
         format=MessageFormat.MT,
         message_type=specification.message_type,
         version=None,
         name=specification.name,
-        business_area=MODULE_TO_AREA[specification.workflow_module],
+        business_area=_area_for(specification),
         scope=specification.scope,
         short_description=specification.short_description,
         namespace=None,
@@ -202,22 +241,33 @@ def _mt_spec(message_type: str) -> MessageSpec:
         authoritative_completeness_known=specification.authoritative_completeness_known,
         source_reference=specification.source.source_reference,
         standards_release=specification.standards_release,
-        limitations=MT_LIMITATIONS,
-        capability=capability_dimensions(MessageFormat.MT, specification.message_type),
-        capability_summary=capability_summary(
-            capability_dimensions(MessageFormat.MT, specification.message_type)
-        ),
+        limitations=list(specification.limitations) if preview else MT_LIMITATIONS,
+        capability=capability,
+        capability_summary=capability_summary(capability),
+        lane=Lane(specification.lane),
+        release=specification.release,
+        capability_statement=specification.capability_statement,
+        structure_source=specification.structure_source,
     )
 
 
-def _mx_spec(message_type: str) -> MessageSpec:
-    spec = mx_registry.get(message_type)
+def _area_for(specification: MessageSpecification) -> BusinessArea:
+    if specification.business_area:
+        try:
+            return BusinessArea(specification.business_area)
+        except ValueError:
+            return BusinessArea.OTHER
+    return MODULE_TO_AREA.get(specification.workflow_module, BusinessArea.OTHER)
+
+
+def _mx_spec_from(spec: MxMessageSpec, registry: MxRegistry) -> MessageSpec:
     root = f"/{spec.document_element}/{spec.message_root}"
     groups: list[SpecGroup] = []
     fields: list[SpecField] = []
     seen_groups: set[str] = set()
+    preview = spec.lane == Lane.KNOWLEDGE_PREVIEW.value
 
-    for flat in mx_registry.flat(spec.message_type):
+    for flat in registry.flat(spec.version):
         element = flat.element
         if not element.is_leaf:
             continue
@@ -244,6 +294,12 @@ def _mx_spec(message_type: str) -> MessageSpec:
                     order=len(groups) + 1,
                     repeatable=bool(top_element and top_element.max_occurs > 1),
                     max_occurs=top_element.max_occurs if top_element else 1,
+                    min_occurs=(
+                        1
+                        if top_element is None
+                        or top_element.presence is Presence.MANDATORY
+                        else 0
+                    ),
                 )
             )
         group = next(item for item in groups if item.id == group_id)
@@ -279,7 +335,7 @@ def _mx_spec(message_type: str) -> MessageSpec:
                 ],
                 common_mistakes=element.common_mistakes,
                 condition_explanation=element.condition_explanation
-                or _inherited_condition(flat.path, spec),
+                or _inherited_condition(flat.path, spec, registry),
                 business_path=element.business_path,
                 xpath=flat.path,
                 data_type=(
@@ -292,6 +348,17 @@ def _mx_spec(message_type: str) -> MessageSpec:
                 standards_release=spec.standards_release,
             )
         )
+    if preview:
+        capability = derive_dimensions(
+            generated_from_schema=True,
+            has_business_rules=bool(spec.require_one_of),
+            profile_configured=False,
+            reviewed_business_rules=False,
+            market_practice_configured=False,
+            client_rules_configured=False,
+        )
+    else:
+        capability = capability_dimensions(MessageFormat.MX, spec.message_type)
     return MessageSpec(
         format=MessageFormat.MX,
         message_type=spec.message_type,
@@ -308,10 +375,12 @@ def _mx_spec(message_type: str) -> MessageSpec:
         source_reference=spec.source.source_reference,
         standards_release=spec.standards_release,
         limitations=spec.limitations,
-        capability=capability_dimensions(MessageFormat.MX, spec.message_type),
-        capability_summary=capability_summary(
-            capability_dimensions(MessageFormat.MX, spec.message_type)
-        ),
+        capability=capability,
+        capability_summary=capability_summary(capability),
+        lane=Lane(spec.lane),
+        release=spec.version,
+        capability_statement=spec.capability_statement,
+        structure_source="OPERATOR_SUPPLIED_XSD" if preview else None,
     )
 
 
@@ -350,14 +419,14 @@ def _mx_input_kind(element) -> InputKind:  # type: ignore[no-untyped-def]
     return InputKind.TEXT
 
 
-def _inherited_condition(path: str, spec) -> str | None:  # type: ignore[no-untyped-def]
+def _inherited_condition(path: str, spec, registry) -> str | None:  # type: ignore[no-untyped-def]
     """Surface the nearest ancestor's condition so a leaf explains when it applies."""
-    by_path = mx_registry.by_path(spec.message_type)
+    by_path = registry.by_path(spec.version)
     parts = path.split("/")
     for depth in range(len(parts) - 1, 2, -1):
         ancestor = by_path.get("/".join(parts[:depth]))
         if ancestor and ancestor.element.condition_explanation:
-            return ancestor.element.condition_explanation
+            return str(ancestor.element.condition_explanation)
     return None
 
 
@@ -401,7 +470,40 @@ def _knowledge(knowledge_id: str):  # type: ignore[no-untyped-def]
 # --------------------------------------------------------------------------------------
 
 
-def _entry(spec: MessageSpec, variants: tuple[SampleVariant, ...]) -> CatalogueEntry:
+#: The generate request accepts at most this many inputs; a FULL sample past it is not offered.
+MAX_SAMPLE_FIELDS = 500
+
+READINESS_LABELS: dict[Readiness, str] = {
+    Readiness.KNOWLEDGE_ONLY: "Knowledge only — structure missing",
+    Readiness.STRUCTURE_AVAILABLE: "Structure evidence available; generation not established",
+    Readiness.STRUCTURE_VERIFIED: "Structure loads and composes; round trip not established",
+    Readiness.GENERATION_READY: "Structure-backed test generation; semantic rules not established",
+}
+
+
+def _entry(
+    spec: MessageSpec,
+    variants: tuple[SampleVariant, ...],
+    *,
+    readiness: Readiness = Readiness.GENERATION_READY,
+    blockers: list[str] | None = None,
+    knowledge_sources: int = 0,
+    rules_status: str = "CONFIGURED",
+    ai_sample_ready: bool = False,
+) -> CatalogueEntry:
+    preview = spec.lane is Lane.KNOWLEDGE_PREVIEW
+    generatable = readiness is Readiness.GENERATION_READY
+    if preview:
+        label = READINESS_LABELS[readiness]
+        if spec.structure_source == "OPERATOR_SUPPLIED_XSD" and generatable:
+            label = "XSD-backed structure; business rules not established"
+        if spec.release and spec.release.startswith("SR20"):
+            from app.knowledge_base.models import release_lane
+
+            if release_lane(spec.release).value == "FUTURE_TEST":
+                label += " · future release, test preview"
+    else:
+        label = "Configured & validated"
     return CatalogueEntry(
         format=spec.format,
         message_type=spec.message_type,
@@ -410,7 +512,7 @@ def _entry(spec: MessageSpec, variants: tuple[SampleVariant, ...]) -> CatalogueE
         short_description=spec.short_description or spec.scope,
         business_area=spec.business_area,
         business_area_label=BUSINESS_AREA_LABELS[spec.business_area],
-        generatable=True,
+        generatable=generatable,
         output_modes=spec.output_modes,
         field_count=len(spec.fields),
         mandatory_field_count=sum(
@@ -422,10 +524,83 @@ def _entry(spec: MessageSpec, variants: tuple[SampleVariant, ...]) -> CatalogueE
         limitations=spec.limitations,
         capability=spec.capability,
         capability_summary=spec.capability_summary,
+        lane=spec.lane,
+        release=spec.release,
+        release_lane=_release_lane_label(spec),
+        readiness=readiness,
+        readiness_label=label,
+        blockers=list(blockers or []),
+        structure_source=spec.structure_source,
+        rules_status=rules_status,
+        knowledge_sources=knowledge_sources,
+        ai_sample_ready=ai_sample_ready,
+        automation_ready=generatable,
     )
 
 
-def build_catalogue() -> StudioCatalogue:
+def _release_lane_label(spec: MessageSpec) -> str | None:
+    if spec.format is MessageFormat.MT and spec.release:
+        from app.knowledge_base.models import release_lane
+
+        return str(release_lane(spec.release).value)
+    return None
+
+
+def _knowledge_only_entry(
+    format_: MessageFormat,
+    message_type: str,
+    release: str | None,
+    name: str,
+    readiness: Readiness,
+    blockers: list[str],
+    sources: int,
+    structure_source: str | None,
+    business_area: str | None,
+) -> CatalogueEntry:
+    """A message the knowledge base knows but cannot generate. Shown, never faked."""
+    try:
+        area = BusinessArea(business_area) if business_area else BusinessArea.OTHER
+    except ValueError:
+        area = BusinessArea.OTHER
+    label = READINESS_LABELS[readiness]
+    if readiness is Readiness.KNOWLEDGE_ONLY and sources:
+        label = "Knowledge available; structure not yet compilable"
+    return CatalogueEntry(
+        format=format_,
+        message_type=message_type,
+        version=release if format_ is MessageFormat.MX else None,
+        name=name,
+        short_description=f"{name} — {label}.",
+        business_area=area,
+        business_area_label=BUSINESS_AREA_LABELS[area],
+        generatable=False,
+        output_modes=[],
+        field_count=0,
+        mandatory_field_count=0,
+        sample_variants=[],
+        authoritative_completeness_known=False,
+        source_reference=structure_source or "KNOWLEDGE_BASE",
+        limitations=["Generation is disabled: " + ", ".join(blockers or [readiness.value])],
+        capability=None,
+        capability_summary=label,
+        lane=Lane.KNOWLEDGE_PREVIEW,
+        release=release,
+        release_lane=None,
+        readiness=readiness,
+        readiness_label=label,
+        blockers=list(blockers),
+        structure_source=structure_source,
+        rules_status="NOT_ESTABLISHED",
+        knowledge_sources=sources,
+        ai_sample_ready=False,
+        automation_ready=False,
+    )
+
+
+def build_catalogue(*, include_preview: bool = True) -> StudioCatalogue:
+    """Configured messages first; then, when the knowledge base is enabled, every message
+    it discovered — generation-ready preview packs and knowledge-only entries alike, each
+    saying exactly what it is."""
     from app.studio.samples import available_variants
 
     entries: list[CatalogueEntry] = []
@@ -435,8 +610,10 @@ def build_catalogue() -> StudioCatalogue:
             _entry(spec, available_variants(MessageFormat.MT, mt_spec.message_type))
         )
     for mx_spec in mx_registry.all_specs():
-        spec = message_spec(MessageFormat.MX, mx_spec.message_type)
-        entries.append(_entry(spec, available_variants(MessageFormat.MX, mx_spec.message_type)))
+        spec = message_spec(MessageFormat.MX, mx_spec.version)
+        entries.append(_entry(spec, available_variants(MessageFormat.MX, mx_spec.version)))
+    if include_preview:
+        entries.extend(_preview_entries())
 
     formats: list[CatalogueFormat] = []
     for format_ in (MessageFormat.MT, MessageFormat.MX):
@@ -467,6 +644,84 @@ def build_catalogue() -> StudioCatalogue:
     )
 
 
+def _preview_entries() -> list[CatalogueEntry]:
+    from app.config import get_settings
+
+    if not get_settings().knowledge_enabled:
+        return []
+    from app.knowledge_base.preview import preview_registries
+    from app.knowledge_base.service import knowledge_service
+
+    registries = preview_registries()
+    source_counts = knowledge_service.source_counts()
+    entries: list[CatalogueEntry] = []
+    seen: set[tuple[str, str, str]] = set()
+    for (format_name, message_type, release), status in sorted(registries.structures.items()):
+        seen.add((format_name, message_type, release))
+        format_ = MessageFormat(format_name)
+        sources = source_counts.get((format_name, message_type, release), 0)
+        if status.generation_ready:
+            try:
+                spec = message_spec(format_, message_type, Lane.KNOWLEDGE_PREVIEW, release)
+            except (KeyError, LookupError):
+                spec = None
+            if spec is not None:
+                # Variants are declared from the structure rather than built: building
+                # three samples for each of several hundred preview messages on every
+                # catalogue call would make the catalogue minutes slow. They are built on
+                # first request instead.
+                mandatory = sum(1 for f in spec.fields if f.presence is Presence.MANDATORY)
+                variants = (SampleVariant.MINIMAL,) + (
+                    (SampleVariant.FULL,)
+                    if mandatory < len(spec.fields) <= MAX_SAMPLE_FIELDS
+                    else ()
+                )
+                entries.append(
+                    _entry(
+                        spec,
+                        variants,
+                        readiness=Readiness(status.readiness.value),
+                        blockers=list(status.blockers),
+                        knowledge_sources=sources,
+                        rules_status="NOT_ESTABLISHED",
+                        ai_sample_ready=knowledge_service.sample_cached(
+                            format_name, message_type, release
+                        ),
+                    )
+                )
+                continue
+        entries.append(
+            _knowledge_only_entry(
+                format_,
+                message_type,
+                release,
+                status.name,
+                Readiness(status.readiness.value),
+                list(status.blockers),
+                sources,
+                status.structure_source,
+                status.business_area,
+            )
+        )
+    for (format_name, message_type, release), count in sorted(source_counts.items()):
+        if (format_name, message_type, release) in seen or format_name not in {"MT", "MX"}:
+            continue
+        entries.append(
+            _knowledge_only_entry(
+                MessageFormat(format_name),
+                message_type,
+                release,
+                message_type,
+                Readiness.KNOWLEDGE_ONLY,
+                ["STRUCTURE_SOURCE_MISSING"],
+                count,
+                None,
+                None,
+            )
+        )
+    return entries
+
+
 def resolve_format(message_type: str) -> MessageFormat:
     """Infer the format from a message type, so callers may omit it."""
     candidate = message_type.strip().upper()
@@ -477,7 +732,16 @@ def resolve_format(message_type: str) -> MessageFormat:
     raise KeyError(f"Unknown message type: {message_type}")
 
 
-def known_message_type(format_: MessageFormat, message_type: str) -> bool:
+def known_message_type(
+    format_: MessageFormat, message_type: str, lane: Lane = Lane.CONFIGURED
+) -> bool:
+    if lane is Lane.KNOWLEDGE_PREVIEW:
+        from app.knowledge_base.preview import preview_registries
+
+        registries = preview_registries()
+        if format_ is MessageFormat.MT:
+            return registries.known_mt(message_type)
+        return registries.known_mx(message_type)
     if format_ is MessageFormat.MT:
         return specification_registry.known(message_type)
     return mx_registry.known(message_type)

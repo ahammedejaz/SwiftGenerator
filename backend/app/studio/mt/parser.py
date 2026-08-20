@@ -37,7 +37,11 @@ import re
 from dataclasses import dataclass, field
 
 from app.authoring.composer import canonical_field_value
-from app.specifications.models import FieldSpecification, MessageSpecification
+from app.specifications.models import (
+    FieldSpecification,
+    MessageSpecification,
+    SequenceSpecification,
+)
 from app.specifications.registry import specification_registry
 from app.studio.models import (
     EnvelopeOverride,
@@ -57,8 +61,11 @@ _SEQUENCE_LINE = re.compile(r"^:16(?P<boundary>[RS]):(?P<code>[A-Z0-9]{1,16})$")
 #: A field line is ``:<tag>:`` followed either by ``:<qualifier>//`` and a value, or by a
 #: bare value. A value that itself begins with ``:XXXX//`` would be indistinguishable from a
 #: qualifier — no configured field has one, and the composer could not have written it.
+# A qualified field is ``:QUAL//value`` — or ``:QUAL/value`` for the few options whose
+# format carries a mandatory data source scheme (``:95R::PSET/SCHEME/ID``). The alternation
+# tries ``//`` first so an ordinary field never loses a leading slash of its value.
 _FIELD_LINE = re.compile(
-    r"^:(?P<tag>\d{2}[A-Z]?):(?::(?P<qualifier>[A-Z0-9]{4})//)?(?P<value>.*)$"
+    r"^:(?P<tag>\d{2}[A-Z]?|\d{3}):(?::(?P<qualifier>[A-Z0-9]{4})(?://|/))?(?P<value>.*)$"
 )
 _BLOCK_1 = re.compile(
     r"^(?P<application>[A-Z])(?P<service>\d{2})(?P<sender>[A-Z0-9]{12})"
@@ -358,7 +365,11 @@ class _TextBlockReader:
 
     def __init__(self, specification: MessageSpecification) -> None:
         self._spec = specification
-        self._by_code = {sequence.code: sequence for sequence in specification.sequences}
+        # A block code can recur under different parents (MT537's LINK sits in A1 and in
+        # B1b1), so a code maps to every sequence that uses it and the open parent decides.
+        self._by_code: dict[str, list[SequenceSpecification]] = {}
+        for sequence in specification.sequences:
+            self._by_code.setdefault(sequence.code, []).append(sequence)
         self._by_address: dict[tuple[str, str, str | None], FieldSpecification] = {
             (row.sequence_path, row.tag, row.qualifier): row for row in specification.fields
         }
@@ -382,6 +393,27 @@ class _TextBlockReader:
         stack: list[_Instance] = []
         raw: list[_RawField] = []
         pending: _RawField | None = None
+        # A message whose body carries no :16R:/:16S: markers (Categories 1, 2, 9) declares
+        # one unbracketed root sequence; every field belongs to it. Exactly the inverse of
+        # what the composer does with `bracketed: false`.
+        unbracketed = [sequence for sequence in self._spec.sequences if not sequence.bracketed]
+        implicit_root: _Instance | None = None
+        #: Unbracketed sequences opened by a leading tag (MT101's ``21`` opens Sequence B).
+        leading: dict[str, list[SequenceSpecification]] = {}
+        for sequence in sorted(unbracketed, key=lambda item: item.order):
+            if sequence.parent_path is None and not sequence.leading_tags and implicit_root is None:
+                implicit_root = _Instance(
+                    path=sequence.path,
+                    code=sequence.code,
+                    index=1,
+                    parent=None,
+                )
+                self._instances.append(implicit_root)
+                self._counts[sequence.path] = 1
+            for tag in sequence.leading_tags:
+                leading.setdefault(tag, []).append(sequence)
+        current_implicit: _Instance | None = implicit_root
+        last_order: dict[int, int] = {}
         for number, line in enumerate(body.splitlines(), start=1):
             text = line.rstrip("\r")
             if not text.strip():
@@ -428,6 +460,44 @@ class _TextBlockReader:
                 )
                 pending = None
                 continue
+            if not stack and (leading or current_implicit is not None):
+                tag = field_match.group("tag")
+                qualifier = field_match.group("qualifier")
+                target = self._implicit_target(
+                    tag, qualifier, current_implicit, leading, last_order
+                )
+                if isinstance(target, SequenceSpecification):
+                    index = self._counts.get(target.path, 0) + 1
+                    self._counts[target.path] = index
+                    parent = None
+                    if target.parent_path:
+                        parent = next(
+                            (
+                                item
+                                for item in reversed(self._instances)
+                                if item.path == target.parent_path
+                            ),
+                            None,
+                        )
+                    current_implicit = _Instance(
+                        path=target.path, code=target.code, index=index, parent=parent
+                    )
+                    self._instances.append(current_implicit)
+                elif target is not None:
+                    current_implicit = target
+                if current_implicit is not None:
+                    row = self._by_address.get((current_implicit.path, tag, qualifier))
+                    if row is not None:
+                        last_order[id(current_implicit)] = row.row_number
+                    pending = _RawField(
+                        line_number=number,
+                        tag=tag,
+                        qualifier=qualifier,
+                        value=field_match.group("value"),
+                        instance=current_implicit,
+                    )
+                    raw.append(pending)
+                    continue
             if not stack:
                 self.errors.append(
                     _issue(
@@ -465,9 +535,62 @@ class _TextBlockReader:
             )
         return raw
 
+    def _implicit_target(
+        self,
+        tag: str,
+        qualifier: str | None,
+        current: _Instance | None,
+        leading: dict[str, list[SequenceSpecification]],
+        last_order: dict[int, int],
+    ) -> SequenceSpecification | _Instance | None:
+        """Where a field of an unbracketed message belongs.
+
+        Without ``:16R:`` markers the only structure is field order, so the rules are the
+        ones a FIN reader applies: a field stays in the current sequence while it is a field
+        of that sequence and comes no earlier than the last one read; a tag that leads a
+        sequence opens it — the current one again if it repeats (MT204's second ``20``), or
+        the next one it leads (MT104's ``32B`` closing Sequence B and opening C); a field of
+        an enclosing sequence returns to it (MT935's trailing ``72``). Returning a
+        specification means "open a new occurrence"; an instance means "continue there".
+        """
+        candidates = leading.get(tag, [])
+        if current is not None:
+            row = self._by_address.get((current.path, tag, qualifier))
+            if row is not None and row.row_number >= last_order.get(id(current), 0):
+                return current
+        if candidates:
+            if current is None:
+                return candidates[0]
+            current_order = next(
+                (item.order for item in candidates if item.path == current.path), None
+            )
+            for candidate in candidates:
+                if candidate.path == current.path:
+                    if candidate.max_occurs > 1:
+                        return candidate
+                    continue
+                if current_order is None or candidate.order > current_order:
+                    return candidate
+            later = [c for c in candidates if c.path != current.path]
+            if later:
+                return later[0]
+        ancestor = current.parent if current is not None else None
+        while ancestor is not None:
+            if (ancestor.path, tag, qualifier) in self._by_address:
+                return ancestor
+            ancestor = ancestor.parent
+        return current
+
     def _boundary(self, match: re.Match[str], number: int, stack: list[_Instance]) -> None:
         code = match.group("code")
-        sequence = self._by_code.get(code)
+        candidates = self._by_code.get(code, [])
+        open_path = stack[-1].path if stack else None
+        sequence = next(
+            (item for item in candidates if item.parent_path == open_path),
+            candidates[0] if len(candidates) == 1 else None,
+        )
+        if sequence is None and candidates and match.group("boundary") == "S":
+            sequence = next((item for item in candidates if item.path == open_path), None)
         if sequence is None:
             self.errors.append(
                 _issue(
@@ -622,7 +745,9 @@ class _TextBlockReader:
         """A first, mandatory sequence with no values is the ordinary "nothing filled in yet"
         case; the generator already reports its missing fields, so saying it was dropped as
         well would be two complaints about one thing."""
-        sequence = self._by_code.get(instance.code)
+        sequence = next(
+            (item for item in self._spec.sequences if item.path == instance.path), None
+        )
         return bool(sequence and sequence.min_occurs >= 1 and instance.index == 1)
 
     # -- pass three: resolve every field ----------------------------------------------
@@ -706,6 +831,10 @@ class _TextBlockReader:
             # API and Excel use. Without this, regenerating an imported message would write
             # `ISIN ISIN XS0000000009`.
             value = canonical_field_value(row, item.value.strip())
+            if row.value_less:
+                # The tag alone is the whole field; it marks its sequence present.
+                self._addressed.add((item.instance.path, item.instance.index))
+                continue
             if not value:
                 self.errors.append(
                     _issue(
@@ -920,11 +1049,19 @@ def _read_envelope(blocks: _Blocks) -> tuple[EnvelopeOverride, list[ValidationIs
 # --------------------------------------------------------------------------------------
 
 
-def parse_message(text: str, *, message_type: str | None = None) -> MtImportResult:
+def parse_message(
+    text: str,
+    *,
+    message_type: str | None = None,
+    specification: MessageSpecification | None = None,
+) -> MtImportResult:
     """Read an MT message — a full FIN message, a text block, or a pasted Block 4 body.
 
     :param message_type: only consulted when the text does not name itself. A Block 2 that
         disagrees with it is a refusal, not a reconciliation.
+    :param specification: read against this specification instead of the configured
+        registry — how the knowledge-preview lane imports against a local Structure Pack.
+        A Block 2 naming another message type is still a refusal.
     :raises MtImportError: when the message cannot be identified at all, so there is
         nothing to hand to the generator.
     """
@@ -951,9 +1088,24 @@ def parse_message(text: str, *, message_type: str | None = None) -> MtImportResu
 
     blocks = _scan_blocks(body_text)
     text_block = blocks.content["4"]
-    specification, warnings = _resolve_specification(
-        blocks, message_type, _sequence_codes(text_block)
-    )
+    if specification is not None:
+        declared, warnings = _declared_type(blocks)
+        if declared and declared != specification.message_type:
+            raise MtImportError(
+                _issue(
+                    "MT_IMPORT_TYPE_MISMATCH",
+                    f"The message says it is {declared} but was imported as "
+                    f"{specification.message_type}.",
+                    layer=ValidationLayer.STRUCTURE,
+                    expected=declared,
+                    current=specification.message_type,
+                    suggestion=f"Import it as {declared}.",
+                )
+            )
+    else:
+        specification, warnings = _resolve_specification(
+            blocks, message_type, _sequence_codes(text_block)
+        )
 
     reader = _TextBlockReader(specification)
     reader.read(text_block)

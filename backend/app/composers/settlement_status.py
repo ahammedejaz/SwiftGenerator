@@ -1,6 +1,7 @@
 from app.composers.base import CompositionResult, MessageComposer
 from app.domain.enums import GenerationMode, MessageType, NegativeMutation
 from app.domain.models import RenderedField, SettlementScenario
+from app.knowledge.presentation import qualifier_separator_for
 from app.profiles.loader import ClientProfile
 
 
@@ -41,7 +42,11 @@ class SettlementStatusComposer(MessageComposer):
             path: str,
             meaning: str,
         ) -> None:
-            lines.append(f":{tag}::{qualifier}//{value}" if qualifier else f":{tag}:{value}")
+            lines.append(
+                f":{tag}::{qualifier}{qualifier_separator_for(tag)}{value}"
+                if qualifier
+                else f":{tag}:{value}"
+            )
             fields.append(
                 RenderedField(
                     sequence=sequence,

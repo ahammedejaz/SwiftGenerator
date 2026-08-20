@@ -261,7 +261,7 @@ def test_a_sample_identifies_its_parties_by_bic(message_type: str) -> None:
 def test_the_proprietary_option_refuses_a_bic() -> None:
     """The exact mistake the reported message made, now named.
 
-    ``:95R::DEAG//MGTHMEXXX`` writes a BIC into the proprietary field, which has no data
+    ``:95R::DEAG/MGTHMEXXX`` writes a BIC into the proprietary field, which has no data
     source scheme to say what the code means.
     """
     sample = build_sample(MessageFormat.MT, "MT541", SampleVariant.TYPICAL)
@@ -352,7 +352,7 @@ def test_either_party_option_satisfies_the_requirement_on_its_own() -> None:
     )
 
     assert result.valid, [item.message for item in result.validation.errors]
-    assert ":95R::DEAG//AGT/DEMODEAG01" in (result.outputs.block4 or "")
+    assert ":95R::DEAG/AGT/DEMODEAG01" in (result.outputs.block4 or "")
 
 
 # -- free of payment --------------------------------------------------------------------

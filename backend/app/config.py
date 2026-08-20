@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -123,6 +124,162 @@ class Settings(BaseSettings):
     #: The synthetic corpus the extraction evaluation runs against.
     rule_evaluation_directory: str = ""
 
+    # -- Phase 6: organisation-approved AI endpoint (Azure OpenAI or any OpenAI-compatible
+    # -- server). The canonical names come first; the second spelling of each alias is the
+    # -- one the operator's existing .env already uses, honoured so nothing has to be renamed.
+    # -- Only the origin of AI_ENDPOINT is used; its path and query are ignored except that an
+    # -- api-version query is kept for the legacy deployment-scoped Azure surface.
+    ai_endpoint: str = Field(
+        "", validation_alias=AliasChoices("AI_ENDPOINT", "ENDPOINT")
+    )
+    ai_api_key: SecretStr | None = Field(
+        None, validation_alias=AliasChoices("AI_API_KEY", "API_KEY")
+    )
+    ai_chat_deployment: str = Field(
+        "", validation_alias=AliasChoices("AI_CHAT_DEPLOYMENT", "MODEL")
+    )
+    ai_api_version: str = Field("", validation_alias=AliasChoices("AI_API_VERSION"))
+    ai_max_output_tokens: int = 2_000
+    embeddings_deployment: str = Field(
+        "", validation_alias=AliasChoices("EMBEDDINGS_DEPLOYMENT", "EMBEDDINGS_DEPLOYMENT")
+    )
+    #: azure_openai | openai_compatible | fake | disabled | auto. ``auto`` (the default)
+    #: becomes azure_openai when the endpoint host ends in openai.azure.com, openai_compatible
+    #: when an endpoint and key exist, and disabled otherwise.
+    embedding_provider: str = "auto"
+    #: Sent as ``dimensions`` when set; every stored vector is validated against it on read.
+    embedding_dimensions: int | None = None
+    embedding_batch_size: int = 64
+    embedding_timeout_seconds: float = 30.0
+    embedding_max_retries: int = 3
+
+    # -- Phase 6: local knowledge base. Disabled unless asked for, so a production-style
+    # -- process never loads arbitrary workstation files.
+    #: disabled | local | local_uat. local_uat additionally enables the sync endpoint.
+    knowledge_mode: str = "disabled"
+    #: Comma-separated roots that `make knowledge-sync` walks. Relative to the project root.
+    knowledge_source_dir: str = "swiftKnowledgeBase"
+    knowledge_db_path: str = "build/knowledge/knowledge.sqlite3"
+    knowledge_pack_dir: str = "build/knowledge/packs"
+    knowledge_source_cache_dir: str = "build/knowledge/source-cache"
+    knowledge_auto_sync_on_start: bool = False
+    #: Licensed material leaves the machine only when the operator says so, twice: the
+    #: global gate and the per-classification list. An API key is never permission.
+    knowledge_external_embedding_allowed: bool = False
+    knowledge_external_llm_allowed: bool = False
+    knowledge_external_processing_classifications: str = "SYNTHETIC_FIXTURE"
+    knowledge_max_source_bytes: int = 64 * 1024 * 1024
+    knowledge_max_zip_member_bytes: int = 64 * 1024 * 1024
+    knowledge_max_zip_total_bytes: int = 256 * 1024 * 1024
+    knowledge_context_chars: int = 6_000
+    knowledge_ai_max_batch: int = 20
+    knowledge_ai_max_repair_attempts: int = 3
+    knowledge_ai_reviewer_mode: bool = False
+    #: auto | scripted | disabled. ``scripted`` returns each operation's deterministic seed
+    #: and is honoured in development and test only.
+    knowledge_ai_provider: str = "auto"
+
+    @field_validator("knowledge_ai_provider")
+    @classmethod
+    def validate_knowledge_ai_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"auto", "scripted", "disabled"}:
+            raise ValueError("KNOWLEDGE_AI_PROVIDER must be auto, scripted, or disabled")
+        return normalized
+
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_embedding_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"auto", "azure_openai", "openai_compatible", "fake", "disabled"}:
+            raise ValueError(
+                "EMBEDDING_PROVIDER must be auto, azure_openai, openai_compatible, fake, "
+                "or disabled"
+            )
+        return normalized
+
+    @field_validator("knowledge_mode")
+    @classmethod
+    def validate_knowledge_mode(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"disabled", "local", "local_uat"}:
+            raise ValueError("KNOWLEDGE_MODE must be disabled, local, or local_uat")
+        return normalized
+
+    @field_validator("ai_endpoint")
+    @classmethod
+    def validate_ai_endpoint(cls, value: str) -> str:
+        normalized = value.strip()
+        if normalized and not normalized.startswith("https://"):
+            raise ValueError("AI_ENDPOINT must use HTTPS")
+        return normalized
+
+    @field_validator("ai_api_key")
+    @classmethod
+    def validate_ai_api_key(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        if any(ord(character) < 32 for character in value.get_secret_value()):
+            raise ValueError("AI_API_KEY contains invalid control characters")
+        return value
+
+    # -- derived, never persisted -------------------------------------------------------
+
+    @property
+    def ai_endpoint_origin(self) -> str:
+        """``https://resource.openai.azure.com`` — the only part of the endpoint used."""
+        if not self.ai_endpoint:
+            return ""
+        parsed = urlparse(self.ai_endpoint)
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    @property
+    def ai_endpoint_is_azure(self) -> bool:
+        host = urlparse(self.ai_endpoint).netloc.lower() if self.ai_endpoint else ""
+        return host.endswith((".openai.azure.com", ".services.ai.azure.com"))
+
+    @property
+    def ai_api_version_effective(self) -> str:
+        """The api-version for the legacy Azure surface: explicit setting, else the query
+        string of the configured endpoint, else the current GA value."""
+        if self.ai_api_version.strip():
+            return self.ai_api_version.strip()
+        if self.ai_endpoint:
+            from_query = parse_qs(urlparse(self.ai_endpoint).query).get("api-version")
+            if from_query:
+                return from_query[0]
+        return "2024-10-21"
+
+    @property
+    def embedding_provider_effective(self) -> str:
+        if self.embedding_provider != "auto":
+            return self.embedding_provider
+        if not (self.ai_endpoint and self.ai_api_key and self.embeddings_deployment):
+            return "disabled"
+        return "azure_openai" if self.ai_endpoint_is_azure else "openai_compatible"
+
+    @property
+    def structured_ai_provider_effective(self) -> str:
+        """Which structured-completion provider serves the Phase 6 AI authoring paths.
+
+        ``ai_provider`` keeps its historical meaning for the settlement-intent screen. The
+        authoring paths prefer the organisation endpoint when it is configured, fall back
+        to OpenRouter when that is what exists, and are otherwise disabled.
+        """
+        if self.ai_provider == "disabled":
+            return "disabled"
+        if self.ai_provider == "mock":
+            return "mock"
+        if self.ai_endpoint and self.ai_api_key and self.ai_chat_deployment:
+            return "azure_openai" if self.ai_endpoint_is_azure else "openai_compatible"
+        if self.ai_provider == "openrouter" and self.openrouter_api_key:
+            return "openrouter"
+        return "disabled"
+
+    @property
+    def knowledge_enabled(self) -> bool:
+        return self.knowledge_mode != "disabled"
+
     @field_validator("automation_api_keys")
     @classmethod
     def validate_automation_keys(cls, value: SecretStr | None) -> SecretStr | None:
@@ -139,8 +296,12 @@ class Settings(BaseSettings):
     @classmethod
     def validate_ai_provider(cls, value: str) -> str:
         normalized = value.strip().lower()
-        if normalized not in {"openrouter", "disabled", "mock"}:
-            raise ValueError("AI_PROVIDER must be openrouter, disabled, or mock")
+        allowed = {"openrouter", "azure_openai", "openai_compatible", "disabled", "mock"}
+        if normalized not in allowed:
+            raise ValueError(
+                "AI_PROVIDER must be openrouter, azure_openai, openai_compatible, disabled, "
+                "or mock"
+            )
         return normalized
 
     @field_validator("ai_mode")
@@ -275,6 +436,13 @@ class Settings(BaseSettings):
     def validate_ai_safety(self) -> "Settings":
         if self.ai_provider == "mock" and self.app_env != "test":
             raise ValueError("The mock AI provider is permitted only when APP_ENV=test")
+        if self.knowledge_ai_provider == "scripted" and self.app_env not in {
+            "development",
+            "test",
+        }:
+            raise ValueError(
+                "KNOWLEDGE_AI_PROVIDER=scripted is permitted only in development or test"
+            )
         if self.app_env == "production" and (
             not self.openrouter_require_parameters
             or self.openrouter_data_collection != "deny"

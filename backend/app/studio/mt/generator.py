@@ -29,7 +29,11 @@ from app.knowledge.presentation import (
     is_direct_code_field,
 )
 from app.profiles.loader import ClientProfile
-from app.specifications.models import FieldSpecification, MessageSpecification
+from app.specifications.models import (
+    FieldSpecification,
+    MessageSpecification,
+    SequenceSpecification,
+)
 from app.specifications.registry import specification_registry
 from app.studio.models import (
     EnvelopeField,
@@ -270,6 +274,19 @@ class MtGenerator:
                     )
                     continue
 
+            if row.value_less:
+                issues.append(
+                    _error(
+                        "MT_FIELD_CARRIES_NO_VALUE",
+                        f"{row.business_name} is written by the composer whenever its "
+                        "sequence is present and does not take a value.",
+                        layer=ValidationLayer.CANONICAL,
+                        field_name=row.business_name,
+                        location=row.row_id,
+                        suggestion="Remove the value; the field is added automatically.",
+                    )
+                )
+                continue
             if item.option and item.option.strip().upper() != row.option:
                 issues.append(
                     _error(
@@ -335,8 +352,9 @@ class MtGenerator:
         # proprietary scheme are two field options carrying one business value, not two
         # required fields.
         alternatives = _choice_members(specification)
+        by_sequence_path = {item.path: item for item in specification.sequences}
         for row in specification.fields:
-            if row.presence.value != "MANDATORY":
+            if row.presence.value != "MANDATORY" or row.value_less:
                 continue
             sequence_occurrences = sorted(
                 {
@@ -344,7 +362,15 @@ class MtGenerator:
                     for item in resolved
                     if item.row.sequence_path == row.sequence_path
                 }
-            ) or ([1] if any(o == 1 for o in occurrences) else [])
+            )
+            if not sequence_occurrences:
+                # A mandatory row inside a sequence the caller left out is only owed once
+                # that sequence is present. The configured subset marks such rows
+                # CONDITIONAL; a pack compiled from a source states the sequence's own
+                # presence instead, so the chain is consulted here.
+                if _optional_chain(by_sequence_path, row.sequence_path):
+                    continue
+                sequence_occurrences = [1] if any(o == 1 for o in occurrences) else []
             group = choice_key(row.choice_group)
             for occurrence in sequence_occurrences or [1]:
                 if (row.row_id, occurrence) in supplied:
@@ -550,8 +576,12 @@ class MtGenerator:
         *,
         envelope: EnvelopeOverride | None = None,
         want_fin: bool = True,
+        specification: MessageSpecification | None = None,
     ) -> MtBuildResult:
-        specification = self.specification(message_type)
+        # A caller that already holds a specification — the knowledge-preview lane's local
+        # Structure Packs — passes it in; everything after this line is identical for both.
+        if specification is None:
+            specification = self.specification(message_type)
         resolved, address_issues = self.resolve(specification, inputs)
         errors, warnings = self.validate(specification, profile, resolved)
         errors = [*address_issues, *errors]
@@ -634,6 +664,22 @@ class MtGenerator:
             for item in resolved
             if (item.row.sequence_path, item.occurrence) in instances
         ]
+        # A value-less field (``:15A:``) belongs to every present instance of its sequence.
+        # Nobody supplies it; the structure does.
+        for row in specification.fields:
+            if not row.value_less or row.min_occurs == 0:
+                continue
+            for path, occurrence in instances:
+                if path == row.sequence_path:
+                    compose_fields.append(
+                        ComposeField(
+                            row=row,
+                            sequence_id=f"{path}#{occurrence}",
+                            value="",
+                            source=FieldValueSource.SYSTEM_DERIVED,
+                            classification=DataClassification.INTERNAL,
+                        )
+                    )
         return list(instances.values()), compose_fields
 
     @staticmethod
@@ -645,7 +691,7 @@ class MtGenerator:
             for candidate in remaining:
                 prefix = f":{candidate.row.tag}:"
                 if candidate.row.qualifier:
-                    prefix += f":{candidate.row.qualifier}//"
+                    prefix += f":{candidate.row.qualifier}{candidate.row.qualifier_separator}"
                 if text.startswith(prefix):
                     matched = candidate
                     break
@@ -672,6 +718,16 @@ class MtGenerator:
                     )
                 )
         return lines
+
+
+def _optional_chain(by_path: dict[str, SequenceSpecification], path: str) -> bool:
+    """True when the sequence, or any ancestor, may be absent."""
+    current = by_path.get(path)
+    while current is not None:
+        if current.min_occurs == 0:
+            return True
+        current = by_path.get(current.parent_path) if current.parent_path else None
+    return False
 
 
 def _choice_members(

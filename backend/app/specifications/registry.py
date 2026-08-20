@@ -9,6 +9,7 @@ import yaml
 from app.config import get_settings, source_path
 from app.knowledge.loader import knowledge_repository
 from app.knowledge.models import PresenceRule
+from app.knowledge.presentation import qualifier_separator_for
 from app.raw.validator import FIELD_RANK
 from app.specifications.manifest import MT_TYPE_PATTERN, ManifestIndex
 from app.specifications.models import (
@@ -96,6 +97,7 @@ class MessageSpecificationRegistry:
                         code_list=record.code_list,
                         input_kind=record.input_kind,
                         literal_prefix=record.literal_prefix,
+                        qualifier_separator=qualifier_separator_for(record.field_tag),
                         identifier_types=record.identifier_types,
                         choice_group=record.choice_group,
                         max_length=record.max_length,

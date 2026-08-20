@@ -23,19 +23,34 @@ class MxRegistry:
         self._load()
 
     def _load(self) -> None:
+        # Keyed by the full version (``pacs.008.001.14``) so two releases of one message
+        # can coexist; the short form (``pacs.008``) resolves through ``_resolve`` when it
+        # names exactly one of them.
         for path in sorted(self._directory.glob("*.yaml")):
             with path.open(encoding="utf-8") as handle:
                 spec = MxMessageSpec.model_validate(yaml.safe_load(handle))
-            key = spec.message_type.lower()
+            key = spec.version.lower()
             if key in self._specs:
-                raise ValueError(f"Duplicate MX specification: {spec.message_type}")
+                raise ValueError(f"Duplicate MX specification: {spec.version}")
             self._specs[key] = spec
             self._flat[key] = _flatten(spec)
         if not self._specs:
             raise RuntimeError(f"No MX specifications found in {self._directory}")
 
+    def _resolve(self, message_type: str) -> str | None:
+        candidate = message_type.strip().lower()
+        if candidate in self._specs:
+            return candidate
+        short = _key(candidate)
+        matches = [key for key in self._specs if _key(key) == short]
+        return matches[0] if len(matches) == 1 else None
+
+    def versions(self, message_type: str) -> list[str]:
+        short = _key(message_type)
+        return sorted(self._specs[key].version for key in self._specs if _key(key) == short)
+
     def known(self, message_type: str) -> bool:
-        return _key(message_type) in self._specs
+        return self._resolve(message_type) is not None
 
     def all_specs(self) -> list[MxMessageSpec]:
         return [self._specs[key] for key in sorted(self._specs)]
@@ -55,14 +70,23 @@ class MxRegistry:
         return sorted(spec.namespace for spec in self._specs.values())
 
     def get(self, message_type: str) -> MxMessageSpec:
-        try:
-            return self._specs[_key(message_type)]
-        except KeyError as error:
-            raise KeyError(f"Unknown MX message type: {message_type}") from error
+        key = self._resolve(message_type)
+        if key is None:
+            versions = self.versions(message_type)
+            if len(versions) > 1:
+                raise KeyError(
+                    f"{message_type} names more than one version ({', '.join(versions)}); "
+                    "use the full message definition identifier"
+                )
+            raise KeyError(f"Unknown MX message type: {message_type}")
+        return self._specs[key]
 
     def flat(self, message_type: str) -> list[FlatElement]:
-        self.get(message_type)
-        return self._flat[_key(message_type)]
+        key = self._resolve(message_type)
+        if key is None:
+            self.get(message_type)
+        assert key is not None
+        return self._flat[key]
 
     def by_path(self, message_type: str) -> dict[str, FlatElement]:
         return {item.path: item for item in self.flat(message_type)}
