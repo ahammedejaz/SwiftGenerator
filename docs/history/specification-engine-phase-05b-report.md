@@ -529,7 +529,7 @@ in the package is imported by the request path.
 
 ## 55. Tests added
 
-`backend/tests/rule_engine/test_mt_mrg.py` — 92 tests covering identity and its refusals,
+`backend/tests/rule_engine/test_mt_mrg.py` — 96 tests covering identity and its refusals,
 mis-declaration, digest mismatch, section classification including the shared page and the
 foreign-message heading, format and qualifier table parsing, code-list attribution,
 structure-digest movement, rule discovery and numbering, error-code capture, page
@@ -543,12 +543,12 @@ clean-clone guarantee, and the graceful report where a present guide cannot be r
 ## 56. Exact backend results
 
 ```
-1427 passed, 23 skipped, 1 deselected in 9.8s
+1431 passed, 23 skipped, 1 deselected in 9.6s
 ruff:  All checks passed
 mypy --strict:  Success: no issues found in 194 source files
 ```
 
-Baseline was 1,335 passed / 184 files; this phase adds 92 tests and 10 source files.
+Baseline was 1,335 passed / 184 files; this phase adds 96 tests and 10 source files.
 
 ## 57. Exact Playwright results
 
@@ -677,5 +677,19 @@ RAW_SWIFT_SOURCE_COMMITTED          NO
 
 ## 69. Commit, PR and CI
 
-Recorded in the pull request. The PR is left **open**; nothing was merged, no admin bypass
-was used, and no branch protection was touched.
+Branch `feat/phase-5b-mt540-mt541-sr2026`, five commits:
+
+| Commit | What |
+|---|---|
+| `8a47749` | Phase 5B: read real SWIFT SR2026 MT540/MT541 guides as evidence |
+| `5373e76` | Fix a trailing blank line CI catches and a local `diff --check` cannot; add the evaluation set |
+| `f5bb238` | Record the CI-caught whitespace defect in AGENTS.md and the phase report |
+| `ada923a` | Scope the SR2026 readiness key so it cannot be read as current-live |
+| *final* | Lock the fidelity invariants down as tests |
+
+Pull request **#15**, opened against `main`. The first run failed `git diff --check` (see
+above); every run after the fix is green on all six jobs — Required Checks, Clean Clone, MT
+Prowide Source, Browser E2E, Docker and Security Audit.
+
+The PR is left **open**. Nothing was merged, no admin bypass was used, no force push was
+made, and no branch protection was touched.

@@ -120,7 +120,7 @@ the reviewer packages in `docs/generated/mt54*-sr2026-rule-review.md`.
 **Verification status (all passing):**
 
 ```
-1427 backend tests (pytest)     ruff: clean      mypy --strict: clean (194 files)
+1431 backend tests (pytest)     ruff: clean      mypy --strict: clean (194 files)
  80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: six jobs on every PR and every push to main    see §11
 production build: clean         migrations: up/down/up clean

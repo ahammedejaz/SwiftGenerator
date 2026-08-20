@@ -522,6 +522,46 @@ def test_the_same_occurrence_rules_are_recorded_as_unsupported_not_approximated(
         assert rule["compiled"] is False
 
 
+def test_a_rule_called_exact_claims_nothing_it_left_out(
+    evidence: dict[str, object],
+) -> None:
+    # `EXACT` means the expression says what the source rule says. A residual note is the
+    # record of something dropped, so carrying one while claiming exactness is a
+    # contradiction — and the shape a mislabelled rule would take.
+    for guide in fixture.sources(evidence):
+        for rule in guide.by_fidelity(RuleFidelity.EXACT):
+            assert rule["residual"] == [], (guide.message_type, rule["sourceRuleId"])
+
+
+def test_a_rule_called_partial_says_what_it_left_out(
+    evidence: dict[str, object],
+) -> None:
+    # The converse. A weakening nobody wrote down is a weakening a reviewer cannot check.
+    for guide in fixture.sources(evidence):
+        for rule in guide.by_fidelity(RuleFidelity.PARTIAL):
+            assert rule["residual"], (guide.message_type, rule["sourceRuleId"])
+
+
+def test_a_rule_that_could_not_be_expressed_did_not_compile(
+    evidence: dict[str, object],
+) -> None:
+    for guide in fixture.sources(evidence):
+        for rule in guide.by_fidelity(RuleFidelity.UNSUPPORTED):
+            assert rule["compiled"] is False, (guide.message_type, rule["sourceRuleId"])
+            assert rule["reason"], (guide.message_type, rule["sourceRuleId"])
+
+
+def test_every_compiled_candidate_resolved_every_reference_it_names(
+    evidence: dict[str, object],
+) -> None:
+    for guide in fixture.sources(evidence):
+        for rule in guide.rules():
+            if not rule["compiled"]:
+                continue
+            unresolved = [item for item in rule["references"] if not item["resolved"]]
+            assert not unresolved, (guide.message_type, rule["sourceRuleId"], unresolved)
+
+
 def test_no_rule_in_either_guide_was_left_unrecognised(
     evidence: dict[str, object],
 ) -> None:
