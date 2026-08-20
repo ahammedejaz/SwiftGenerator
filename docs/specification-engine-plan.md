@@ -469,9 +469,9 @@ None required. Existing YAML loads unchanged; existing API responses keep their 
   independent extractions → diff → refuter → reference validation → review). Seam: the
   provenance fields of §16 and the `businessRules` dimension.
 - **3** scale MX across families with legitimately available schemas.
-- **4** Prowide-derived MT structural importer — gate at implementation time on verified
-  project/version/SRU/licence/checksum; provenance
-  `PROWIDE_DERIVED_STRUCTURAL_EVIDENCE`, never `SWIFT_VERIFIED`. Phase 0's
+- **4** Prowide-derived MT structural importer and multi-category source-model scale-out
+  — gate at implementation time on verified project/version/SRU/licence/checksum;
+  provenance `PROWIDE_DERIVED_STRUCTURAL_EVIDENCE`, never `SWIFT_VERIFIED`. Phase 0's
   manifest-driven MT registry is its landing seam.
 - **5** evidence-backed MT semantic rules (reuses 2's pipeline).
 - **6** Specification Factory (request → candidate pack → gates → PR → CI → review →

@@ -1,8 +1,9 @@
 # MT Prowide structure importer
 
 The MT Prowide structure importer is an offline developer tool. It uses Prowide Core as
-release-pinned structural evidence for MT Category 5 messages, then writes deterministic
-fixtures and reports that can be reviewed in a normal pull request.
+release-pinned structural evidence for all MT source model classes discovered in the
+pinned artifact, then writes deterministic fixtures and reports that can be reviewed in a
+normal pull request.
 
 It is not part of message generation. The FastAPI runtime does not load Java, Prowide,
 Maven or Gradle.
@@ -14,9 +15,10 @@ Maven or Gradle.
 | `backend/config/mt_prowide_sru2025_10_3_18.lock.yaml` | Pinned source, artifact URLs and checksums. |
 | `backend/app/spec_engine/mt_prowide/` | Offline extractor, source parser, Java probe wrapper and report renderers. |
 | `tools/mt-prowide-extractor/MtProwideProbe.java` | Small Java reflection/parse probe compiled only by the offline target. |
-| `backend/tests/fixtures/mt_prowide/category5-sru2025-10.3.18.json` | Committed deterministic evidence fixture. |
+| `backend/tests/fixtures/mt_prowide/all-categories-sru2025-10.3.18.json` | Committed deterministic evidence fixture. |
 | `docs/generated/mt-prowide-structure-diff.md` | Diff between configured MT rows and Prowide-derived structure evidence. |
 | `docs/generated/mt-importer-compatibility.md` | Counts, runtime boundary, candidate lifecycle and limitations. |
+| `docs/generated/mt-multicategory-coverage.md` | Category distribution, candidate blockers and authoring-readiness analysis. |
 
 ## Commands
 
@@ -65,8 +67,10 @@ These values remain `UNKNOWN` until reviewed against an authorised source:
 
 ## Candidate Lifecycle
 
-The fixture contains all observed Prowide Category 5 message classes, but only the
-repository's existing configured MT set is active at runtime.
+The fixture contains all observed Prowide MT source model classes, but only the
+repository's existing configured MT set is active at runtime. As of the SRU2025-10.3.18
+fixture, 274 source models are structurally extracted across categories 0-9; 258 source
+models are inert candidates and zero are activated.
 
 Candidates are written as evidence only. Promoting one requires a separate review that
 adds a message manifest entry, knowledge records, samples, validation behavior, docs and

@@ -82,10 +82,11 @@ for any real message. See [specification-rule-engine.md](specification-rule-engi
 
 **The MT Prowide structure importer exists (Phase 4).** It is an offline
 `app/spec_engine` tool that uses pinned Prowide Core artifacts as structural evidence for
-MT Category 5. The committed fixture records 55 Prowide message classes, 500 sequences,
-972 fieldsets, 6,387 field groups and 151 global field classes for `SRU2025-10.3.18`
-(`SR2025`). Thirty-nine message classes are inert candidates and zero are activated. It is
-not a runtime dependency, not Swift certification and not a conformance claim. See
+all MT source models discovered in the artifact. The committed fixture records 274
+Prowide source model classes across categories 0-9, 1,042 sequences, 990 fieldsets, 9,710
+field groups and 620 global field classes for `SRU2025-10.3.18` (`SR2025`). Two hundred
+fifty-eight source models are inert candidates and zero are activated. It is not a runtime
+dependency, not Swift certification and not a conformance claim. See
 [mt-structure-importer.md](mt-structure-importer.md),
 [mt-source-versioning.md](mt-source-versioning.md) and
 [generated/mt-importer-compatibility.md](generated/mt-importer-compatibility.md).
@@ -186,7 +187,7 @@ backend/app/studio/
 app/specifications/registry.py   MT specification registry (string-keyed; manifest-driven)
 app/specifications/manifest.py   the manifest index — the single authority for which MT messages exist
 app/spec_engine/                 XSD -> specification-pack compiler (offline CLI; never in the request path)
-app/spec_engine/mt_prowide/      pinned Prowide Category 5 extractor; build-time only
+app/spec_engine/mt_prowide/      pinned Prowide MT extractor; build-time only
 app/studio/capability.py         derived capability dimensions + plain-language summary
 app/studio/registry.py           format-neutral message-definition projection (catalogue metadata only)
 app/knowledge/loader.py          MT knowledge base

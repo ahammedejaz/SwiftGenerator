@@ -7,12 +7,12 @@ Swift certification or ISO 15022 conformance.
 ## Goal
 
 The repository already owns a reviewed configured MT subset. The importer adds a broader,
-release-pinned view of Prowide Category 5 MT message structure so maintainers can compare
-that subset against a generic structural source before deciding what to reconcile by hand.
+release-pinned view of Prowide MT message structure so maintainers can compare that subset
+against a generic structural source before deciding what to reconcile by hand.
 
 The importer must answer these questions without changing generation:
 
-- Which Prowide Category 5 MT message classes exist for the pinned release?
+- Which Prowide MT source model classes exist for the pinned release?
 - Which generated sequence, fieldset and field-group shapes can be observed from source?
 - Which global field classes expose parser or validator patterns?
 - Which configured rows line up by sequence delimiter code and tag option?
@@ -69,9 +69,9 @@ live release evidence and documents SR2026 as a future/test stream.
 
 ## Current Result
 
-The Phase 4 fixture contains 55 Prowide Category 5 MT message classes, 500 observed
-sequences, 972 fieldsets, 6,387 field groups and 151 reflected global field classes.
-Thirty-nine message classes are candidates only and zero are activated.
+The Phase 4B fixture contains 274 Prowide MT source model classes across categories 0-9,
+1,042 observed sequences, 990 fieldsets, 9,710 field groups and 620 reflected global field
+classes. Two hundred fifty-eight source models are candidates only and zero are activated.
 
 The configured runtime set remains MT530, MT537, MT540-MT548 and MT564-MT568. The
 structure diff reports that all 16 configured MT message classes exist in the Prowide

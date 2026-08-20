@@ -16,7 +16,11 @@ BACKEND_ROOT = REPO_ROOT / "backend"
 DEFAULT_LOCK = BACKEND_ROOT / "config" / "mt_prowide_sru2025_10_3_18.lock.yaml"
 DEFAULT_CACHE = REPO_ROOT / "build" / "mt-prowide-cache"
 DEFAULT_FIXTURE = (
-    BACKEND_ROOT / "tests" / "fixtures" / "mt_prowide" / "category5-sru2025-10.3.18.json"
+    BACKEND_ROOT
+    / "tests"
+    / "fixtures"
+    / "mt_prowide"
+    / "all-categories-sru2025-10.3.18.json"
 )
 
 

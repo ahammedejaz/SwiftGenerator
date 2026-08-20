@@ -6,7 +6,10 @@ from pathlib import Path
 
 from app.spec_engine.mt_prowide.java_probe import field_definitions, parse_fin
 from app.spec_engine.mt_prowide.models import (
+    AuthoringReadinessStatus,
+    CandidateStructureState,
     MtCrossEngineResult,
+    MtMessageEvidence,
     MtProwideExtraction,
     ProwideParsedTag,
 )
@@ -16,7 +19,10 @@ from app.spec_engine.mt_prowide.source import (
     DEFAULT_LOCK,
     ensure_artifacts,
 )
-from app.spec_engine.mt_prowide.source_scheme import extract_message_schemes
+from app.spec_engine.mt_prowide.source_scheme import (
+    discovered_categories,
+    extract_message_schemes,
+)
 
 _BLOCK4_TAG = re.compile(r"^:(?P<tag>\d{2}[A-Z]?):(?P<value>.*)$")
 
@@ -34,16 +40,54 @@ LIMITATIONS = [
 ]
 
 
+def extract_all_categories(
+    *,
+    lock_path: Path = DEFAULT_LOCK,
+    cache_dir: Path = DEFAULT_CACHE,
+) -> MtProwideExtraction:
+    artifacts = ensure_artifacts(lock_path, cache_dir)
+    configured = _configured_mt_types()
+    messages = [
+        _with_authoring_state(message, installed=message.message_type in configured)
+        for message in extract_message_schemes(artifacts.source_jar)
+    ]
+    tags = sorted({tag for message in messages for tag in message.distinct_tags})
+    global_fields = field_definitions(artifacts, tags)
+    candidate_messages = [
+        message.message_type for message in messages if message.message_type not in configured
+    ]
+    categories = discovered_categories(artifacts.source_jar)
+    category_counts = {
+        str(category): sum(1 for message in messages if message.category == category)
+        for category in categories
+    }
+    return MtProwideExtraction(
+        source=artifacts.lock,
+        extracted_scope="Prowide MT source classes discovered from pinned source jar",
+        selected_message_count=len(messages),
+        discovered_categories=categories,
+        category_counts=category_counts,
+        messages=messages,
+        global_fields=global_fields,
+        activated_messages=[],
+        candidate_messages=candidate_messages,
+        limitations=LIMITATIONS,
+    )
+
+
 def extract_category5(
     *,
     lock_path: Path = DEFAULT_LOCK,
     cache_dir: Path = DEFAULT_CACHE,
 ) -> MtProwideExtraction:
     artifacts = ensure_artifacts(lock_path, cache_dir)
-    messages = extract_message_schemes(artifacts.source_jar, category=5)
+    configured = _configured_mt_types()
+    messages = [
+        _with_authoring_state(message, installed=message.message_type in configured)
+        for message in extract_message_schemes(artifacts.source_jar, category=5)
+    ]
     tags = sorted({tag for message in messages for tag in message.distinct_tags})
     global_fields = field_definitions(artifacts, tags)
-    configured = _configured_mt_types()
     candidate_messages = [
         message.message_type for message in messages if message.message_type not in configured
     ]
@@ -51,6 +95,8 @@ def extract_category5(
         source=artifacts.lock,
         extracted_scope="Prowide Category 5 MT classes",
         selected_message_count=len(messages),
+        discovered_categories=[5],
+        category_counts={"5": len(messages)},
         messages=messages,
         global_fields=global_fields,
         activated_messages=[],
@@ -79,7 +125,7 @@ def verify_fixture_against_source(
     lock_path: Path = DEFAULT_LOCK,
     cache_dir: Path = DEFAULT_CACHE,
 ) -> tuple[bool, MtProwideExtraction]:
-    fresh = extract_category5(lock_path=lock_path, cache_dir=cache_dir)
+    fresh = extract_all_categories(lock_path=lock_path, cache_dir=cache_dir)
     expected = fixture.read_text(encoding="utf-8") if fixture.exists() else ""
     return canonical_json(fresh) == expected, fresh
 
@@ -139,6 +185,42 @@ def _configured_mt_types() -> set[str]:
     from app.specifications.registry import specification_registry
 
     return {message.message_type for message in specification_registry.list()}
+
+
+def _with_authoring_state(message: MtMessageEvidence, *, installed: bool) -> MtMessageEvidence:
+    if installed:
+        return message.model_copy(
+            update={
+                "structure_states": [
+                    CandidateStructureState.SOURCE_DISCOVERED,
+                    CandidateStructureState.STRUCTURE_EXTRACTED,
+                    CandidateStructureState.INSTALLED,
+                ],
+                "authoring_status": AuthoringReadinessStatus.PARTIAL,
+                "authoring_blockers": [
+                    "AUTHORITATIVE_COMPLETENESS_UNKNOWN",
+                    "NETWORK_RULES_UNKNOWN",
+                    "MARKET_PRACTICE_UNKNOWN",
+                ],
+            }
+        )
+    return message.model_copy(
+        update={
+            "structure_states": [
+                CandidateStructureState.SOURCE_DISCOVERED,
+                CandidateStructureState.STRUCTURE_EXTRACTED,
+            ],
+            "authoring_status": AuthoringReadinessStatus.STRUCTURAL_EVIDENCE_ONLY,
+            "authoring_blockers": [
+                "NO_RUNTIME_SPECIFICATION",
+                "REQUIREDNESS_REVIEW_MISSING",
+                "QUALIFIER_RULES_UNKNOWN",
+                "CODE_LIST_RULES_UNKNOWN",
+                "BUSINESS_RULE_SOURCE_MISSING",
+                "SAMPLE_MISSING",
+            ],
+        }
+    )
 
 
 def parsed_tag_stream(result: MtCrossEngineResult) -> list[ProwideParsedTag]:
