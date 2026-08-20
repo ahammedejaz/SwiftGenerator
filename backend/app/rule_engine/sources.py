@@ -354,7 +354,7 @@ def _pdf_to_text(raw: bytes, name: str, log: RuleFindingLog) -> tuple[str, int] 
     so plainly when they have not.
     """
     try:
-        from pypdf import PdfReader  # type: ignore[import-not-found]
+        from pypdf import PdfReader
     except ImportError:
         log.error(
             RuleFindingCode.SOURCE_FORMAT_UNSUPPORTED,
@@ -500,13 +500,26 @@ def segment_text(text: str, source_id: str, adapter: SourceAdapter) -> list[Segm
     lines = _lines_with_pages(text)
     blocks: list[list[SourceLine]] = []
     current: list[SourceLine] = []
+    length = 0
     for line in lines:
-        if line.text.strip():
-            current.append(line)
+        if not line.text.strip():
+            if current:
+                blocks.append(current)
+                current = []
+                length = 0
             continue
-        if current:
+        # A page break and the segment ceiling both end a block, not just a blank line.
+        # An extracted PDF can run hundreds of pages without a single blank line, and a
+        # document that produced one segment would give every rule in it the same
+        # evidence identity — which is no evidence at all.
+        if current and (
+            current[-1].page != line.page or length + len(line.text) > MAX_SEGMENT_CHARS
+        ):
             blocks.append(current)
             current = []
+            length = 0
+        current.append(line)
+        length += len(line.text) + 1
     if current:
         blocks.append(current)
 

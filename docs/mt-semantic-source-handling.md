@@ -63,13 +63,19 @@ Generated source readiness is committed at
 At the time of this phase:
 
 ```text
-REAL_MT_SEMANTIC_SOURCE_AVAILABLE = NO
+REAL_MT_SEMANTIC_SOURCE_AVAILABLE = SR2026_FUTURE_TEST_ONLY
+REAL_MT_SEMANTIC_SOURCE_FOR_CURRENT_LIVE = NO
 SYNTHETIC_MT_SOURCE_AVAILABLE = YES
 ```
 
 The committed synthetic fixture is `SYNTH-MT-SEMANTIC-V1`; it is invented material and not
 derived from SWIFT, ISO, MyStandards, a market guide, a custodian guide or a client
 profile.
+
+Two authorised SWIFT Message Reference Guides *are* declared — MT540 and MT541, both
+SR2026. They are declared through a separate manifest, read from a separate drop directory
+and belong to a **future-test** release lane, so they do not change current-live semantic
+readiness. See [mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md).
 
 ## Git policy
 

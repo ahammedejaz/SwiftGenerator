@@ -1,0 +1,21 @@
+# The synthetic Message Reference Guide the tests read.
+#
+# Repository-owned and deliberately not a SWIFT document: MT999 does not exist, and none of
+# the rules, codes or error codes in the fixture are real. It exists so the whole reader —
+# identity, section classification, format table, qualifier tables, rule discovery,
+# translation, compilation and refutation — is exercised on every machine, including the
+# ones that will never hold a licensed guide.
+sources:
+  - sourceId: SYNTH-MT-MRG-V1
+    sourceType: SYNTHETIC_FIXTURE
+    title: Synthetic Message Reference Guide fixture — not a SWIFT document
+    version: Standards MT November 2026
+    sourceLocation: synthetic-guide-not-a-swift-document.txt
+    adapter: TEXT
+    sourceChecksum: sha256:6af8960c0d1515074425237c5b9b220a0ca66bf34bd1f37b3a46c451e65e91a3
+    standardsRelease: SR2026
+    applicableMessageCategories: [9]
+    messageIdentifiers: [MT999]
+    redistribution:
+      sourceMayBeCommitted: true
+      excerptsMayBeCommitted: true

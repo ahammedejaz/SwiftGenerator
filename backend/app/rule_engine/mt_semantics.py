@@ -14,6 +14,7 @@ from pathlib import Path
 
 from app.rule_engine.diagnostics import RuleFinding, RuleFindingCode, RuleFindingLog
 from app.rule_engine.models import RuleSourceType
+from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue
 from app.rule_engine.refs import FieldRef, StructureIndex
 from app.rule_engine.sources import (
     ADAPTER_BY_SUFFIX,
@@ -309,9 +310,15 @@ def render_semantic_readiness(
         "| Status | Value |",
         "| --- | --- |",
         "| PHASE_5A_FOUNDATION | `PARTIAL_UNTIL_REVIEWED_SOURCE` |",
-        "| REAL_MT_SEMANTIC_SOURCE_AVAILABLE | `NO` |",
+        "| REAL_MT_SEMANTIC_SOURCE_AVAILABLE | `SR2026_FUTURE_TEST_ONLY` |",
+        "| REAL_MT_SEMANTIC_SOURCE_FOR_CURRENT_LIVE | `NO` |",
         "| SYNTHETIC_MT_SOURCE_AVAILABLE | `YES` |",
         "| RUNTIME_MT_ACTIVATIONS_FROM_PHASE_5A | `0` |",
+        "",
+        "The matrix below is the current-live lane. Authorised SR2026 Message Reference",
+        "Guides were read in Phase 5B; that is a future-test lane and is reported "
+        "separately in",
+        "[mt-sr2026-semantic-readiness.md](mt-sr2026-semantic-readiness.md).",
         "",
         "## Matrix",
         "",
@@ -396,6 +403,7 @@ def render_source_readiness(manifest: SourceManifest | None = None) -> str:
             "| `NONE` | `REAL_AUTHORISED_MT_SEMANTIC_SOURCE` | `-` | `-` | `-` | "
             "`-` | `-` |"
         )
+    lines += _mrg_section()
     lines += [
         "",
         "## Rejected or untrusted sources",
@@ -416,10 +424,57 @@ def render_source_readiness(manifest: SourceManifest | None = None) -> str:
         "formats: clean HTML and text-based PDF. Scanned PDF needs preprocessing outside "
         "Phase 5A.",
         "",
-        "PHASE_5_REAL_SOURCE_READY = `NO`",
+        "PHASE_5_REAL_SOURCE_READY = `SR2026_FUTURE_TEST` — an authorised SR2026 source is "
+        "declared for MT540 and MT541. No authorised source exists for the current-live "
+        "release, so current-live semantic readiness is unchanged.",
         "",
     ]
     return "\n".join(lines)
+
+
+def _mrg_section() -> list[str]:
+    """The Message Reference Guides an operator has declared, present or not.
+
+    Declaration is committed; the documents are not. Reporting the declaration rather than
+    the file makes this document identical on every machine, which is what lets it be
+    checked by `make check` on a clean clone.
+    """
+    catalogue = MrgSourceCatalogue()
+    if not catalogue.ids():
+        return []
+    lines = [
+        "",
+        "## Declared SWIFT Message Reference Guides",
+        "",
+        "Licensed documents. The declaration below is committed; the documents themselves "
+        "are read from a local drop directory and never enter Git. See "
+        "[../mt-real-semantic-phase-05b.md](../mt-real-semantic-phase-05b.md).",
+        "",
+        "| Source | Release | Messages | Document digest | Redistribution | External model |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for source_id in catalogue.ids():
+        bundle = catalogue.get(source_id)
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"`{bundle.source_id}`",
+                    f"`{bundle.standards_release or 'UNKNOWN'}`",
+                    f"`{', '.join(bundle.message_identifiers) or '-'}`",
+                    f"`{(bundle.source_checksum or 'NOT_DECLARED')[:23]}…`",
+                    "`restricted`"
+                    if not bundle.redistribution.source_may_be_committed
+                    else "`source=yes`",
+                    "`ALLOWED`"
+                    if bundle.external_model_processing_allowed()
+                    else "`BLOCKED`",
+                ]
+            )
+            + " |"
+        )
+    lines.append("")
+    return lines
 
 
 def write_reports() -> None:

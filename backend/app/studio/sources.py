@@ -19,6 +19,7 @@ from app.config import get_settings, source_path
 from app.domain.models import ApiModel
 from app.profiles.loader import profiles
 from app.rule_engine.models import RuleSourceType
+from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue
 from app.rule_engine.sources import SourceManifest, rule_source_directory
 from app.specifications.registry import specification_registry
 from app.studio.mx.registry import mx_registry
@@ -90,6 +91,11 @@ def build_readiness() -> SourceReadinessReport:
             or "MT" in rule_sources.get(source_id).source_id
         )
     ]
+    # Declared Message Reference Guides are counted separately and never folded into the
+    # current-live figure: they describe a release that is not yet in force, and a count
+    # that mixed the two would answer "is a source available?" with the wrong number.
+    mrg_catalogue = MrgSourceCatalogue()
+    future_mt_semantic = [mrg_catalogue.get(item) for item in mrg_catalogue.ids()]
 
     sources = [
         SourceReadiness(
@@ -200,9 +206,10 @@ def build_readiness() -> SourceReadinessReport:
             setting="RULE_SOURCE_DIRECTORY",
             state=SourceState.ABSENT if not real_mt_semantic else SourceState.REPOSITORY_CONFIGURED,
             present=(
-                f"{len(real_mt_semantic)} authorised MT semantic source(s) declared; "
-                f"{len(synthetic_mt_semantic)} synthetic MT fixture(s) available for "
-                "pipeline tests."
+                f"{len(real_mt_semantic)} authorised MT semantic source(s) declared for "
+                f"the current-live release; {len(future_mt_semantic)} declared for a "
+                f"future release; {len(synthetic_mt_semantic)} synthetic MT fixture(s) "
+                "available for pipeline tests."
             ),
             unlocks=[
                 "MT candidate Rule Packs can be extracted from legitimate evidence.",

@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -43,7 +43,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -224,6 +224,49 @@ mt-rule-check:
 	cd backend && .venv/bin/python -m app.rule_engine mt-readiness --check
 	cd backend && .venv/bin/python -m app.rule_engine evaluate \
 		--corpus config/rule_evaluation/mt-corpus.yaml
+
+# Phase 5B: reading real SWIFT MyStandards Message Reference Guides.
+#
+# The guides are licensed documents. They live in a local drop directory, never in Git, so
+# every target that needs one is local-only and says SOURCE_NOT_AVAILABLE where it is
+# absent. Everything *derived* from them is committed, and `mt-mrg-check` verifies it on
+# any machine — which is why that one target, and only that one, is part of `make check`.
+#
+#   make mt-mrg-inspect                     what is declared, what is present
+#   make mt-mrg-extract                     re-read the guides into the evidence fixture
+#   make mt-mrg-reports-write               regenerate docs/generated/*sr2026*
+#   make mt-mrg-check                       those reports are current            (offline)
+#   make mt-mrg-evaluate                    prove the candidate rules behave
+#   make verify-real-mt540-mt541-source     the committed evidence reproduces
+#
+# Point MT_MRG_SOURCE_DIRECTORY at the drop, or leave it unset for ./swiftKnowledgeBase.
+# Reading a PDF needs a text extractor the application deliberately does not depend on:
+#   backend/.venv/bin/pip install pypdf
+MT_MRG_SOURCE_DIRECTORY ?=
+MT_MRG_FRESH ?= build/mt-mrg/candidate-evidence.json
+
+mt-mrg-inspect:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-inspect \
+		$(if $(MT_MRG_SOURCE_DIRECTORY),--directory $(abspath $(MT_MRG_SOURCE_DIRECTORY)),)
+
+mt-mrg-extract:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-extract \
+		$(if $(MT_MRG_SOURCE_DIRECTORY),--directory $(abspath $(MT_MRG_SOURCE_DIRECTORY)),)
+
+mt-mrg-reports-write:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-reports --write
+
+mt-mrg-check:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-reports --check
+
+mt-mrg-evaluate:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-evaluate \
+		$(if $(MT_MRG_SOURCE_DIRECTORY),--directory $(abspath $(MT_MRG_SOURCE_DIRECTORY)),)
+
+verify-real-mt540-mt541-source:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-verify \
+		$(if $(MT_MRG_SOURCE_DIRECTORY),--directory $(abspath $(MT_MRG_SOURCE_DIRECTORY)),) \
+		--out $(abspath $(MT_MRG_FRESH))
 
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark

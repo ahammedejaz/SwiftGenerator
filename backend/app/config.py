@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     rule_source_directory: str = ""
     #: Candidate rules produced by extraction. Never loaded at runtime, never committed.
     rule_candidate_directory: str = "./data/rule_candidates"
+    #: Where an operator drops SWIFT MyStandards Message Reference Guides. Licensed
+    #: documents: read locally, never committed, never sent anywhere. Empty means the
+    #: ignored directory beside the checkout that docs/mt-real-semantic-phase-05b.md names.
+    mt_mrg_source_directory: str = ""
 
     # Rule extraction (offline developer tooling; no runtime path calls a model).
     rule_extractor_model: str = ""

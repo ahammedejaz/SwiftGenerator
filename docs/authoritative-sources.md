@@ -219,6 +219,34 @@ and that someone labelled it, and cannot prove it is the genuine licensed artifa
 `make mt-rule-check`. See [rule-source-handling.md](rule-source-handling.md) and
 [mt-semantic-source-handling.md](mt-semantic-source-handling.md).
 
+
+### A SWIFT Message Reference Guide
+
+| | |
+| --- | --- |
+| **Artifact** | A SWIFT MyStandards MT Message Reference Guide — the book for one message in one Standards Release, stating its Format Specifications, qualifier tables and Network Validated Rules. |
+| **Location** | `MT_MRG_SOURCE_DIRECTORY`, default `swiftKnowledgeBase/` beside the checkout. Ignored by Git. |
+| **Declaration** | `backend/config/rule_sources/mt-mrg-sources.yaml` — committed, metadata only. |
+
+**Procedure.** Drop the guide in, add an entry naming the release, the message and the
+SHA-256 of the file, then:
+
+```bash
+backend/.venv/bin/pip install pypdf   # the PDF adapter is deliberately optional
+make mt-mrg-inspect
+make mt-mrg-extract
+make mt-mrg-reports-write
+make mt-mrg-evaluate
+```
+
+**What changes.** Reviewer packages appear under `docs/generated/` naming every Network
+Validated Rule, its SWIFT error code and its page. **No validation changes**: every
+candidate is `REVIEW_REQUIRED` and nothing is written to `backend/config/rules/`.
+
+**What is committed.** Derived metadata only — identifiers, digests, page numbers, structure
+tables and expressions this repository generated. No sentence of the guide, and no excerpt.
+See [mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md).
+
 ---
 
 ## What none of this changes

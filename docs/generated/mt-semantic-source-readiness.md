@@ -21,6 +21,16 @@ PDF support is text-layer only and depends on an optional local extractor. OCR i
 | `SYNTH-MT-SEMANTIC-V1` | `SYNTHETIC_FIXTURE` | `1.0` | `SR2025` | `MT541` | `source=yes excerpt=yes` | `YES` |
 | `NONE` | `REAL_AUTHORISED_MT_SEMANTIC_SOURCE` | `-` | `-` | `-` | `-` | `-` |
 
+## Declared SWIFT Message Reference Guides
+
+Licensed documents. The declaration below is committed; the documents themselves are read from a local drop directory and never enter Git. See [../mt-real-semantic-phase-05b.md](../mt-real-semantic-phase-05b.md).
+
+| Source | Release | Messages | Document digest | Redistribution | External model |
+| --- | --- | --- | --- | --- | --- |
+| `SWIFT-MT-SR2026-MT540-MRG` | `SR2026` | `MT540` | `sha256:ef69b239e6483dbb…` | `restricted` | `BLOCKED` |
+| `SWIFT-MT-SR2026-MT541-MRG` | `SR2026` | `MT541` | `sha256:b15cbfcb4e15fd05…` | `restricted` | `BLOCKED` |
+
+
 ## Rejected or untrusted sources
 
 None found in configured source locations during this pass.
@@ -37,4 +47,4 @@ Provide one of the following authorised MT semantic sources for the required SRU
 
 Preferred format: UTF-8 text or Markdown with exact SRU metadata. Acceptable formats: clean HTML and text-based PDF. Scanned PDF needs preprocessing outside Phase 5A.
 
-PHASE_5_REAL_SOURCE_READY = `NO`
+PHASE_5_REAL_SOURCE_READY = `SR2026_FUTURE_TEST` — an authorised SR2026 source is declared for MT540 and MT541. No authorised source exists for the current-live release, so current-live semantic readiness is unchanged.

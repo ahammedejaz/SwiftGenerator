@@ -25,5 +25,25 @@ extraction model unless both `sourceAllowsExternalModelProcessing` and
 
     python -m app.rule_engine ingest SYNTH-MT-SEMANTIC-V1 --stamp
 
-See [../../../docs/rule-source-handling.md](../../../docs/rule-source-handling.md) and
-[../../../docs/mt-semantic-source-handling.md](../../../docs/mt-semantic-source-handling.md).
+## SWIFT Message Reference Guides
+
+`mt-mrg-sources.yaml` is a second, separate declaration for SWIFT MyStandards MT Message
+Reference Guides. It lives here because it is metadata about business-rule sources, but the
+guides themselves are read from their own drop directory — `MT_MRG_SOURCE_DIRECTORY`,
+default `swiftKnowledgeBase/` beside the checkout — which `.gitignore` excludes.
+
+The declaration is committed and carries the SHA-256 of the exact bytes the derived rule
+candidates were read from, so a re-exported or swapped guide is refused rather than silently
+re-read. Redistribution and external model processing are both withheld: the guides' own
+Legal Notices restrict disclosure outside the licensee's organisation.
+
+    make mt-mrg-inspect
+    make mt-mrg-extract
+
+Reading a PDF needs `pypdf`, which this repository deliberately does not depend on:
+
+    backend/.venv/bin/pip install pypdf
+
+See [../../../docs/rule-source-handling.md](../../../docs/rule-source-handling.md),
+[../../../docs/mt-semantic-source-handling.md](../../../docs/mt-semantic-source-handling.md)
+and [../../../docs/mt-real-semantic-phase-05b.md](../../../docs/mt-real-semantic-phase-05b.md).
