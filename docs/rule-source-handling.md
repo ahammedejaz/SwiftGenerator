@@ -38,6 +38,11 @@ sources:
     sourceLocation: sese-023-mug-2026.txt    # a file name, never a path
     adapter: TEXT                            # optional; inferred from the suffix
     sourceChecksum: sha256:…                 # recorded after the first ingest
+    standardsRelease: SR2025                 # optional; required for MT semantic sources
+    applicableMessageCategories: [5]         # optional MT scope
+    messageIdentifiers: [MT541]              # optional MT scope
+    sourceAllowsExternalModelProcessing: false
+    providerApprovedForSourceClassification: false
     marketIdentifier: null
     clientIdentifier: null
     redistribution:
@@ -47,6 +52,9 @@ sources:
 
 `sourceType` is one of `SYNTHETIC_FIXTURE`, `OPERATOR_SUPPLIED_GUIDELINE`,
 `OPERATOR_SUPPLIED_MARKET_PRACTICE`, `OPERATOR_SUPPLIED_CLIENT_GUIDELINE`,
+`OPERATOR_SUPPLIED_MT_GUIDE`, `OPERATOR_SUPPLIED_MYSTANDARDS_EXPORT`,
+`OPERATOR_SUPPLIED_INTERNAL_RULE_SOURCE`, `OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL`,
+`OFFICIAL_ISO_15022_DOCUMENTATION`,
 `OFFICIAL_ISO_20022_MESSAGE_DEFINITION_REPORT`,
 `OFFICIAL_ISO_20022_MESSAGE_USAGE_GUIDE`.
 
@@ -135,6 +143,15 @@ provider must be the authorised one, and data-collection denial and zero-data-re
 routing apply from the same settings the runtime uses. Raw segments are never logged, never
 emitted in telemetry, and never placed in a cache key or a file name — the extraction cache
 is keyed on hashes and version identifiers only.
+
+For any non-synthetic source, extraction is blocked unless both
+`sourceAllowsExternalModelProcessing` and
+`providerApprovedForSourceClassification` are explicitly `true`. Unknown means blocked.
+Local ingestion and segmentation still work; only sending source text to an external model
+is refused. Synthetic fixtures are repository-owned and may opt in for CI-safe tests.
+
+MT semantic-rule source handling is documented separately in
+[mt-semantic-source-handling.md](mt-semantic-source-handling.md).
 
 ## What is committed
 

@@ -165,15 +165,16 @@ def _scripted_client(
     corpus: Corpus, source: IngestedSource, models: ExtractionModels
 ) -> ScriptedCompletionClient:
     answers: dict[tuple[str, str], dict[str, Any]] = {}
+    format_ = MessageFormat(corpus.format)
     for case in corpus.cases:
         segment_id = _segment_for(source, case)
         if segment_id is None:
             continue
         answers[(ROLE_EXTRACTOR_A, segment_id)] = scripted_answer(
-            case, case.scripted_a, segment_id
+            case, case.scripted_a, segment_id, format_=format_
         )
         answers[(ROLE_EXTRACTOR_B, segment_id)] = scripted_answer(
-            case, case.scripted_b, segment_id
+            case, case.scripted_b, segment_id, format_=format_
         )
     del models
 

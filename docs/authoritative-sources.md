@@ -189,10 +189,21 @@ counterparty. Envelope values stop being demonstration placeholders — which al
 | **Setting** | `RULE_SOURCE_DIRECTORY` |
 
 **Procedure.** Drop the document in, declare it in `sources.yaml` with a stable
-`sourceId`, its `sourceType` and a redistribution policy, then
+`sourceId`, its `sourceType`, scope metadata and a redistribution policy, then
 `make rule-source-ingest SOURCE_ID=…` and record the checksum it prints. From there the
 rule engine's offline pipeline produces candidates, a person reviews them, and the reviewed
 pack is committed to `backend/config/rules/`.
+
+For MT semantic sources, also declare `standardsRelease`,
+`applicableMessageCategories`, `messageIdentifiers`,
+`sourceAllowsExternalModelProcessing` and
+`providerApprovedForSourceClassification`. Use:
+
+```bash
+make mt-rule-source-ingest SOURCE_ID=…
+make mt-rule-extract SOURCE_ID=… MESSAGE=MT541
+make mt-rule-check
+```
 
 **What changes.** The `BUSINESS_RULES`, `MARKET_PRACTICE` and `CLIENT_PROFILE` validation
 layers start enforcing rules traceable to a named source location, and the corresponding
@@ -204,8 +215,9 @@ the documents themselves out of the repository. `sourceType` is an operator decl
 exactly the sense §1 describes: the platform can know a file arrived through this directory
 and that someone labelled it, and cannot prove it is the genuine licensed artifact.
 
-**What to re-run.** `make check` and `make rule-validate PACK=…`. See
-[rule-source-handling.md](rule-source-handling.md).
+**What to re-run.** `make check`, `make rule-validate PACK=…` and, for MT semantic work,
+`make mt-rule-check`. See [rule-source-handling.md](rule-source-handling.md) and
+[mt-semantic-source-handling.md](mt-semantic-source-handling.md).
 
 ---
 

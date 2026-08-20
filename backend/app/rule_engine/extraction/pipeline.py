@@ -261,6 +261,31 @@ class RuleExtractionPipeline:
             models=self._models,
             structure_truncated=truncated,
         )
+        if not source.bundle.external_model_processing_allowed():
+            for segment in source.segments:
+                log = RuleFindingLog()
+                log.error(
+                    RuleFindingCode.RULE_EXTRACTION_PRIVACY_BLOCKED,
+                    f"{source.bundle.source_id} is not approved for external model processing.",
+                    "Record sourceAllowsExternalModelProcessing and "
+                    "providerApprovedForSourceClassification only after the operator has "
+                    "approved this source and provider combination. Local ingestion and "
+                    "segmentation remain available.",
+                    subject=source.bundle.source_id,
+                    location=segment.segment_id,
+                )
+                run.outcomes.append(
+                    SegmentOutcome(
+                        segment=segment,
+                        agreement=ExtractionAgreement.NO_RULE,
+                        comparison=ComparisonResult(
+                            agreement=ExtractionAgreement.NO_RULE,
+                            pairs=(),
+                        ),
+                        findings=tuple(log.findings),
+                    )
+                )
+            return run
         for segment in source.segments:
             run.outcomes.append(
                 await self._run_segment(

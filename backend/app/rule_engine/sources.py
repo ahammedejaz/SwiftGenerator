@@ -97,6 +97,16 @@ class SourceBundle(RuleModel):
     #: have not changed underneath the rules derived from them.
     source_checksum: str | None = Field(default=None, alias="sourceChecksum")
     standards_release: str | None = Field(default=None, alias="standardsRelease")
+    applicable_message_categories: tuple[int, ...] = Field(
+        default=(), alias="applicableMessageCategories"
+    )
+    message_identifiers: tuple[str, ...] = Field(default=(), alias="messageIdentifiers")
+    source_allows_external_model_processing: bool | None = Field(
+        default=None, alias="sourceAllowsExternalModelProcessing"
+    )
+    provider_approved_for_source_classification: bool | None = Field(
+        default=None, alias="providerApprovedForSourceClassification"
+    )
     market_identifier: str | None = Field(default=None, alias="marketIdentifier", max_length=64)
     client_identifier: str | None = Field(default=None, alias="clientIdentifier", max_length=64)
 
@@ -110,12 +120,28 @@ class SourceBundle(RuleModel):
             raise ValueError("sourceLocation is a file name inside the drop directory")
         if self.source_location in {".", ".."}:
             raise ValueError("sourceLocation is a file name")
+        if any(item < 0 or item > 9 for item in self.applicable_message_categories):
+            raise ValueError("MT message categories must be digits 0 through 9")
         return self
 
     def resolved_adapter(self) -> SourceAdapter | None:
         if self.adapter is not None:
             return self.adapter
         return ADAPTER_BY_SUFFIX.get(Path(self.source_location).suffix.lower())
+
+    def external_model_processing_allowed(self) -> bool:
+        """Whether source text may be sent to an extraction model.
+
+        Synthetic fixtures are repository-owned. Anything else needs two explicit
+        operator declarations: the source permits external model processing, and the
+        configured provider is approved for that source class. Unknown is blocked.
+        """
+        if self.source_type is RuleSourceType.SYNTHETIC_FIXTURE:
+            return True
+        return (
+            self.source_allows_external_model_processing is True
+            and self.provider_approved_for_source_classification is True
+        )
 
 
 @dataclass(frozen=True)
@@ -186,6 +212,15 @@ class IngestedSource:
             source_checksum=self.checksum,
             excerpts_may_be_committed=(
                 self.bundle.redistribution.excerpts_may_be_committed
+            ),
+            standards_release=self.bundle.standards_release,
+            applicable_message_categories=self.bundle.applicable_message_categories,
+            message_identifiers=self.bundle.message_identifiers,
+            source_allows_external_model_processing=(
+                self.bundle.source_allows_external_model_processing
+            ),
+            provider_approved_for_source_classification=(
+                self.bundle.provider_approved_for_source_classification
             ),
         )
 

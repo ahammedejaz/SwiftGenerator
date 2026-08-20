@@ -63,6 +63,11 @@ sources:
     sourceLocation: synthetic-demo-market-v1.md
     sourceChecksum: sha256:…
     excerptsMayBeCommitted: true
+    standardsRelease: SR2025
+    applicableMessageCategories: [5]
+    messageIdentifiers: [MT541]
+    sourceAllowsExternalModelProcessing: true
+    providerApprovedForSourceClassification: true
 ```
 
 Derived metadata only — never the document. `sourceType` is an operator **declaration**:
@@ -121,6 +126,12 @@ field: {format: MT, sequencePath: SETDET, tag: 22F, qualifier: SETR}
 A reference that resolves to nothing — or, for MT, to more than one row — fails
 compilation. A rule addressing whichever field the resolver happened to pick first would be
 worse than one that does not compile.
+
+MT semantic ingestion can also record a canonical structural reference such as
+`MT:SR2025:MT541:SETDET:22F:SETR`, derived from Prowide structural evidence. That value is
+provenance metadata only. Runtime rules still compile through the installed row id or
+sequence/tag/qualifier triple above, and the standards registry is never modified by a
+rule pack.
 
 ## The expression language
 

@@ -123,6 +123,24 @@ All non-configured Prowide source models remain inert candidates. The reports na
 structural differences between Prowide evidence and the configured subset, but this phase
 deliberately does not rewrite runtime MT structures from those differences.
 
+## MT semantic rules need real semantic sources
+
+Phase 5A adds MT semantic-rule ingestion foundations, but no authorised MT semantic source
+is present in this repository. The committed MT semantic fixture is synthetic and exists
+only to prove the pipeline. The generated reports say this explicitly:
+
+- [generated/mt-semantic-readiness.md](generated/mt-semantic-readiness.md)
+- [generated/mt-semantic-source-readiness.md](generated/mt-semantic-source-readiness.md)
+
+What this means:
+
+- `REAL_MT_SEMANTIC_SOURCE_AVAILABLE = NO`
+- candidate MT rules remain inactive until reviewed and committed as Rule Packs
+- canonical MT references are evidence metadata, not runtime field definitions
+- Prowide structural evidence does not establish qualifier legality, requiredness,
+  cardinality, market practice, client profile rules or external-validation capability
+- normal FastAPI runtime does not require Java, Prowide, Maven or Gradle
+
 ---
 
 ## Per-message limits

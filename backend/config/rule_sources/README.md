@@ -18,4 +18,12 @@ Point `RULE_SOURCE_DIRECTORY` elsewhere to use a drop directory outside the chec
 
     python -m app.rule_engine ingest SYNTH-DEMO-MARKET-V1 --stamp
 
-See [../../../docs/rule-source-handling.md](../../../docs/rule-source-handling.md).
+MT semantic-rule sources also declare `standardsRelease`, optional category/message scope
+and two explicit external-model approval flags. Non-synthetic text is not sent to an
+extraction model unless both `sourceAllowsExternalModelProcessing` and
+`providerApprovedForSourceClassification` are true.
+
+    python -m app.rule_engine ingest SYNTH-MT-SEMANTIC-V1 --stamp
+
+See [../../../docs/rule-source-handling.md](../../../docs/rule-source-handling.md) and
+[../../../docs/mt-semantic-source-handling.md](../../../docs/mt-semantic-source-handling.md).

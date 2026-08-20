@@ -146,9 +146,22 @@ def _prune_predicates(node: object) -> object:
     return pruned
 
 
+def _prune_sources(payload: dict[str, object]) -> None:
+    sources = payload.get("sources")
+    if not isinstance(sources, list):
+        return
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        for key in ("applicableMessageCategories", "messageIdentifiers"):
+            if source.get(key) == []:
+                source.pop(key)
+
+
 def pack_yaml(pack: RulePack) -> str:
     """A pack as a reviewer reads and edits it: aliases, key order, no Python tags."""
     payload = pack.model_dump(mode="json", by_alias=True, exclude_none=True)
+    _prune_sources(payload)
     for key in ("rules", "codeRestrictions"):
         if key in payload:
             payload[key] = _prune_predicates(payload[key])
