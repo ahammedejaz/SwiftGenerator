@@ -132,8 +132,9 @@ provenance). CI relies only on synthetic fixtures under `backend/tests/fixtures/
 
 ## Roadmap context
 
-This is Phases 0–1 of the programme in
+This started as Phases 0-1 of the programme in
 [specification-engine-plan.md](specification-engine-plan.md): dynamic registry, dimensional
-capability model, and the MX structure compiler. Rule extraction with evidence (Phase 2),
-market-practice overlays, the Prowide-derived MT importer (Phase 4) and the Specification
-Factory (Phase 6) are designed there and deliberately not built yet.
+capability model, and the MX structure compiler. Phase 2 added evidence-backed rule
+extraction, Phase 3 added MX source scale-out tooling, and Phase 4 added the
+Prowide-derived MT structure importer. The Specification Factory and client guideline
+ingestion remain future phases.

@@ -23,6 +23,7 @@ schema derived from this repository's own YAML.
 from __future__ import annotations
 
 import argparse
+import json
 from enum import StrEnum
 from pathlib import Path
 
@@ -48,6 +49,13 @@ from app.studio.sources import build_readiness
 PROFILE_ID = "BASE_DEMO_V1"
 DOCUMENT = (
     Path(__file__).resolve().parents[3] / "docs" / "generated" / "message-coverage.md"
+)
+MT_PROWIDE_FIXTURE = (
+    Path(__file__).resolve().parents[2]
+    / "tests"
+    / "fixtures"
+    / "mt_prowide"
+    / "category5-sru2025-10.3.18.json"
 )
 
 
@@ -418,6 +426,7 @@ def render_markdown(coverage: UnifiedCoverage | None = None) -> str:
         "- Authoritative completeness denominator available: **No**",
         f"- Official ISO 20022 schemas present: **{report.official_schemas_present}** "
         f"of {len(mx)}",
+        f"- MT Prowide structural evidence: {_mt_prowide_evidence_summary()}",
         "- Production-capable messages: **0**",
         "",
         _LEGEND,
@@ -581,6 +590,20 @@ def render_markdown(coverage: UnifiedCoverage | None = None) -> str:
         )
     lines.append("")
     return "\n".join(lines)
+
+
+def _mt_prowide_evidence_summary() -> str:
+    if not MT_PROWIDE_FIXTURE.exists():
+        return "fixture not present"
+    payload = json.loads(MT_PROWIDE_FIXTURE.read_text(encoding="utf-8"))
+    source = payload["source"]
+    candidate_count = len(payload["candidateMessages"])
+    activated_count = len(payload["activatedMessages"])
+    return (
+        f"`{source['prowidesoftwareVersion']}` / `{source['swiftStandardsRelease']}`; "
+        f"{payload['selectedMessageCount']} Category 5 classes, "
+        f"{candidate_count} inert candidates, {activated_count} activated"
+    )
 
 
 def main() -> int:

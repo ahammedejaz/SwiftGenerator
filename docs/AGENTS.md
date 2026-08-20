@@ -80,12 +80,22 @@ for any real message. See [specification-rule-engine.md](specification-rule-engi
 [rule-pack-format.md](rule-pack-format.md) and
 [rule-source-handling.md](rule-source-handling.md).
 
+**The MT Prowide structure importer exists (Phase 4).** It is an offline
+`app/spec_engine` tool that uses pinned Prowide Core artifacts as structural evidence for
+MT Category 5. The committed fixture records 55 Prowide message classes, 500 sequences,
+972 fieldsets, 6,387 field groups and 151 global field classes for `SRU2025-10.3.18`
+(`SR2025`). Thirty-nine message classes are inert candidates and zero are activated. It is
+not a runtime dependency, not Swift certification and not a conformance claim. See
+[mt-structure-importer.md](mt-structure-importer.md),
+[mt-source-versioning.md](mt-source-versioning.md) and
+[generated/mt-importer-compatibility.md](generated/mt-importer-compatibility.md).
+
 **Verification status (all passing):**
 
 ```
-1274 backend tests (pytest)     ruff: clean      mypy --strict: clean (173 files)
+1317 backend tests (pytest)     ruff: clean      mypy --strict: clean (182 files)
  80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
-CI: five jobs on every PR and every push to main   see §11
+CI: six jobs on every PR and every push to main    see §11
 production build: clean         migrations: up/down/up clean
 docker: both images build, compose stack serves all flows
 secret scan: clean in tree and in git history
@@ -176,6 +186,7 @@ backend/app/studio/
 app/specifications/registry.py   MT specification registry (string-keyed; manifest-driven)
 app/specifications/manifest.py   the manifest index — the single authority for which MT messages exist
 app/spec_engine/                 XSD -> specification-pack compiler (offline CLI; never in the request path)
+app/spec_engine/mt_prowide/      pinned Prowide Category 5 extractor; build-time only
 app/studio/capability.py         derived capability dimensions + plain-language summary
 app/studio/registry.py           format-neutral message-definition projection (catalogue metadata only)
 app/knowledge/loader.py          MT knowledge base
@@ -195,6 +206,7 @@ backend/config/README.md               what each directory is, and its override 
 backend/config/knowledge/*.yaml        MT: per-tag meaning, format, examples, mistakes
 backend/config/knowledge/code_lists.yaml   controlled codes + labels, shared by MT and MX
 backend/config/specifications/*.yaml   MT: sequences and row order per message
+backend/config/mt_prowide_*.yaml       MT: pinned Prowide structural-evidence locks
 backend/config/mx/*.yaml               MX: complete nested element tree, one per message
 backend/config/mx/xsd/official/        drop licensed .xsd files here; see its README
 backend/config/profiles/*.yaml         client profiles: currencies, rules, envelope values
@@ -289,6 +301,18 @@ Enforced in code:
 Every specification ships `authoritativeCompletenessKnown: false` and every message reports
 `capability: PARTIAL`. Only a reconciled licensed specification changes that. Do not raise a
 capability claim without one.
+
+Prowide Core evidence does not change that boundary. Treat it as
+`PROWIDE_DERIVED_STRUCTURAL_EVIDENCE`: useful for message/sequence/field-group comparison,
+never sufficient for qualifier legality, code-list legality, network validation, market
+practice, client rules, Swift certification or ISO 15022 completeness.
+
+### Prowide stays build-time only
+
+The FastAPI runtime must not import `app.spec_engine.mt_prowide`, Java, Maven, Gradle or
+Prowide. `make mt-prowide-check` reads committed reports only;
+`make verify-prowide-mt-source` is the live pinned-source proof and writes only to ignored
+`build/` paths.
 
 ### Errors name the business field
 
@@ -413,6 +437,7 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 |---|---|---|
 | **Required Checks** | `make install` → `make check` → `make secret-scan` → `git diff --check` | PR, main |
 | **Clean Clone** | `make install` → `make migrate` → `make check`, from git-tracked files only | PR, main |
+| **MT Prowide Source** | backend deps + Java 21 → `make verify-prowide-mt-source` | PR, main |
 | **Browser E2E** | `make e2e`; report, traces and screenshots uploaded **on failure only** | PR, main |
 | **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
 | **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
@@ -464,6 +489,8 @@ make demo-pack-check  # fail if demo/ no longer matches what the composer produc
 make spec-compile SOURCE=schema.xsd [OUT=dir]   # XSD -> specification pack + gates
 make spec-validate PACK=pack.yaml SOURCE=schema.xsd
 make spec-diff BEFORE=old.yaml AFTER=new.yaml
+make mt-prowide-check          # generated Prowide reports are current; offline
+make verify-prowide-mt-source  # pinned Prowide source reproduction + MT541 parser proof
 docker compose up --build
 ```
 

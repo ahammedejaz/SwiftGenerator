@@ -5,7 +5,7 @@
 # base ref so `git diff --check` has a range to check. Reproducing any job locally means
 # running the same make target, which is the point.
 #
-# Branch protection: mark **CI / Required Checks** as the required status check for `main`.
+# Branch protection: mark **Required Checks** as the required status check for `main`.
 # That job name is deliberately stable; changing it would silently disable the gate.
 
 name: CI
@@ -120,6 +120,35 @@ jobs:
 
       - name: make check
         run: make check
+
+  mt-prowide-source:
+    name: MT Prowide Source
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install backend dependencies
+        # No Node install here. This job exists only for the build-time Prowide extractor,
+        # and the FastAPI runtime must not need Java, Maven, Gradle or this cache.
+        run: |
+          python -m venv backend/.venv
+          backend/.venv/bin/python -m pip install --upgrade pip
+          backend/.venv/bin/pip install -r backend/requirements-dev.txt
+
+      - name: make verify-prowide-mt-source
+        run: make verify-prowide-mt-source
 
   e2e:
     name: Browser E2E

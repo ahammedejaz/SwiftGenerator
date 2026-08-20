@@ -129,6 +129,37 @@ change if any row order or format changes; update them in the same commit and sa
 
 ---
 
+## 3a. Prowide MT structural evidence
+
+| | |
+| --- | --- |
+| **Artifact** | Pinned Prowide Core source and jar artifacts. |
+| **Location** | `backend/config/mt_prowide_sru2025_10_3_18.lock.yaml` plus `backend/tests/fixtures/mt_prowide/` |
+| **Setting** | `MT_PROWIDE_LOCK`, `MT_PROWIDE_FIXTURE`, `MT_PROWIDE_CACHE` Make variables. |
+
+This is not a licensed SWIFT MT specification and it is not authoritative. It is a
+build-time evidence source used to compare this repository's configured MT subset with a
+Prowide-derived structural view.
+
+**Procedure.** Run `make verify-prowide-mt-source` to download the pinned Maven artifacts
+into ignored `build/mt-prowide-cache/`, verify checksums, reproduce the committed
+Category 5 fixture, and prove the repository's generated MT541 tag stream against Prowide
+parsing. Run `make mt-prowide-reports-write` when the committed fixture intentionally
+changes.
+
+**What changes.** The generated reports under `docs/generated/` may change. Runtime
+message generation does not change, candidate MT messages are not exposed in the
+catalogue, and existing MT structures are not rewritten.
+
+**What to re-run.** `make mt-prowide-check`, `make verify-prowide-mt-source`,
+`make coverage-write` and the normal repository gates.
+
+See [mt-structure-importer.md](mt-structure-importer.md),
+[mt-source-versioning.md](mt-source-versioning.md) and
+[mt-standards-upgrades.md](mt-standards-upgrades.md).
+
+---
+
 ## 4. Client MyStandards usage guidelines
 
 | | |

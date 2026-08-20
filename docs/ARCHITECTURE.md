@@ -142,6 +142,7 @@ a SHA-256 checksum, and an origin label for every envelope value.
 ```
 backend/config/knowledge/*.yaml     MT: what each tag means, in business language
 backend/config/specifications/      MT: which sequences and rows each message has
+backend/config/mt_prowide_*.yaml    MT: pinned Prowide structural-evidence locks
 backend/config/mx/*.yaml            MX: the full element tree
 backend/config/profiles/*.yaml      Per-client settings and envelope values
 backend/config/rules/*.yaml         Reviewed business rules: base, market practice, client
@@ -152,6 +153,13 @@ backend/config/rule_sources/        The documents rules were derived from (synth
 why it is used, format, examples, common mistakes — and lists which messages use it. The
 *specification registry* says which sequences a message has and in what order. Joining them
 gives the ordered list of rows for a message.
+
+The Prowide MT structure importer lives beside the specification engine, not in the
+runtime path. It downloads pinned Prowide Core artifacts into ignored `build/` directories,
+extracts Category 5 structural evidence, writes a deterministic fixture, and renders
+reports comparing that evidence with the configured MT subset. It does not install
+candidate messages or rewrite the manifest. See
+[mt-structure-importer.md](mt-structure-importer.md).
 
 **MX** is one nested tree per message. Document order in the YAML *is* element order in the
 XML, so there is exactly one place where order is defined:
@@ -386,6 +394,11 @@ through review and commit. See [specification-engine.md](specification-engine.md
 One entry in `backend/config/specifications/supported_subset_v1.yaml` (sequences, owner
 module, description) plus its field records in `backend/config/knowledge/`. The manifest
 is the single authority for which MT messages exist — there is no message list in code.
+
+Prowide-derived candidates can inform that review, but they do not replace it. Run
+`make verify-prowide-mt-source`, inspect
+[generated/mt-prowide-structure-diff.md](generated/mt-prowide-structure-diff.md), then
+make a separate source-backed runtime change if a candidate should be promoted.
 
 **A new validation rule**
 Prefer configuration. A reviewed rule pack in `backend/config/rules/` expresses a

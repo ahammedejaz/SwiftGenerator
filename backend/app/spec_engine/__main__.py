@@ -4,6 +4,8 @@
     .venv/bin/python -m app.spec_engine validate PACK.yaml --source SOURCE.xsd
     .venv/bin/python -m app.spec_engine inspect SOURCE.xsd
     .venv/bin/python -m app.spec_engine diff BEFORE.yaml AFTER.yaml
+    .venv/bin/python -m app.spec_engine mt-prowide-reports --check
+    .venv/bin/python -m app.spec_engine mt-prowide-verify
 
 Compilation is offline by design: the running application never compiles a schema and
 never mutates its own registry. A compiled pack becomes active the way any configuration
@@ -20,6 +22,15 @@ import yaml
 
 from app.spec_engine.diagnostics import CompilationError
 from app.spec_engine.gates import validate_pack
+from app.spec_engine.mt_prowide.extractor import (
+    canonical_json,
+    cross_engine_mt541,
+    extract_category5,
+    verify_fixture_against_source,
+    write_extraction,
+)
+from app.spec_engine.mt_prowide.reports import check_reports, write_reports
+from app.spec_engine.mt_prowide.source import DEFAULT_CACHE, DEFAULT_FIXTURE, DEFAULT_LOCK
 from app.spec_engine.pipeline import compile_schema
 from app.spec_engine.source import (
     acquire_manifest_sources,
@@ -298,6 +309,71 @@ def _cmd_scaleout(args: argparse.Namespace) -> int:
     return 0 if result.failed == 0 else 1
 
 
+def _cmd_mt_prowide_extract(args: argparse.Namespace) -> int:
+    extraction = extract_category5(
+        lock_path=Path(args.lock),
+        cache_dir=Path(args.cache),
+    )
+    if args.out:
+        write_extraction(extraction, Path(args.out))
+        print(f"wrote {args.out} ({len(extraction.messages)} Category 5 MT messages)")
+    else:
+        print(canonical_json(extraction), end="")
+    return 0
+
+
+def _cmd_mt_prowide_reports(args: argparse.Namespace) -> int:
+    fixture = Path(args.fixture)
+    if args.write:
+        write_reports(fixture)
+        print("wrote MT Prowide generated reports")
+        return 0
+    stale = check_reports(fixture)
+    if stale:
+        print("MT Prowide generated reports are stale:")
+        for path in stale:
+            print(f"- {path}")
+        return 1
+    print("MT Prowide generated reports are current")
+    return 0
+
+
+def _cmd_mt_prowide_verify(args: argparse.Namespace) -> int:
+    fixture_ok, fresh = verify_fixture_against_source(
+        fixture=Path(args.fixture),
+        lock_path=Path(args.lock),
+        cache_dir=Path(args.cache),
+    )
+    if args.out:
+        write_extraction(fresh, Path(args.out))
+        print(f"wrote fresh extraction to {args.out}")
+    cross = cross_engine_mt541(lock_path=Path(args.lock), cache_dir=Path(args.cache))
+    print(
+        f"source extraction: {'PASS' if fixture_ok else 'FAIL'} "
+        f"({len(fresh.messages)} Category 5 MT messages)"
+    )
+    print(
+        f"MT541 Prowide parse proof: {'PASS' if cross.tag_stream_identical else 'FAIL'} "
+        f"({cross.python_tag_count} Python tags, {cross.prowide_tag_count} Prowide tags)"
+    )
+    print(
+        "Python import issues: "
+        f"{cross.python_import_errors} error(s), "
+        f"{cross.python_import_warnings} warning(s)"
+    )
+    if not fixture_ok:
+        print("Committed MT Prowide fixture differs from the pinned source extraction.")
+        return 1
+    if (
+        not cross.tag_stream_identical
+        or cross.python_import_errors
+        or cross.python_tag_count != cross.prowide_tag_count
+    ):
+        print("MT541 cross-engine parse proof failed.")
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.spec_engine", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -412,6 +488,34 @@ def main(argv: list[str] | None = None) -> int:
     scaleout_cmd.add_argument("--out", required=True, help="directory for candidate packs")
     scaleout_cmd.add_argument("--report", help="write a markdown batch report")
     scaleout_cmd.set_defaults(handler=_cmd_scaleout)
+
+    mt_prowide_extract_cmd = commands.add_parser(
+        "mt-prowide-extract",
+        help="extract Prowide-derived Category 5 MT structural evidence",
+    )
+    mt_prowide_extract_cmd.add_argument("--lock", default=str(DEFAULT_LOCK))
+    mt_prowide_extract_cmd.add_argument("--cache", default=str(DEFAULT_CACHE))
+    mt_prowide_extract_cmd.add_argument("--out", help="write the extraction fixture JSON")
+    mt_prowide_extract_cmd.set_defaults(handler=_cmd_mt_prowide_extract)
+
+    mt_prowide_reports_cmd = commands.add_parser(
+        "mt-prowide-reports",
+        help="render or check generated MT Prowide reports",
+    )
+    mt_prowide_reports_cmd.add_argument("--fixture", default=str(DEFAULT_FIXTURE))
+    mt_prowide_reports_cmd.add_argument("--check", action="store_true")
+    mt_prowide_reports_cmd.add_argument("--write", action="store_true")
+    mt_prowide_reports_cmd.set_defaults(handler=_cmd_mt_prowide_reports)
+
+    mt_prowide_verify_cmd = commands.add_parser(
+        "mt-prowide-verify",
+        help="download pinned Prowide jars, refresh-extract, and prove MT541 parsing",
+    )
+    mt_prowide_verify_cmd.add_argument("--lock", default=str(DEFAULT_LOCK))
+    mt_prowide_verify_cmd.add_argument("--cache", default=str(DEFAULT_CACHE))
+    mt_prowide_verify_cmd.add_argument("--fixture", default=str(DEFAULT_FIXTURE))
+    mt_prowide_verify_cmd.add_argument("--out", help="optional path for the fresh extraction")
+    mt_prowide_verify_cmd.set_defaults(handler=_cmd_mt_prowide_verify)
 
     args = parser.parse_args(argv)
     return int(args.handler(args))
