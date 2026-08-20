@@ -7,7 +7,7 @@ from app.rule_engine.models import RuleReview, RuleReviewStatus
 from app.rule_engine.packdiff import PackChangeKind, diff_packs
 from app.rule_engine.refs import StructureIndex
 from app.studio.models import IssueSeverity
-from tests.rule_engine.conftest import AMT, CMONID, TXCOND, mx, pack, restriction, rule
+from tests.rule_engine.conftest import AMT, CMONID, TXCOND, mx, node, pack, restriction, rule
 
 
 def kinds(before, after) -> set[PackChangeKind]:  # type: ignore[no-untyped-def]
@@ -55,6 +55,27 @@ def test_a_changed_assertion_condition_or_severity_is_named(index: StructureInde
         PackChangeKind.CONDITION_CHANGED,
         PackChangeKind.SEVERITY_CHANGED,
     }
+
+
+def test_occurrence_scope_changes_are_visible_in_the_assertion_diff(
+    index: StructureIndex,
+) -> None:
+    before = base(index)
+    scoped = rule(
+        "R-ONE",
+        node(
+            {
+                "forEachOccurrence": {
+                    "sequencePath": "E1",
+                    "assert": {"field": {"format": "MX", "path": AMT}, "operator": "EXISTS"},
+                }
+            }
+        ),
+    )
+    after = before.model_copy(update={"rules": (scoped,)})
+    diff = diff_packs(before, after)
+    assert kinds(before, after) == {PackChangeKind.ASSERTION_CHANGED}
+    assert "forEachOccurrence" in diff.render()
 
 
 def test_narrowing_a_code_set_is_reported(index: StructureIndex) -> None:

@@ -18,14 +18,18 @@ layer: MARKET_PRACTICE           # BASE_STANDARD | MARKET_PRACTICE | CLIENT_PROF
 profileId: DEMO_MARKET_V1        # required on an overlay layer, forbidden on the base
 packVersion: v1
 title: Synthetic demo market practice for securities settlement instructions
-engineVersion: rule-engine/1
-dslVersion: rule-dsl/1
+engineVersion: rule-engine/2
+dslVersion: rule-dsl/2
 ```
 
 `packId` is derived from those fields and asserted against them, and the file name is
 `packId` lower-cased with `:` → `_`. Two packs may never share an identity. The layer
 names are the repository's existing `RuleLayer`, so a rule layer and the validation layer
 it reports under carry the same word.
+
+`rule-engine/1` and `rule-dsl/1` packs still compile for the original expression language.
+Occurrence-scoped expressions require `rule-dsl/2`; a v1 pack that tries to use them is
+refused.
 
 ## Structure compatibility
 
@@ -168,6 +172,26 @@ SQL fragments anywhere in a pack.
 {exactlyOne: [field, field]}   {atLeastOne: [field]}   {atMostOne: [field, field]}
 ```
 
+**Occurrence scope**
+
+```yaml
+forEachOccurrence:
+  sequencePath: E1
+  assert:
+    implies:
+      if:
+        field: {format: MT, sequencePath: E1, tag: 95P, qualifier: PSET}
+        operator: EXISTS
+      then:
+        field: {format: MT, sequencePath: E1, tag: 97A}
+        operator: ABSENT
+```
+
+The assertion is evaluated separately for every occurrence of the named repeating
+sequence or subsequence. Inside the scoped assertion, field predicates see only values from
+that structural occurrence. Outside a `forEachOccurrence` node, predicates keep the
+original global message semantics.
+
 ### Evaluation semantics
 
 Spelled out because silence here is how a rule engine becomes unpredictable. Over the
@@ -181,6 +205,10 @@ values a message actually contains:
   satisfies them. With no values present they are **true** — which is what makes "this
   field must not be X" behave correctly when the field is simply not there.
 - `subject: COUNT` compares occurrences, which is always defined.
+- `forEachOccurrence` is vacuously true when the evaluated message carries no occurrence
+  projection for that sequence. That keeps legacy flat runtime inputs compatible; a scoped
+  rule only has operational force when the caller supplies an `EvaluationContext` with
+  occurrence identities.
 - A value that cannot be read as the operator's type makes that one comparison false and
   reports nothing extra; the FORMAT layer already owns malformed values.
 - `MATCHES` anchors the whole value.
@@ -190,8 +218,10 @@ values a message actually contains:
 Reference unresolvable · operator/datatype mismatch · a code the structure does not declare
 · a count beyond the field's cardinality · a regex with nested unbounded quantifiers or a
 backreference · a duplicate identifier · a rule that unconditionally forbids a field the
-structure requires in every message · evidence missing · an expression nested more than
-twelve deep · executable-looking content anywhere.
+structure requires in every message · an occurrence scope in `rule-dsl/1` · an unknown or
+non-repeatable occurrence scope · a scoped assertion that references fields outside that
+scope · evidence missing · an expression nested more than twelve deep · executable-looking
+content anywhere.
 
 ## Code restrictions
 

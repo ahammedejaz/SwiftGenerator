@@ -22,6 +22,7 @@ from app.rule_engine.dsl import (
     Subject,
 )
 from app.rule_engine.refs import StructureIndex
+from app.studio.models import MessageFormat
 from tests.rule_engine.conftest import (
     ACCT,
     AMT,
@@ -31,7 +32,9 @@ from tests.rule_engine.conftest import (
     TRADDT,
     TXCOND,
     TXID,
+    binding,
     mx,
+    node,
     pack,
     restriction,
     rule,
@@ -161,6 +164,93 @@ def test_a_count_beyond_the_structures_cardinality_can_never_be_satisfied(
             ),
         )
     assert RuleFindingCode.RULE_COUNT_NOT_REPEATABLE in codes_of(caught.value)
+
+
+# -- occurrence scopes ----------------------------------------------------------------------
+
+
+class ScopedIndex(StructureIndex):
+    def __init__(self) -> None:
+        self._fields = [
+            binding(PMT, sequence_path="E1", sequence_max_occurs=999),
+            binding(AMT, sequence_path="E1", sequence_max_occurs=999),
+            binding(ACCT, sequence_path="E2", sequence_max_occurs=999),
+            binding(CMONID, sequence_path="A", sequence_max_occurs=1),
+        ]
+
+    def known(self, format_: MessageFormat, message_type: str) -> bool:
+        return format_ is MessageFormat.MX and message_type == "sese.023"
+
+    def version(self, format_: MessageFormat, message_type: str) -> str | None:
+        return "scoped.001" if self.known(format_, message_type) else None
+
+    def fields(self, format_: MessageFormat, message_type: str):  # type: ignore[no-untyped-def]
+        return list(self._fields) if self.known(format_, message_type) else []
+
+    def resolve(self, ref, message_type: str):  # type: ignore[no-untyped-def]
+        return next((item for item in self._fields if item.key == ref.path), None)
+
+    def structure_checksum(self, format_: MessageFormat, message_type: str) -> str:
+        return "sha256:" + "2" * 64
+
+
+def scoped_assertion(sequence_path: str = "E1", then_path: str = AMT):  # type: ignore[no-untyped-def]
+    return node(
+        {
+            "forEachOccurrence": {
+                "sequencePath": sequence_path,
+                "assert": {
+                    "implies": {
+                        "if": {
+                            "field": {"format": "MX", "path": PMT},
+                            "operator": "EXISTS",
+                        },
+                        "then": {
+                            "field": {"format": "MX", "path": then_path},
+                            "operator": "ABSENT",
+                        },
+                    }
+                },
+            }
+        }
+    )
+
+
+def test_a_valid_occurrence_scoped_rule_compiles() -> None:
+    index = ScopedIndex()
+    compiled = compile_one(index, rule("TEST-SCOPED", scoped_assertion()))
+    assert len(compiled.rules) == 1
+
+
+def test_occurrence_scope_requires_the_current_dsl_version() -> None:
+    index = ScopedIndex()
+    scoped = pack(index, rules=(rule("TEST-SCOPED", scoped_assertion()),)).model_copy(
+        update={"dsl_version": "rule-dsl/1"}
+    )
+    with pytest.raises(RuleEngineError) as caught:
+        compile_pack(scoped, index)
+    assert RuleFindingCode.RULE_OPERATOR_INVALID in codes_of(caught.value)
+
+
+def test_occurrence_scope_must_exist_and_be_repeatable() -> None:
+    index = ScopedIndex()
+    missing = rule("TEST-MISSING-SCOPE", scoped_assertion("E9"))
+    with pytest.raises(RuleEngineError) as caught:
+        compile_one(index, missing)
+    assert RuleFindingCode.RULE_REFERENCE_INVALID in codes_of(caught.value)
+
+    single = rule("TEST-SINGLE-SCOPE", scoped_assertion("A", CMONID))
+    with pytest.raises(RuleEngineError) as caught:
+        compile_one(index, single)
+    assert RuleFindingCode.RULE_COUNT_NOT_REPEATABLE in codes_of(caught.value)
+
+
+def test_occurrence_scoped_references_cannot_escape_the_scope() -> None:
+    index = ScopedIndex()
+    escaped = rule("TEST-ESCAPE", scoped_assertion("E1", ACCT))
+    with pytest.raises(RuleEngineError) as caught:
+        compile_one(index, escaped)
+    assert RuleFindingCode.RULE_REFERENCE_INVALID in codes_of(caught.value)
 
 
 # -- regexes -----------------------------------------------------------------------------

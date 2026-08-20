@@ -17,7 +17,12 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from decimal import Decimal, InvalidOperation
 
-from app.rule_engine import DSL_VERSION, RULE_ENGINE_VERSION
+from app.rule_engine import (
+    DSL_VERSION,
+    RULE_ENGINE_VERSION,
+    SUPPORTED_DSL_VERSIONS,
+    SUPPORTED_RULE_ENGINE_VERSIONS,
+)
 from app.rule_engine.diagnostics import (
     RuleEngineError,
     RuleFinding,
@@ -33,11 +38,15 @@ from app.rule_engine.dsl import (
     AtMostOne,
     ExactlyOne,
     Expression,
+    ForEachOccurrence,
     Operator,
     Predicate,
     Subject,
     depth,
     walk,
+)
+from app.rule_engine.dsl import (
+    references as expression_references,
 )
 from app.rule_engine.models import (
     CodeRestriction,
@@ -364,6 +373,9 @@ def _check_expression(
     log: RuleFindingLog,
     subject: str,
     location: str,
+    *,
+    pack_dsl_version: str,
+    all_fields: tuple[ResolvedFieldRef, ...],
 ) -> None:
     if depth(expression) > MAX_EXPRESSION_DEPTH:
         log.error(
@@ -379,6 +391,16 @@ def _check_expression(
         match node:
             case Predicate():
                 _check_predicate(node, bindings, log, subject, location)
+            case ForEachOccurrence():
+                _check_occurrence_scope(
+                    node,
+                    bindings,
+                    log,
+                    subject,
+                    location,
+                    pack_dsl_version=pack_dsl_version,
+                    all_fields=all_fields,
+                )
             case ExactlyOne() | AtLeastOne() | AtMostOne():
                 fields = (
                     node.exactly_one
@@ -398,6 +420,72 @@ def _check_expression(
                     )
             case _:
                 pass
+
+
+def _scope_match(scope: str, sequence_path: str | None) -> bool:
+    if sequence_path is None:
+        return False
+    wanted = scope.upper()
+    candidate = sequence_path.upper()
+    return candidate == wanted or candidate.startswith(wanted + "/")
+
+
+def _check_occurrence_scope(
+    node: ForEachOccurrence,
+    bindings: dict[str, ResolvedFieldRef],
+    log: RuleFindingLog,
+    subject: str,
+    location: str,
+    *,
+    pack_dsl_version: str,
+    all_fields: tuple[ResolvedFieldRef, ...],
+) -> None:
+    scope = node.for_each_occurrence.sequence_path
+    where = f"{location}:{scope}"
+    if pack_dsl_version != DSL_VERSION:
+        log.error(
+            RuleFindingCode.RULE_OPERATOR_INVALID,
+            f"{location} uses occurrence scope, which belongs to {DSL_VERSION}; "
+            f"the pack declares {pack_dsl_version}.",
+            "Recompile the candidate with the current DSL version.",
+            subject=subject,
+            location=where,
+        )
+        return
+
+    scoped_fields = [item for item in all_fields if _scope_match(scope, item.sequence_path)]
+    if not scoped_fields:
+        log.error(
+            RuleFindingCode.RULE_REFERENCE_INVALID,
+            f"{location} scopes a rule to {scope}, which the structure does not declare.",
+            "Choose a repeatable sequence path from the target message structure.",
+            subject=subject,
+            location=where,
+        )
+        return
+    if all(item.sequence_max_occurs <= 1 for item in scoped_fields):
+        log.error(
+            RuleFindingCode.RULE_COUNT_NOT_REPEATABLE,
+            f"{scope} is not repeatable in the target structure.",
+            "Use occurrence scope only on repeatable sequences or subsequences.",
+            subject=subject,
+            location=where,
+        )
+
+    for ref in expression_references(node.for_each_occurrence.assert_):
+        binding = bindings.get(ref.canonical())
+        if binding is None:
+            continue
+        if _scope_match(scope, binding.sequence_path):
+            continue
+        log.error(
+            RuleFindingCode.RULE_REFERENCE_INVALID,
+            f"{binding.display_name} is outside occurrence scope {scope}.",
+            "Keep references inside the selected scope, or express the global condition "
+            "outside the scoped assertion.",
+            subject=subject,
+            location=f"{where}:{ref.describe()}",
+        )
 
 
 def _check_against_structure(
@@ -442,7 +530,10 @@ def compile_pack(
     log = RuleFindingLog()
     subject = pack.pack_id
 
-    if pack.engine_version != RULE_ENGINE_VERSION or pack.dsl_version != DSL_VERSION:
+    if (
+        pack.engine_version not in SUPPORTED_RULE_ENGINE_VERSIONS
+        or pack.dsl_version not in SUPPORTED_DSL_VERSIONS
+    ):
         log.error(
             RuleFindingCode.RULE_PACK_ID_INVALID,
             f"{subject} was written for {pack.engine_version}/{pack.dsl_version}; this "
@@ -518,15 +609,30 @@ def compile_pack(
         )
 
     compiled_rules: list[CompiledRule] = []
+    all_fields = tuple(index.fields(pack.format, pack.message_type))
     for rule in pack.rules:
-        from app.rule_engine.dsl import references as expression_references
-
         asserted = list(expression_references(rule.assert_))
         conditional = list(expression_references(rule.when)) if rule.when is not None else []
         bindings = _bind([*conditional, *asserted], index, pack, log, rule.rule_id)
         if rule.when is not None:
-            _check_expression(rule.when, bindings, log, subject, rule.rule_id)
-        _check_expression(rule.assert_, bindings, log, subject, rule.rule_id)
+            _check_expression(
+                rule.when,
+                bindings,
+                log,
+                subject,
+                rule.rule_id,
+                pack_dsl_version=pack.dsl_version,
+                all_fields=all_fields,
+            )
+        _check_expression(
+            rule.assert_,
+            bindings,
+            log,
+            subject,
+            rule.rule_id,
+            pack_dsl_version=pack.dsl_version,
+            all_fields=all_fields,
+        )
         _check_against_structure(rule, bindings, log, subject)
         # A finding points at the field a tester has to change, which is the one the
         # *assertion* names — never the one the condition happened to mention first.

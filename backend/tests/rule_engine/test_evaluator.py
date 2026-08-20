@@ -8,8 +8,9 @@ from app.rule_engine.compiler import compile_pack
 from app.rule_engine.dsl import Operator, Predicate
 from app.rule_engine.evaluator import evaluate_rules, source_reference
 from app.rule_engine.layers import build_effective
-from app.rule_engine.refs import StructureIndex
-from app.studio.models import IssueSeverity, MessageFormat, ValidationLayer
+from app.rule_engine.occurrences import EvaluationContext, OccurrenceIdentity, OccurrenceValue
+from app.rule_engine.refs import FieldKind, ResolvedFieldRef, StructureIndex
+from app.studio.models import IssueSeverity, MessageFormat, Presence, ValidationLayer
 from tests.rule_engine.conftest import (
     AMT,
     CMONID,
@@ -17,6 +18,7 @@ from tests.rule_engine.conftest import (
     PMT,
     TXCOND,
     mx,
+    node,
     pack,
     restriction,
     rule,
@@ -177,3 +179,97 @@ def test_evaluation_is_pure_and_repeatable(index: StructureIndex) -> None:
 
 def test_the_value_bag_keeps_occurrence_order() -> None:
     assert value_bag([("a", "1"), ("b", "x"), ("a", "2")]) == {"a": ["1", "2"], "b": ["x"]}
+
+
+class ScopedIndex(StructureIndex):
+    def __init__(self) -> None:
+        self._fields = [
+            ResolvedFieldRef(
+                canonical=f"MX|{PMT}",
+                key=PMT,
+                display_name="Payment Type",
+                kind=FieldKind.CODE,
+                presence=Presence.OPTIONAL,
+                max_occurs=1,
+                codes=(),
+                location=PMT,
+                sequence_path="E1",
+                sequence_max_occurs=999,
+            ),
+            ResolvedFieldRef(
+                canonical=f"MX|{AMT}",
+                key=AMT,
+                display_name="Amount",
+                kind=FieldKind.DECIMAL,
+                presence=Presence.OPTIONAL,
+                max_occurs=1,
+                codes=(),
+                location=AMT,
+                sequence_path="E1",
+                sequence_max_occurs=999,
+            ),
+        ]
+
+    def known(self, format_: MessageFormat, message_type: str) -> bool:
+        return format_ is MessageFormat.MX and message_type == MESSAGE
+
+    def version(self, format_: MessageFormat, message_type: str) -> str | None:
+        return "scoped.001" if self.known(format_, message_type) else None
+
+    def fields(self, format_: MessageFormat, message_type: str):  # type: ignore[no-untyped-def]
+        return list(self._fields) if self.known(format_, message_type) else []
+
+    def resolve(self, ref, message_type: str):  # type: ignore[no-untyped-def]
+        return next((item for item in self._fields if item.key == ref.path), None)
+
+    def structure_checksum(self, format_: MessageFormat, message_type: str) -> str:
+        return "sha256:" + "3" * 64
+
+
+def test_occurrence_scoped_findings_name_the_failing_occurrence() -> None:
+    index = ScopedIndex()
+    rules = effective(
+        index,
+        pack(
+            index,
+            rules=(
+                rule(
+                    "SCOPED",
+                    node(
+                        {
+                            "forEachOccurrence": {
+                                "sequencePath": "E1",
+                                "assert": {
+                                    "implies": {
+                                        "if": {
+                                            "field": {"format": "MX", "path": PMT},
+                                            "operator": "EXISTS",
+                                        },
+                                        "then": {
+                                            "field": {"format": "MX", "path": AMT},
+                                            "operator": "ABSENT",
+                                        },
+                                    }
+                                },
+                            }
+                        }
+                    ),
+                ),
+            ),
+        ),
+    )
+    first = OccurrenceIdentity.one("E1", 1)
+    second = OccurrenceIdentity.one("E1", 2)
+    context = EvaluationContext(
+        bag={PMT: ["PSET"], AMT: ["SAFE-ACCOUNT"]},
+        occurrence_values=(
+            OccurrenceValue(PMT, "PSET", second),
+            OccurrenceValue(AMT, "SAFE-ACCOUNT", second),
+            OccurrenceValue(AMT, "OTHER-ACCOUNT", first),
+        ),
+    )
+    issue = evaluate_rules(rules, context)[0]
+    assert issue.occurrence is not None
+    assert issue.occurrence.sequence_path == "E1"
+    assert issue.occurrence.occurrence == 2
+    assert issue.occurrence.path == "E1[2]"

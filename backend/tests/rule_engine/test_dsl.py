@@ -16,8 +16,10 @@ from app.rule_engine.dsl import (
     Subject,
     depth,
     evaluate,
+    failing_occurrences,
     references,
 )
+from app.rule_engine.occurrences import EvaluationContext, OccurrenceIdentity, OccurrenceValue
 from app.rule_engine.refs import FieldKind
 from tests.rule_engine.conftest import (
     AMT,
@@ -216,6 +218,125 @@ def test_count_equals_zero_is_how_absence_is_counted() -> None:
     }
     assert check(predicate, {})
     assert not check(predicate, {CMONID: ["A"]})
+
+
+# -- occurrence scopes ------------------------------------------------------------------
+
+
+def occurrence_value(key: str, value: str, identity: OccurrenceIdentity) -> OccurrenceValue:
+    return OccurrenceValue(key=key, value=value, occurrence=identity)
+
+
+def scoped_context(*items: OccurrenceValue) -> EvaluationContext:
+    bag: dict[str, list[str]] = {}
+    for item in items:
+        bag.setdefault(item.key, []).append(item.value)
+    return EvaluationContext(bag=bag, occurrence_values=items)
+
+
+def same_occurrence_rule() -> dict:
+    return {
+        "forEachOccurrence": {
+            "sequencePath": "E1",
+            "assert": {
+                "implies": {
+                    "if": {"field": {"format": "MX", "path": PMT}, "operator": "EXISTS"},
+                    "then": {"field": {"format": "MX", "path": AMT}, "operator": "ABSENT"},
+                }
+            },
+        }
+    }
+
+
+def test_same_occurrence_scope_does_not_become_a_global_restriction() -> None:
+    first = OccurrenceIdentity.one("E1", 1)
+    second = OccurrenceIdentity.one("E1", 2)
+    rule = node(same_occurrence_rule())
+    context = scoped_context(
+        occurrence_value(PMT, "PSET", first),
+        occurrence_value(AMT, "SAFE-ACCOUNT", second),
+    )
+    assert evaluate(rule, context, BAG_BINDINGS)
+
+
+def test_same_occurrence_scope_fails_only_the_matching_occurrence() -> None:
+    first = OccurrenceIdentity.one("E1", 1)
+    second = OccurrenceIdentity.one("E1", 2)
+    rule = node(same_occurrence_rule())
+    context = scoped_context(
+        occurrence_value(CMONID, "unrelated", first),
+        occurrence_value(PMT, "PSET", second),
+        occurrence_value(AMT, "SAFE-ACCOUNT", second),
+    )
+    assert not evaluate(rule, context, BAG_BINDINGS)
+    failed = failing_occurrences(rule, context, BAG_BINDINGS)
+    assert [item.display_path for item in failed] == ["E1[2]"]
+
+
+def test_scoped_count_counts_values_inside_one_occurrence() -> None:
+    first = OccurrenceIdentity.one("E3", 1)
+    second = OccurrenceIdentity.one("E3", 2)
+    rule = node(
+        {
+            "forEachOccurrence": {
+                "sequencePath": "E3",
+                "assert": {
+                    "field": {"format": "MX", "path": CMONID},
+                    "subject": "COUNT",
+                    "operator": "LESS_OR_EQUAL",
+                    "value": "1",
+                },
+            }
+        }
+    )
+    valid = scoped_context(
+        occurrence_value(CMONID, "A", first),
+        occurrence_value(CMONID, "B", second),
+    )
+    invalid = scoped_context(
+        occurrence_value(CMONID, "A", first),
+        occurrence_value(CMONID, "B", first),
+    )
+    assert evaluate(rule, valid, BAG_BINDINGS)
+    assert not evaluate(rule, invalid, BAG_BINDINGS)
+
+
+def test_nested_occurrence_lineage_keeps_equal_local_indexes_distinct() -> None:
+    parent_one = OccurrenceIdentity.one("P", 1)
+    parent_two = OccurrenceIdentity.one("P", 2)
+    child_one = OccurrenceIdentity.one("C", 1, parent=parent_one)
+    child_two = OccurrenceIdentity.one("C", 1, parent=parent_two)
+    rule = node(
+        {
+            "forEachOccurrence": {
+                "sequencePath": "P",
+                "assert": {
+                    "forEachOccurrence": {
+                        "sequencePath": "C",
+                        "assert": {
+                            "implies": {
+                                "if": {
+                                    "field": {"format": "MX", "path": PMT},
+                                    "operator": "EXISTS",
+                                },
+                                "then": {
+                                    "field": {"format": "MX", "path": AMT},
+                                    "operator": "ABSENT",
+                                },
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    )
+    context = scoped_context(
+        occurrence_value("parent", "one", parent_one),
+        occurrence_value("parent", "two", parent_two),
+        occurrence_value(PMT, "PSET", child_one),
+        occurrence_value(AMT, "SAFE-ACCOUNT", child_two),
+    )
+    assert evaluate(rule, context, BAG_BINDINGS)
 
 
 # -- boolean and group ------------------------------------------------------------------

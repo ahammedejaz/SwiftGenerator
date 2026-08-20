@@ -15,22 +15,22 @@ source above, and a configured subset of it. Nothing in this report changes it.
 | `C1` | `E87` | `12` | `EXACT` | `E3:19A::ACRU E3:19A::ANTO E3:19A::CHAR E3:19A::COUN E3:19A::DEAL E3:19A::EXEC …` | `1/27` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C2` | `E92` | `13` | `EXACT` | `E3:19A::SETT` | `1/1` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C3` | `E90` | `13` | `EXACT` | `A:99a::TOSE A:99a::SETT` | `0/2` | `STRUCTURE_DIFFERENCE` |
-| `C4` | `E62` | `13` | `PARTIAL` | `E3:92B::EXCH E3:19A::RESU` | `0/2` | `STRUCTURE_DIFFERENCE` |
+| `C4` | `E62` | `13` | `EXACT` | `E3:92B::EXCH E3:19A::RESU` | `0/2` | `STRUCTURE_DIFFERENCE` |
 | `C5` | `E84` | `13` | `EXACT` | `E1:95a::BUYR E2:95a::ACCW F:95a::EXCH E1:95a::DEAG E2:95a::BENM F:95a::MEOR …` | `3/23` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C6` | `E91` | `14` | `PARTIAL` | `E:22F::DBNM E1:95a::DEAG E1:95a::PSET` | `2/3` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C7` | `E86` | `14` | `PARTIAL` | `E1:95a::DEI2 E1:95a::DEI1 E1:95a::DECU E1:95a::SELL E1:95a::REI2 E1:95a::REI1 …` | `0/12` | `STRUCTURE_DIFFERENCE` |
 | `C8` | `E08` | `14` | `EXACT` | `A:23G A1:20C::PREV` | `1/1` | `SOURCE_RULE_MATCHES_EXISTING` |
-| `C9` | `E52` | `14` | `UNSUPPORTED` | `E1:95a::PSET E1:97a` | `1/1` | `DSL_UNSUPPORTED` |
+| `C9` | `E52` | `14` | `EXACT` | `E1:95a::PSET E1:97a` | `1/1` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C10` | `E14` | `15` | `PARTIAL` | `E:22F::FXCX A:23G` | `0/1` | `STRUCTURE_DIFFERENCE` |
 | `C11` | `E70` | `15` | `EXACT` | `E:22F::DBNM E1:95a::SELL` | `0/2` | `STRUCTURE_DIFFERENCE` |
 | `C12` | `D71` | `15` | `PARTIAL` | `E:22F::DBNM F:95a::VEND` | `0/2` | `STRUCTURE_DIFFERENCE` |
 | `C13` | `C50` | `15` | `PARTIAL` | `A1:36B E:22F::SETR` | `1/1` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C14` | `C71` | `16` | `PARTIAL` | `C:36B::SETT` | `1/1` | `SOURCE_RULE_NOT_CONFIGURED` |
 | `C15` | `C28` | `16` | `PARTIAL` | `E3:98a::VALU E:22F::STCO E3:19A::SETT` | `1/3` | `SOURCE_RULE_NOT_CONFIGURED` |
-| `C16` | `E63` | `16` | `UNSUPPORTED` | `F:95a::EXCH F:97a F:95a::TRRE` | `0/2` | `DSL_UNSUPPORTED` |
+| `C16` | `E63` | `16` | `EXACT` | `F:95a::EXCH F:97a F:95a::TRRE` | `0/2` | `STRUCTURE_DIFFERENCE` |
 | `C17` | `E98` | `16` | `EXACT` | `C:95L::ALTE C:95a::ACOW` | `0/2` | `STRUCTURE_DIFFERENCE` |
-| `C18` | `E99` | `16` | `UNSUPPORTED` | `B:94a::CLEA B:94a::TRAD C:94a::SAFE E1:95a::ALTE E2:95a::ALTE F:95a::ALTE` | `0/6` | `DSL_UNSUPPORTED` |
-| `C19` | `E88` | `17` | `UNSUPPORTED` | `F:95a::ALTE F:95a::MEOR F:95a::MERE` | `0/3` | `DSL_UNSUPPORTED` |
+| `C18` | `E99` | `16` | `PARTIAL` | `B:94a::CLEA B:94a::TRAD C:94a::SAFE E1:95a::ALTE E2:95a::ALTE F:95a::ALTE` | `0/6` | `STRUCTURE_DIFFERENCE` |
+| `C19` | `E88` | `17` | `EXACT` | `F:95a::ALTE F:95a::MEOR F:95a::MERE` | `0/3` | `STRUCTURE_DIFFERENCE` |
 | `C20` | `E73` | `17` | `EXACT` | `E3:19A::NTWK E4:36D::NTWK` | `0/2` | `STRUCTURE_DIFFERENCE` |
 
 ## What this repository enforces for this message today
@@ -45,11 +45,11 @@ source above, and a configured subset of it. Nothing in this report changes it.
 | Measure | Value |
 | --- | --- |
 | Network Validated Rules discovered | `20` |
-| Fully representable in the rule DSL | `8` |
+| Fully representable in the rule DSL | `12` |
 | Representable more weakly than stated | `8` |
-| Not representable | `4` |
+| Not representable | `0` |
 | Sentence form not recognised | `0` |
-| Candidate rules compiled | `16` |
+| Candidate rules compiled | `20` |
 | Reviewed rules | `0` |
 | Runtime activations | `0` |
 

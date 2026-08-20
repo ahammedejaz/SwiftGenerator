@@ -298,6 +298,14 @@ row ids such as `MT541-E-22F-SETR`. Phase 5A ships no real MT semantic source an
 runtime MT Rule Pack. See
 [mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md).
 
+Phase 5C adds occurrence-aware evaluation to the same engine. `rule-dsl/2` can scope an
+assertion to each occurrence of a repeating sequence or subsequence, carrying parent
+lineage when repeats are nested. The feature is internal rule-evaluation state: it does not
+write MT structures, does not load SR2026 candidate packs, and does not make Java, Prowide,
+Maven or Gradle part of the FastAPI runtime. The SR2026 MT540/MT541 candidate evaluator
+uses it offline to prove same-occurrence behaviour while all candidates remain
+`REVIEW_REQUIRED`.
+
 See [specification-rule-engine.md](specification-rule-engine.md).
 
 ---

@@ -246,12 +246,20 @@ export interface GenerateRequest {
   persist?: boolean;
 }
 
+export interface ValidationOccurrence {
+  sequencePath: string;
+  occurrence: number;
+  path: string;
+  lineage: string[];
+}
+
 export interface ValidationIssue {
   ruleId: string;
   severity: IssueSeverity;
   layer: ValidationLayer;
   field: string | null;
   location: string | null;
+  occurrence?: ValidationOccurrence | null;
   message: string;
   expected: string | null;
   currentValue: string | null;

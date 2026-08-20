@@ -110,6 +110,7 @@ A rule-generated finding is an ordinary `ValidationIssue` with four optional add
   "layer": "CLIENT_PROFILE",
   "field": "Common Identification",
   "location": "/Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/CmonId",
+  "occurrence": null,
   "message": "This client supplies a common identification on every instruction.",
   "suggestion": "Add the common identification.",
   "ruleLayer": "Client rule",
@@ -126,6 +127,11 @@ trail, not a tester's reading. A finding points at the field the **assertion** n
 triggered the rule.
 
 `sourceReference` is identity and location. Licensed prose is never served by a public API.
+
+When a `rule-dsl/2` assertion fails inside a repeated structural occurrence, the same
+finding shape carries `occurrence` metadata: the sequence path, one-based local occurrence
+number, display path and parent lineage. The sentence still names the business field; the
+occurrence payload is for inspectors and reviewers.
 
 ## Capability
 
@@ -169,6 +175,32 @@ complicated than an unconditional single-field requirement.
 Every candidate then passes through the **same compiler** that guards an installed pack, so
 a candidate cannot look valid to a reviewer under weaker checks than the ones that will
 guard it later.
+
+### Occurrence-aware evaluation
+
+`rule-dsl/2` adds one scoped primitive:
+
+```yaml
+forEachOccurrence:
+  sequencePath: E1
+  assert: { ... }
+```
+
+The evaluator runs the nested assertion independently for every occurrence of that
+sequence or subsequence. Predicates inside the assertion see only values from that
+occurrence; predicates outside the scope keep the original global value-bag semantics. A
+nested repeat is identified by its full lineage, so `P[1]/C[1]` and `P[2]/C[1]` are
+different occurrences even though the child local index is the same.
+
+This is a generic rule-engine feature, not an MT540/MT541 special case. The compiler
+accepts scoped expressions only in `rule-dsl/2`, only for repeatable scopes the structure
+index knows about, and only when every field reference inside the scoped assertion belongs
+to that scope. Legacy flat callers still work because `evaluate_rules()` accepts either
+the original value bag or an occurrence-aware `EvaluationContext`.
+
+For Phase 5C, the occurrence-aware context is supplied by the offline SR2026 MT Message
+Reference Guide candidate evaluator. The normal FastAPI Create Message flow still loads no
+SR2026 candidate pack and does not activate these candidates.
 
 ### Prompt injection
 
@@ -219,6 +251,9 @@ make mt-rule-source-ingest SOURCE_ID=SYNTH-MT-SEMANTIC-V1
 make mt-rule-extract SOURCE_ID=SYNTH-MT-SEMANTIC-V1 MESSAGE=MT541
 make evaluate-mt-rule-extraction     # offline MT corpus, scripted
 make mt-rule-check                   # MT readiness docs + MT corpus
+make mt-mrg-check                    # SR2026 MT540/MT541 generated candidate reports
+make mt-mrg-evaluate                 # offline candidate behaviour proofs
+make verify-real-mt540-mt541-source  # exact local guide-byte reproduction
 ```
 
 Extraction is offline by design. The running application never extracts a rule, never
@@ -253,10 +288,11 @@ one.
 
 | Path | What |
 |---|---|
-| `backend/app/rule_engine/` | the engine: DSL, models, refs, compiler, layers, registry, evaluator, packdiff, sources |
+| `backend/app/rule_engine/` | the engine: DSL, occurrence context, models, refs, compiler, layers, registry, evaluator, packdiff, sources |
 | `backend/app/rule_engine/mt_semantics.py` | MT semantic-source readiness and canonical structural-reference validation |
 | `backend/app/rule_engine/extraction/` | schemas, prompts, provider seam, canonicalisation, diff, cache, pipeline, review |
 | `backend/app/rule_engine/evaluation/` | the corpus and its runner |
+| `backend/app/rule_engine/mt_mrg/` | deterministic SR2026 MT Message Reference Guide reader, candidate translator, reports and offline evaluator |
 | `backend/config/rules/` | reviewed packs, loaded at startup |
 | `backend/config/rule_sources/` | synthetic source documents; licensed drops are gitignored |
 | `backend/config/rule_evaluation/` | the synthetic evaluation corpus |

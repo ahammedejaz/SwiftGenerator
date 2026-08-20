@@ -268,17 +268,19 @@ def test_a_rule_text_digest_identifies_the_wording_without_reproducing_it(
 # --------------------------------------------------------------------------------------
 
 
-def test_a_rule_scoped_to_one_occurrence_is_refused_rather_than_approximated(
+def test_a_rule_scoped_to_one_occurrence_is_compiled_as_scoped_not_global(
     synthetic: MrgReading,
 ) -> None:
     translation = synthetic.translation("C3")
     assert translation is not None
-    assert translation.fidelity is RuleFidelity.UNSUPPORTED
-    assert translation.reason is UnsupportedReason.OCCURRENCE_SCOPE_NOT_EXPRESSIBLE
+    assert translation.fidelity is RuleFidelity.EXACT
+    assert translation.reason is None
+    assert translation.assertion is not None
+    assert translation.assertion.model_dump(mode="json", by_alias=True)["forEachOccurrence"][
+        "sequencePath"
+    ] == "E1"
     assert synthetic.pack is not None
-    assert all(
-        item.rule_id != "SWIFT-SR2026-MT999-C3" for item in synthetic.pack.rules
-    )
+    assert any(item.rule_id == "SWIFT-SR2026-MT999-C3" for item in synthetic.pack.rules)
 
 
 def test_a_rule_weaker_than_the_source_records_what_it_dropped(
@@ -508,7 +510,7 @@ def test_the_amounts_subsequence_is_mandatory_only_for_receive_against_payment(
     assert mt541.sequence("E3")["presence"] == "MANDATORY"
 
 
-def test_the_same_occurrence_rules_are_recorded_as_unsupported_not_approximated(
+def test_the_same_occurrence_rules_are_recorded_as_scoped_candidates(
     evidence: dict[str, object],
 ) -> None:
     for message_type, source_rule_id in (("MT540", "C8"), ("MT541", "C9")):
@@ -517,9 +519,10 @@ def test_the_same_occurrence_rules_are_recorded_as_unsupported_not_approximated(
         rule = next(
             item for item in guide.rules() if item["sourceRuleId"] == source_rule_id
         )
-        assert rule["fidelity"] == RuleFidelity.UNSUPPORTED.value
-        assert rule["reason"] == UnsupportedReason.OCCURRENCE_SCOPE_NOT_EXPRESSIBLE.value
-        assert rule["compiled"] is False
+        assert rule["fidelity"] == RuleFidelity.EXACT.value
+        assert rule["reason"] is None
+        assert rule["compiled"] is True
+        assert rule["occurrenceScopes"] == ["E1"]
 
 
 def test_a_rule_called_exact_claims_nothing_it_left_out(
@@ -848,20 +851,33 @@ def test_a_candidate_rule_holds_and_fails_where_the_source_says_it_should(
     assert report.passed, report.render()
 
 
-def test_an_unsupported_rule_has_no_candidate_to_evaluate(synthetic: MrgReading) -> None:
-    case = CandidateCase(
-        name="place of settlement and account in one occurrence",
-        message_type="MT999",
-        source_rule_id="C3",
-        expectation=Expectation.VIOLATED,
-        values=(
-            FieldValue("E1", "95P", "PSET", "PSETGB2LXXX"),
-            FieldValue("E1", "97A", "SAFE", "ACCOUNT"),
+def test_a_same_occurrence_candidate_distinguishes_global_from_scoped(
+    synthetic: MrgReading,
+) -> None:
+    cases = (
+        CandidateCase(
+            name="place of settlement and account in different occurrences",
+            message_type="MT999",
+            source_rule_id="C3",
+            expectation=Expectation.HOLDS,
+            values=(
+                FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=1),
+                FieldValue("E1", "97A", "SAFE", "ACCOUNT", occurrence=2),
+            ),
+        ),
+        CandidateCase(
+            name="place of settlement and account in one occurrence",
+            message_type="MT999",
+            source_rule_id="C3",
+            expectation=Expectation.VIOLATED,
+            values=(
+                FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=1),
+                FieldValue("E1", "97A", "SAFE", "ACCOUNT", occurrence=1),
+            ),
         ),
     )
-    report = run_cases({"MT999": synthetic}, (case,))
-    assert report.results == []
-    assert report.skipped == [case]
+    report = run_cases({"MT999": synthetic}, cases)
+    assert report.passed, report.render()
 
 
 def _case_id(case: CandidateCase) -> str:

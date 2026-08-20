@@ -244,14 +244,15 @@ location. That is a claim about *this evidence*, never about the standard:
 - **The two guides read are SR2026, which is not live until 14 November 2026.** Everything
   derived from them is future-test. No SR2026 rule validates anything, and the installed
   runtime structure is a third release again.
-- **A rule scoped to one occurrence of a repeating subsequence cannot be expressed.** Five
-  of the 38 Network Validated Rules in MT540 and MT541 say "in the same subsequence" or "in
-  another subsequence". The evaluator addresses a field, not a field-in-an-occurrence, so
-  they are recorded `UNSUPPORTED` rather than approximated. This is the largest gap in the
-  rule DSL and the clearest candidate for a later phase.
-- **Fifteen more rules are represented more weakly than the source states them.** Each
+- **Occurrence-local rules can now be represented, but they remain candidates.** Phase 5C
+  added `rule-dsl/2` occurrence scopes and retranslated the MT540/MT541 SR2026 candidates:
+  all eight Phase 5B `UNSUPPORTED` occurrence rules are now either exact or deliberately
+  partial. This did not activate any SR2026 rule, approve any candidate, or make the
+  current-live runtime use the future-test guides.
+- **Fifteen rules are still represented more weakly than the source states them.** Each
   carries the clause it dropped — a distinct-occurrence requirement, a data-source-scheme
-  caveat, a format-option constraint — so it can miss a violation but never invent one.
+  caveat, a format-option constraint, paired-code semantics or component scope — so it can
+  miss a violation but never invent one.
 - **A component of a field cannot be referenced.** A reference resolves to a field, so a
   rule that turns on a data source scheme or a format option within one is partial by
   construction.

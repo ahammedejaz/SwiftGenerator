@@ -21,6 +21,12 @@ from app.rule_engine.compiler import CompiledRule
 from app.rule_engine.dsl import evaluate
 from app.rule_engine.mt_mrg.pipeline import MrgReading
 from app.rule_engine.mt_mrg.structure import MrgStructureIndex
+from app.rule_engine.occurrences import (
+    EvaluationContext,
+    OccurrenceIdentity,
+    OccurrenceLevel,
+    OccurrenceValue,
+)
 
 
 class Expectation(StrEnum):
@@ -38,13 +44,19 @@ class FieldValue:
     tag: str
     qualifier: str | None
     value: str = "SYNTHETIC"
-    #: How many occurrences carry it. Repetition is how a count rule is exercised.
+    #: Without ``occurrence``, how many consecutive occurrences carry it. With
+    #: ``occurrence``, how many values are present inside that one occurrence.
     occurrences: int = 1
+    #: Specific one-based local occurrence to place the value in.
+    occurrence: int | None = None
+    #: Optional parent lineage for nested-repeat tests, as ``(("E", 1),)``.
+    parent_lineage: tuple[tuple[str, int], ...] = ()
 
     def describe(self) -> str:
         qualifier = f"::{self.qualifier}" if self.qualifier else ""
         suffix = f" ×{self.occurrences}" if self.occurrences != 1 else ""
-        return f"{self.sequence_path}:{self.tag}{qualifier}={self.value}{suffix}"
+        where = f" @{self.sequence_path}[{self.occurrence}]" if self.occurrence else ""
+        return f"{self.sequence_path}:{self.tag}{qualifier}={self.value}{suffix}{where}"
 
 
 @dataclass(frozen=True)
@@ -73,6 +85,58 @@ class CandidateResult:
     detail: str = ""
 
 
+def _matching_field_keys(index: MrgStructureIndex, item: FieldValue) -> tuple[str, ...]:
+    keys: list[str] = []
+    number = item.tag[:2]
+    for field in index.mrg_fields:
+        if field.sequence_path.upper() != item.sequence_path.upper():
+            continue
+        if field.tag not in {item.tag, number}:
+            continue
+        if field.qualifier not in {item.qualifier, None}:
+            continue
+        keys.append(field.key)
+    return tuple(keys)
+
+
+def _identity(index: MrgStructureIndex, item: FieldValue, occurrence: int) -> OccurrenceIdentity:
+    supplied = {path.upper(): count for path, count in item.parent_lineage}
+    ancestors: list[str] = []
+    current = index.structure.sequence(item.sequence_path)
+    while current is not None and current.parent_path:
+        ancestors.append(current.parent_path)
+        current = index.structure.sequence(current.parent_path)
+    levels = [
+        OccurrenceLevel(path, supplied.get(path.upper(), 1))
+        for path in reversed(ancestors)
+    ]
+    levels.append(OccurrenceLevel(item.sequence_path, occurrence))
+    return OccurrenceIdentity(tuple(levels))
+
+
+def _expanded_occurrences(item: FieldValue) -> tuple[tuple[int, int], ...]:
+    if item.occurrence is not None:
+        return ((item.occurrence, item.occurrences),)
+    return tuple((occurrence, 1) for occurrence in range(1, item.occurrences + 1))
+
+
+def evaluation_context(
+    index: MrgStructureIndex, values: tuple[FieldValue, ...]
+) -> EvaluationContext:
+    bag: dict[str, list[str]] = {}
+    scoped: list[OccurrenceValue] = []
+    for item in values:
+        for local_occurrence, repeat_count in _expanded_occurrences(item):
+            identity = _identity(index, item, local_occurrence)
+            for key in _matching_field_keys(index, item):
+                bag.setdefault(key, []).extend([item.value] * repeat_count)
+                scoped.extend(
+                    OccurrenceValue(key=key, value=item.value, occurrence=identity)
+                    for _ in range(repeat_count)
+                )
+    return EvaluationContext(bag=bag, occurrence_values=tuple(scoped))
+
+
 def value_bag(index: MrgStructureIndex, values: tuple[FieldValue, ...]) -> dict[str, list[str]]:
     """Turn fields written the guide's way into the bag the evaluator reads.
 
@@ -82,18 +146,7 @@ def value_bag(index: MrgStructureIndex, values: tuple[FieldValue, ...]) -> dict[
     was, so a value has to reach every entry it genuinely satisfies — otherwise a rule
     would appear to fail on a message that does contain what it asks for.
     """
-    bag: dict[str, list[str]] = {}
-    for item in values:
-        number = item.tag[:2]
-        for field in index.mrg_fields:
-            if field.sequence_path.upper() != item.sequence_path.upper():
-                continue
-            if field.tag not in {item.tag, number}:
-                continue
-            if field.qualifier not in {item.qualifier, None}:
-                continue
-            bag.setdefault(field.key, []).extend([item.value] * item.occurrences)
-    return bag
+    return {key: list(values) for key, values in evaluation_context(index, values).bag.items()}
 
 
 def evaluate_case(
@@ -111,12 +164,12 @@ def evaluate_case(
     )
     if compiled is None:
         return None
-    bag = value_bag(reading.index, case.values)
+    context = evaluation_context(reading.index, case.values)
     rule = compiled.rule
-    if rule.when is not None and not evaluate(rule.when, bag, compiled.bindings):
+    if rule.when is not None and not evaluate(rule.when, context, compiled.bindings):
         observed = Expectation.HOLDS
         detail = "The rule's condition is not met, so it imposes nothing."
-    elif evaluate(rule.assert_, bag, compiled.bindings):
+    elif evaluate(rule.assert_, context, compiled.bindings):
         observed = Expectation.HOLDS
         detail = "The message satisfies the rule."
     else:
@@ -429,5 +482,62 @@ ANCHOR_CASES: tuple[CandidateCase, ...] = (
             "MT540 C1 lists :19A::BOOK among the amounts it constrains; the MT541 guide "
             "does not list it at all."
         ),
+    ),
+    # -- MT540 C8 / MT541 C9 (E52): PSET excludes account in the same E1 occurrence -----
+    CandidateCase(
+        name="PSET and account in different E1 occurrences",
+        message_type="MT541",
+        source_rule_id="C9",
+        expectation=Expectation.HOLDS,
+        values=(
+            FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=1),
+            FieldValue("E1", "97A", "SAFE", "SAFE-ACCOUNT", occurrence=2),
+        ),
+        rationale="The account is not in the E1 occurrence that carries PSET.",
+    ),
+    CandidateCase(
+        name="PSET and account in same E1 occurrence",
+        message_type="MT541",
+        source_rule_id="C9",
+        expectation=Expectation.VIOLATED,
+        values=(
+            FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=1),
+            FieldValue("E1", "97A", "SAFE", "SAFE-ACCOUNT", occurrence=1),
+        ),
+        rationale="The same E1 occurrence carries both fields.",
+    ),
+    CandidateCase(
+        name="only the PSET occurrence fails",
+        message_type="MT541",
+        source_rule_id="C9",
+        expectation=Expectation.VIOLATED,
+        values=(
+            FieldValue("E1", "95P", "DEAG", "DEAGGB2LXXX", occurrence=1),
+            FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=2),
+            FieldValue("E1", "97A", "SAFE", "SAFE-ACCOUNT", occurrence=2),
+        ),
+        rationale="The unrelated E1 occurrence does not affect the failing PSET one.",
+    ),
+    CandidateCase(
+        name="MT540 PSET and account in different E1 occurrences",
+        message_type="MT540",
+        source_rule_id="C8",
+        expectation=Expectation.HOLDS,
+        values=(
+            FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=1),
+            FieldValue("E1", "97A", "SAFE", "SAFE-ACCOUNT", occurrence=2),
+        ),
+        rationale="MT540 C8 is the same E52 same-occurrence rule under its own number.",
+    ),
+    CandidateCase(
+        name="MT540 PSET and account in same E1 occurrence",
+        message_type="MT540",
+        source_rule_id="C8",
+        expectation=Expectation.VIOLATED,
+        values=(
+            FieldValue("E1", "95P", "PSET", "PSETGB2LXXX", occurrence=1),
+            FieldValue("E1", "97A", "SAFE", "SAFE-ACCOUNT", occurrence=1),
+        ),
+        rationale="MT540 C8 fails only when both fields share the same E1 occurrence.",
     ),
 )

@@ -22,12 +22,14 @@ row from the table below based on why you are here.
 | Review MT Prowide structural evidence | [mt-structure-importer.md](mt-structure-importer.md) |
 | Ingest MT semantic rule sources | [mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md) |
 | Read a SWIFT Message Reference Guide as evidence | [mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md) |
+| Understand occurrence-scoped rule evaluation | [rule-occurrence-semantics.md](rule-occurrence-semantics.md) |
 | Demo the platform to a client | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Know what to ask a client for | [AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md) |
 | Know what is and is not supported | [limitations.md](limitations.md) |
 | Know what the AI does | [ai-assistance.md](ai-assistance.md) |
 | Review the security posture | [security.md](security.md) |
 | Run or add tests | [testing.md](testing.md) |
+| Run Phase 5C internal UAT | [testing/phase-05c-internal-uat-checklist.md](testing/phase-05c-internal-uat-checklist.md) |
 | Use the lifecycle / corporate-action screens | [advanced-workflows.md](advanced-workflows.md) |
 | See the design decisions behind the UI | [DESIGN.md](DESIGN.md) |
 | See who this is for and why | [PRODUCT.md](PRODUCT.md) |
@@ -75,6 +77,7 @@ row from the table below based on why you are here.
     ├── specification-engine-plan.md   the phased architecture programme (Phases 0–7)
     ├── specification-rule-engine.md   business rules as reviewed, evidence-backed configuration
     ├── rule-pack-format.md            what a rule pack contains and what it may claim
+    ├── rule-occurrence-semantics.md   `rule-dsl/2` occurrence identity and scoped evaluation
     ├── rule-source-handling.md        licensed source documents, and what may be committed
     ├── specification-rule-engine-plan.md   the Phase 2 architecture plan
     ├── mt-structure-importer.md       Prowide-derived MT structure evidence, build-time only
@@ -87,6 +90,7 @@ row from the table below based on why you are here.
     ├── ai-assistance.md               what the AI layer does (and does not)
     ├── security.md                    threat model and controls
     ├── testing.md                     run tests, add tests, the CI gate
+    ├── testing/                       concise manual UAT checklists
     ├── limitations.md                 explicit non-guarantees
     │
     │   Machine-generated
@@ -110,13 +114,18 @@ row from the table below based on why you are here.
 | [generated/mt-prowide-structure-diff.md](generated/mt-prowide-structure-diff.md) | `make mt-prowide-reports-write` |
 | [generated/mt-semantic-readiness.md](generated/mt-semantic-readiness.md) | `make mt-rule-readiness-write` |
 | [generated/mt-semantic-source-readiness.md](generated/mt-semantic-source-readiness.md) | `make mt-rule-readiness-write` |
+| [generated/mt540-mt541-sr2026-rule-fidelity.md](generated/mt540-mt541-sr2026-rule-fidelity.md) | `make mt-mrg-reports-write` |
+| [generated/mt540-sr2026-rule-review.md](generated/mt540-sr2026-rule-review.md) | `make mt-mrg-reports-write` |
+| [generated/mt541-sr2026-rule-review.md](generated/mt541-sr2026-rule-review.md) | `make mt-mrg-reports-write` |
+| [generated/mt-sr2026-semantic-readiness.md](generated/mt-sr2026-semantic-readiness.md) | `make mt-mrg-reports-write` |
 
 Do not edit generated files by hand. `make coverage` fails the build if message coverage
 is stale. It covers every configured message in both formats, and every figure in it is
 measured from the real component rather than read from a flag. `GET /api/v1/coverage`
 serves the same data. `make mt-prowide-check` fails the build if the Prowide-generated
 reports are stale. `make mt-rule-check` fails the build if the MT semantic readiness
-reports or synthetic MT corpus drift.
+reports or synthetic MT corpus drift. `make mt-mrg-check` fails if the SR2026 MT540/MT541
+Message Reference Guide fixture or generated reviewer reports drift.
 
 [authoritative-sources.md](authoritative-sources.md) is the procedure for importing a
 licensed specification, schema or client guideline — where each one goes and what it

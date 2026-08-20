@@ -107,20 +107,23 @@ deterministically — identity, sections, Format Specifications, qualifier table
 Validated Rules — and translates the rules it recognises into candidate expressions
 compiled by the ordinary compiler. The two guides read are **SR2026**, which goes live on
 14 November 2026 and is therefore a **future-test** lane, never current-live. MT540 states
-18 Network Validated Rules and MT541 states 20; 15 translate exactly, 15 more weakly than
-stated, 8 not at all. Every candidate is `REVIEW_REQUIRED`, none is written to
+18 Network Validated Rules and MT541 states 20. After Phase 5C, occurrence-scoped
+candidate expressions are represented through the generic `rule-dsl/2`
+`forEachOccurrence` primitive: 23 translate exactly, 15 more weakly than stated, and 0 are
+unsupported. Every candidate is `REVIEW_REQUIRED`, none is written to
 `config/rules/`, and runtime activations are **0**. The documents are licensed and live in
 an ignored drop directory; what is committed is derived metadata
 (`backend/tests/fixtures/mt_mrg/`), which is what lets `make check` verify the pipeline on
 a machine that has never held one. See
 [mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md),
+[rule-occurrence-semantics.md](rule-occurrence-semantics.md),
 [generated/mt-sr2026-semantic-readiness.md](generated/mt-sr2026-semantic-readiness.md) and
 the reviewer packages in `docs/generated/mt54*-sr2026-rule-review.md`.
 
 **Verification status (all passing):**
 
 ```
-1431 backend tests (pytest)     ruff: clean      mypy --strict: clean (194 files)
+1446 backend tests (pytest)     ruff: clean      mypy --strict: clean (195 files)
  80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: six jobs on every PR and every push to main    see §11
 production build: clean         migrations: up/down/up clean
@@ -292,7 +295,7 @@ backend/tests/studio/test_coverage_and_sources.py  coverage is measured, not dec
 backend/tests/studio/test_message_diff.py     every difference is attributed correctly
 backend/tests/studio/test_mx_lifecycle.py     the four cancellation/modification messages
 backend/tests/rule_engine/test_mt_semantics.py Phase 5A MT source/reference/runtime boundaries
-backend/tests/rule_engine/test_mt_mrg.py      Phase 5B guide reading, release isolation, candidate proofs
+backend/tests/rule_engine/test_mt_mrg.py      Phase 5B/5C guide reading, release isolation, occurrence-aware candidate proofs
 backend/tests/studio/test_excel_api.py        templates, parsing, upload guards
 backend/tests/studio/test_studio_api.py       the /api/v1 contract
 backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay readable
@@ -437,6 +440,10 @@ operator **declaration**, and the platform never converts it into a compliance c
   client.
 - **Rule evaluation is pure.** No clock, no randomness, no I/O, no model — the platform
   validates identically with AI access switched off.
+- **Occurrence scope is internal rule data, not a runtime structure writer.** `rule-dsl/2`
+  can evaluate an assertion per repeating sequence occurrence when the caller supplies an
+  `EvaluationContext`; legacy flat value bags keep the original global semantics. This
+  closed MT540/MT541 SR2026 candidate gaps without installing those candidates.
 
 ---
 
@@ -780,10 +787,11 @@ Defects found and fixed while building this. These are the ones likely to recur:
     a runtime fact by the calendar moving.
 39. **A translation may say less than the source; it may never say more.** A weaker rule
     misses a violation a reviewer can still catch. A stronger rule rejects messages SWIFT
-    accepts, which is the one outcome a testing platform must never produce. Five MT540/541
-    rules constrain fields *within one occurrence* of a repeating subsequence and are
-    recorded `UNSUPPORTED` rather than approximated by presence — the presence version
-    forbids combinations the source permits.
+    accepts, which is the one outcome a testing platform must never produce. Phase 5B
+    recorded occurrence-local MT540/541 rules as `UNSUPPORTED` rather than approximating
+    them globally. Phase 5C added generic occurrence scope and recovered those candidates,
+    while still leaving component, format-option, paired-code and distinct-occurrence
+    clauses partial where the engine does not model them.
 40. **A page number is not a row number.** The Format Specifications table numbers its rows
     in a right-hand column, and a wrapped row leaves that number alone on a line —
     indistinguishable from a page number at the foot of the page. Deleting "furniture" by

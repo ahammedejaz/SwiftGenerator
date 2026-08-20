@@ -19,12 +19,16 @@ from dataclasses import dataclass
 
 from app.rule_engine.dsl import (
     AllOf,
+    AnyOf,
     Expression,
+    ForEachOccurrence,
     Implication,
     Implies,
+    OccurrenceAssertion,
     Operator,
     Predicate,
     Subject,
+    walk,
 )
 from app.rule_engine.mt_mrg.formatspec import MrgStructure
 from app.rule_engine.mt_mrg.rules import (
@@ -133,6 +137,42 @@ def _count(reference: RuleReference, operator: Operator, value: int) -> Predicat
 
 def _implies(condition: Expression, consequence: Expression) -> Implies:
     return Implies(implies=Implication(if_=condition, then=consequence))
+
+
+def _all(expressions: tuple[Expression, ...]) -> Expression:
+    return expressions[0] if len(expressions) == 1 else AllOf(all_of=expressions)
+
+
+def _any(expressions: tuple[Expression, ...]) -> Expression:
+    return expressions[0] if len(expressions) == 1 else AnyOf(any_of=expressions)
+
+
+def _for_each(sequence_path: str, assertion: Expression) -> ForEachOccurrence:
+    return ForEachOccurrence(
+        for_each_occurrence=OccurrenceAssertion(
+            sequence_path=sequence_path,
+            assert_=assertion,
+        )
+    )
+
+
+def _within_sequence_count(
+    structure: MrgStructure, reference: RuleReference, operator: Operator, value: int
+) -> Expression:
+    sequence = structure.sequence(reference.sequence_path)
+    predicate = _count(reference, operator, value)
+    if sequence is not None and sequence.repetitive:
+        return _for_each(reference.sequence_path, predicate)
+    return predicate
+
+
+def _uses_occurrence_scope(*nodes: Expression | None) -> bool:
+    return any(
+        isinstance(item, ForEachOccurrence)
+        for node in nodes
+        if node is not None
+        for item in walk(node)
+    )
 
 
 def _name(reference: RuleReference) -> str:
@@ -391,21 +431,19 @@ def _build_exchange_rate_pair(
     return TemplateMatch(
         template="EXCHANGE_RATE_REQUIRES_RESULTING_AMOUNT",
         when=None,
-        assertion=AllOf(
-            all_of=(
-                _implies(_exists(first), _exists(second)),
-                _implies(_absent(first), _absent(second)),
+        assertion=_for_each(
+            sequence,
+            AllOf(
+                all_of=(
+                    _implies(_exists(first), _exists(second)),
+                    _implies(_absent(first), _absent(second)),
+                )
             )
         ),
         references=(first, second),
         interpretation=(
-            f"{_name(second)} must be present when {_name(first)} is, and must be absent "
-            "when it is not."
-        ),
-        fidelity=RuleFidelity.PARTIAL,
-        residual=(
-            "The source requires the resulting amount in the *same* occurrence of the "
-            "subsequence; this expression only requires it somewhere in the message.",
+            f"Within each occurrence of {sequence}, {_name(second)} must be present when "
+            f"{_name(first)} is, and must be absent when it is not."
         ),
     )
 
@@ -569,19 +607,30 @@ def _build_same_occurrence_forbidden(
     for extra in _all_fields(rule.text, structure, sequence):
         if all(item.canonical_id != extra.canonical_id for item in named):
             named.append(extra)
+    if second.field_number == "97":
+        conditions = tuple(item for item in named if item.field_number != "97")
+        prohibited = tuple(item for item in named if item.field_number == "97")
+    else:
+        conditions = (first,)
+        prohibited = tuple(item for item in named if item.canonical_id != first.canonical_id)
+    if not conditions or not prohibited:
+        return None
     return TemplateMatch(
         template="SAME_OCCURRENCE_EXCLUSION",
-        when=_exists(first),
-        assertion=_absent(second),
-        references=tuple(named),
-        interpretation="",
-        fidelity=RuleFidelity.UNSUPPORTED,
-        residual=(
-            f"The source forbids {_name(second)} only in the occurrence of {sequence} that "
-            f"carries {_name(first)}. Forbidding it anywhere in {sequence} would reject "
-            "messages the source allows.",
+        when=None,
+        assertion=_for_each(
+            sequence,
+            _implies(
+                _any(tuple(_exists(item) for item in conditions)),
+                _all(tuple(_absent(item) for item in prohibited)),
+            ),
         ),
-        reason=UnsupportedReason.OCCURRENCE_SCOPE_NOT_EXPRESSIBLE,
+        references=tuple(named),
+        interpretation=(
+            f"Within each occurrence of {sequence}, when "
+            f"{' or '.join(_name(item) for item in conditions)} is present, "
+            f"{' and '.join(_name(item) for item in prohibited)} must be absent."
+        ),
     )
 
 
@@ -641,16 +690,23 @@ def _build_at_most_twice_option(
         return TemplateMatch(
             template="AT_MOST_TWICE_WITH_ONE_OPTION",
             when=None,
-            assertion=_count(references[0], Operator.LESS_OR_EQUAL, 2),
-            references=tuple(references),
-            interpretation="",
-            fidelity=RuleFidelity.UNSUPPORTED,
-            residual=(
-                "Part of the source rule limits the count *within each occurrence* of a "
-                "repeating subsequence. A message-wide count would reject messages the "
-                "source allows.",
+            assertion=_all(
+                tuple(
+                    _within_sequence_count(structure, item, Operator.LESS_OR_EQUAL, 2)
+                    for item in references
+                )
             ),
-            reason=UnsupportedReason.OCCURRENCE_SCOPE_NOT_EXPRESSIBLE,
+            references=tuple(references),
+            interpretation=(
+                "Within each relevant occurrence, each listed field may appear at most "
+                "twice."
+            ),
+            fidelity=RuleFidelity.PARTIAL,
+            residual=(
+                "The source also requires exactly one of the two occurrences to use a "
+                "named format option; a reference resolves to a field, not to a format "
+                "option.",
+            ),
         )
     return TemplateMatch(
         template="AT_MOST_TWICE_WITH_ONE_OPTION",
@@ -780,19 +836,21 @@ def _build_split_settlement_value_date(
         assertion=AllOf(
             all_of=(
                 _equals(condition_indicator, match.group("bvalue")),
-                _exists(amount),
+                _for_each(
+                    match.group("sequence"),
+                    _implies(_exists(value_date), _exists(amount)),
+                ),
             )
         ),
         references=(value_date, condition_indicator, amount),
         interpretation=(
             f"When {_name(value_date)} is present, {_name(condition_indicator)} must carry "
-            f"{match.group('bvalue')} and {_name(amount)} must be present."
+            f"{match.group('bvalue')} and {_name(amount)} must be present in the same "
+            "subsequence occurrence."
         ),
         fidelity=RuleFidelity.PARTIAL,
         residual=(
-            "The source ties the settlement amount to the *same* occurrence of the "
-            "subsequence as the value date, and requires no data source scheme on the "
-            "condition indicator.",
+            "The source also requires no data source scheme on the condition indicator.",
         ),
     )
 
@@ -901,7 +959,11 @@ def _finalise(
             "The guide suspends this rule where a data source scheme is present; a "
             "reference resolves to a field, not to one of its components."
         )
-    if fidelity is RuleFidelity.EXACT and OCCURRENCE_SCOPED.search(rule.text):
+    if (
+        fidelity is RuleFidelity.EXACT
+        and OCCURRENCE_SCOPED.search(rule.text)
+        and not _uses_occurrence_scope(produced.when, produced.assertion)
+    ):
         fidelity = RuleFidelity.PARTIAL
         residual.append(
             "The guide scopes part of this rule to one occurrence of a repeating "

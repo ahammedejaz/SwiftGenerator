@@ -119,6 +119,10 @@ class ResolvedFieldRef:
     codes: tuple[str, ...]
     #: The address a validation finding points at, so "go to this field" keeps working.
     location: str
+    #: Structural scope the field belongs to, where the format has one.
+    sequence_path: str | None = None
+    #: Maximum occurrences of the containing structural scope, not just this field.
+    sequence_max_occurs: int = 1
     #: True when the structure requires this field in every message — the element is
     #: mandatory and so is every container above it. A rule that forbids such a field can
     #: never be satisfied, which is worth refusing at compile time.
@@ -207,6 +211,9 @@ class StructureIndex:
             required_sequences = {
                 sequence.path for sequence in specification.sequences if sequence.min_occurs >= 1
             }
+            sequence_limits = {
+                sequence.path: sequence.max_occurs for sequence in specification.sequences
+            }
             return [
                 ResolvedFieldRef(
                     canonical=f"MT|{row.row_id}",
@@ -217,6 +224,8 @@ class StructureIndex:
                     max_occurs=row.max_occurs,
                     codes=tuple(row.allowed_codes),
                     location=row.row_id,
+                    sequence_path=row.sequence_path,
+                    sequence_max_occurs=sequence_limits.get(row.sequence_path, 1),
                     always_present=(
                         row.presence is PresenceRule.MANDATORY
                         and row.sequence_path in required_sequences
@@ -238,6 +247,8 @@ class StructureIndex:
                     max_occurs=item.element.max_occurs,
                     codes=tuple(item.element.codes),
                     location=item.path,
+                    sequence_path=item.path.rsplit("/", 1)[0],
+                    sequence_max_occurs=item.element.max_occurs,
                     always_present=item.mandatory_chain,
                 )
                 for item in self._mx.leaves(message_type)
@@ -282,6 +293,8 @@ class StructureIndex:
             max_occurs=resolved.max_occurs,
             codes=resolved.codes,
             location=resolved.location,
+            sequence_path=resolved.sequence_path,
+            sequence_max_occurs=resolved.sequence_max_occurs,
             always_present=resolved.always_present,
         )
 
