@@ -638,8 +638,13 @@ def render_readiness(
         "",
         "| Status | Value |",
         "| --- | --- |",
-        "| `REAL_MT_SEMANTIC_SOURCE_AVAILABLE` | "
+        # Scoped in the key rather than in the value. The Phase 5A readiness document
+        # answers `REAL_MT_SEMANTIC_SOURCE_AVAILABLE` for every release at once, and the
+        # same key answering a different question here is how an automated reader ends up
+        # treating a future-test source as a current-live one.
+        "| `SR2026_SEMANTIC_SOURCE_AVAILABLE` | "
         f"`{'YES' if guides else 'NO'}` |",
+        "| `CURRENT_LIVE_SEMANTIC_SOURCE_AVAILABLE` | `NO` |",
         "| `SOURCE_RELEASE` | `SR2026` |",
         "| `RELEASE_LANE` | `FUTURE_TEST` |",
         f"| `SR2026_GO_LIVE` | `{SR2026_GO_LIVE}` |",

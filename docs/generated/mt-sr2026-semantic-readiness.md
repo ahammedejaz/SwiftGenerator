@@ -7,7 +7,8 @@ a future release becoming readable is not the same as it becoming effective.
 
 | Status | Value |
 | --- | --- |
-| `REAL_MT_SEMANTIC_SOURCE_AVAILABLE` | `YES` |
+| `SR2026_SEMANTIC_SOURCE_AVAILABLE` | `YES` |
+| `CURRENT_LIVE_SEMANTIC_SOURCE_AVAILABLE` | `NO` |
 | `SOURCE_RELEASE` | `SR2026` |
 | `RELEASE_LANE` | `FUTURE_TEST` |
 | `SR2026_GO_LIVE` | `14 November 2026` |
