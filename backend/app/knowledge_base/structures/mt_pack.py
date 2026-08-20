@@ -179,6 +179,7 @@ def compile_mt_structures(
     report: SyncProgress,
     *,
     include_prowide: bool = True,
+    prowide_filter: tuple[str, ...] | None = None,
 ) -> None:
     from app.spec_engine.mt_prowide.extractor import load_extraction
 
@@ -213,6 +214,8 @@ def compile_mt_structures(
     for message_type in prowide_messages if include_prowide else {}:
         if "_" in message_type:
             continue  # STP/REMIT variants share the FIN type; recorded, not compiled
+        if prowide_filter is not None and message_type not in prowide_filter:
+            continue
         targets[(message_type, PROWIDE_RELEASE)] = "PROWIDE"
     for message_type, release in mrg_artifacts:
         targets[(message_type, release)] = "MRG"
@@ -1052,7 +1055,13 @@ def run_mt_gates(pack: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], list[
                 continue
             seen_groups.add(parent)
         try:
-            value = synthetic_value(row["format"], codes=row.get("allowedCodes") or None)
+            # A field whose format the source could not state (Prowide's CUSTOM) still
+            # takes a value; the composer's length check is all that applies to it.
+            value = (
+                synthetic_value(row["format"], codes=row.get("allowedCodes") or None)
+                if row["format"]
+                else "SYNTHETIC"
+            )
         except FormatUnsupported:
             return fail(
                 "SAMPLE",

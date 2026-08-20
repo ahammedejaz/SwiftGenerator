@@ -119,9 +119,12 @@ What it cannot say:
 - a field is mandatory in a message because a global field class exists
 - network validation, market practice or client usage rules are covered
 
-All non-configured Prowide source models remain inert candidates. The reports name
-structural differences between Prowide evidence and the configured subset, but this phase
-deliberately does not rewrite runtime MT structures from those differences.
+All non-configured Prowide source models remain inert candidates **in the configured
+lane**. The reports name structural differences between Prowide evidence and the configured
+subset, and nothing rewrites runtime MT structures from those differences. Since Phase 6 the
+same evidence is also compiled into local Structure Packs for a separate, explicitly named
+`KNOWLEDGE_PREVIEW` lane — see [the knowledge base section](#the-knowledge-base-and-any-message)
+below for what that does and does not establish.
 
 ## MT semantic rules need real semantic sources
 
@@ -156,8 +159,10 @@ What this means:
 
 | **sese.020 / sese.027 / sese.030 / sese.031** | Implemented and generatable — the cancellation and modification lifecycle generates, validates and round-trips end to end — but the four specifications are **UNVERIFIED**: their version numbers, root element names and element sets were modelled on the ISO 20022 idioms already in this repository, not reconciled against an authoritative message-definition report. Reconcile before any use beyond internal testing. |
 
-**Not implemented at all:** payments (`pacs.*`), cash management (`camt.*`) and
-reconciliation (`semt.*`).
+**Not in the configured lane:** payments (`pacs.*`), cash management (`camt.*`) and
+reconciliation (`semt.*`). Eight `pacs` schemas the operator supplied compile to
+`GENERATION_READY` structures in the knowledge-preview lane (below); nothing `camt.*` or
+`semt.*` has been supplied, so nothing of the kind exists.
 
 The extension point for all of these is a YAML file. See
 [ARCHITECTURE.md](ARCHITECTURE.md#adding-things).
@@ -265,6 +270,67 @@ location. That is a claim about *this evidence*, never about the standard:
 - **No candidate has been reviewed.** Machine checks establish that a candidate is well
   formed. Only a person reading the named page establishes that it is right.
 
+## The knowledge base and "any message"
+
+Phase 6 lets the platform index authorised sources an operator drops into an ignored local
+folder and, where deterministic structure evidence exists, generate test messages for
+message types nobody configured by hand. The limits on that are exact.
+
+- **"Any message" means any message with an authorised source *and* deterministic
+  structural evidence, as far as the gates prove — no further.** The evidence today is the
+  pinned Prowide `SR2025` fixture (274 MT models), the Format Specification tables of the
+  14 `SR2026` Message Reference Guides in the operator's folder, and 8 `pacs` XSDs. A
+  message outside that set does not exist to the platform, and no LLM is asked to invent
+  it.
+- **Readiness is a measured state, not a promise.** Of 293 message/release structures on
+  2026-08-20: 209 `GENERATION_READY` (201 MT, 8 MX), 10 `STRUCTURE_VERIFIED` (a sample
+  validated and composed, but `Compose(Parse(Compose(v)))` failed), 69
+  `STRUCTURE_AVAILABLE` (a pack loads but a gate failed — `QUALIFIER_EVIDENCE_MISSING`,
+  `FORMAT_FIDELITY_PARTIAL`, `MESSAGE_GENERATION_NOT_READY`, `STRUCTURE_SOURCE_CONFLICT`),
+  5 `KNOWLEDGE_ONLY` (MT035, MT043, MT048, MT049, MT096 — Prowide models with no block-4
+  fields). A `KNOWLEDGE_ONLY` message can be searched and asked about; it cannot be
+  generated, and the API says so with the blocker rather than producing something.
+- **`GENERATION_READY` is structure-backed test generation and nothing more.** Every preview
+  pack carries the same `limitations`: repetitive fields inside one sequence occurrence
+  render once; Network Validated Rules, usage rules, market practice and client rules are
+  not evaluated unless a reviewed Rule Pack is installed; not Swift certification,
+  conformance or proof of User Handbook completeness. The Prowide caveats above apply to
+  every MT preview pack unchanged.
+- **The preview lane is not the configured lane.** The 23 configured messages are
+  unchanged, still the default, and still the only ones with reviewed rule packs, golden
+  files and the full test suite behind them. A preview of a configured message in the
+  current-live release is not even listed beside it. Nothing promotes a preview pack into
+  `backend/config/`; that remains a reviewed commit.
+- **Three releases are in play and they are kept apart.** The configured lane is
+  `PUBLIC_UHB_REVIEW_2026_08_05`; Prowide evidence is `SR2025` (current live); the guides
+  are `SR2026`, which is not live until 14 November 2026 and is labelled `FUTURE_TEST`.
+  A future-release preview proves nothing about the current-live behaviour of that
+  message.
+- **Message Reference Guides are read for text and for Format Specification tables only.**
+  Their rules are not activated (see the previous section); their tables corroborate or
+  contradict Prowide structure and a contradiction is recorded, never resolved by guessing.
+- **Retrieval over the real corpus is lexical.** By default no licensed or unclassified
+  source's text may leave the machine, so none of the 23 real sources is embedded and
+  semantic search does not run over them. The hybrid lexical+semantic path is proven on the
+  synthetic fixture corpus and by a live probe, not on the licensed documents. Allowing it
+  is a deliberate two-setting decision by the operator, recorded on every source.
+- **AI answers are bounded, not deterministic.** The model proposes; the validator and
+  composer decide. Two runs against a live model may propose different valid values. The
+  validated-sample cache pins an answer once it passed, and the `scripted` provider pins the
+  deterministic seed for tests — but "the same request gives the same sample" holds only
+  while the cache key (structure checksum, rule packs, corpus version, prompt version,
+  provider, model) is unchanged.
+- **Citations point at a document, page and section.** They do not reproduce licensed text
+  unless the source's policy allows it. A reviewer still has to open the page.
+- **Identity is read from content.** A text or HTML document that is not a recognisable
+  guide is indexed as an operator-supplied document with whatever message and release its
+  text names, or none; a file that cannot be read at all is recorded as `UNREADABLE` with
+  the classification `LICENSED_UNKNOWN` — blocked from external processing like everything
+  else that is not a synthetic fixture. A suffix outside `.pdf .txt .md .markdown .html
+  .htm .xsd .xml .zip` is reported as unsupported and skipped.
+- **Still no SWIFT network, no MyStandards connection, no certification.** The knowledge
+  base reads files an operator already holds the rights to. It fetches nothing.
+
 ## External validation
 
 The platform accepts uploaded, checksum-correlated validation evidence. It does not
@@ -291,6 +357,10 @@ To be equally honest in the other direction:
   it refused to.
 - **All 46 samples across all 23 message types validate**, and a test asserts it — so a
   specification change that breaks one fails the build.
-- **1,397 automated tests** cover it: 1,317 backend, 80 in a real browser.
+- **Every `GENERATION_READY` preview structure earned the label** by loading, sampling,
+  validating, composing, parsing back and re-composing identically through the ordinary
+  engine — and for MX, by the source XSD accepting the output.
+- **1,642 automated tests** cover it: 1,546 backend (22 skipped, 6 live-only deselected),
+  96 in a real browser — measured 2026-08-21 on the Phase 6 branch.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
   `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.

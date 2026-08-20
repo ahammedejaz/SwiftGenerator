@@ -10,6 +10,10 @@ from app.config import get_settings, source_path
 from app.studio.models import Presence
 from app.studio.mx.models import FlatElement, MxElement, MxMessageSpec
 
+#: libyaml when available: a compiled pacs pack is thousands of lines, and the pure-Python
+#: loader makes a preview registry of eight of them a multi-second start.
+_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
 
 def _config_directory() -> Path:
     return source_path(get_settings().mx_specification_directory, "mx")
@@ -28,7 +32,7 @@ class MxRegistry:
         # names exactly one of them.
         for path in sorted(self._directory.glob("*.yaml")):
             with path.open(encoding="utf-8") as handle:
-                spec = MxMessageSpec.model_validate(yaml.safe_load(handle))
+                spec = MxMessageSpec.model_validate(yaml.load(handle, Loader=_LOADER))  # noqa: S506
             key = spec.version.lower()
             if key in self._specs:
                 raise ValueError(f"Duplicate MX specification: {spec.version}")

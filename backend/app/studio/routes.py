@@ -652,6 +652,8 @@ def _run_scenario(
         outputs=result.outputs,
         message_id=result.message_id,
         checksum=result.checksum,
+        lane=result.lane,
+        provenance=result.provenance,
     )
 
 

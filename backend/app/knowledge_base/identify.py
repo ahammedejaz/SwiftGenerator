@@ -190,6 +190,16 @@ def _identify_text(
 
     mt_best = _dominant(mt_counts)
     mx_best = _dominant(mx_counts)
+    # A document that talks about both families binds to neither unless one clearly
+    # dominates the other — the same two-to-one rule that picks a message within a family.
+    mt_total = sum(mt_counts.values())
+    mx_total = sum(mx_counts.values()) + sum(logical_counts.values())
+    if mt_total and mx_total:
+        if mt_total < 2 * mx_total:
+            mt_best = None
+        if mx_total < 2 * mt_total:
+            mx_best = None
+            logical_counts = Counter()
     if mt_best and not mx_best:
         return ParsedSource(
             text,

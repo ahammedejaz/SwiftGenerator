@@ -112,10 +112,18 @@ def render_readiness() -> str:
         "Gates passed | Blocking reason |",
         "|---|---|---|---|---|---|---|---|",
     ]
+    from app.studio.catalogue import _shadowed_by_configured
+    from app.studio.models import MessageFormat
+
+    shadowed = 0
     for (fmt, mt, release), item in sorted(by_key.items()):
+        readiness = item["readiness"]
+        if _shadowed_by_configured(MessageFormat(fmt), mt, release or ""):
+            shadowed += 1
+            readiness = f"{readiness} (not listed: configured lane serves this release)"
         lines.append(
             f"| {fmt} | {mt} | {release or '—'} | {item['sources']} | {item['structureSource']} | "
-            f"{item['readiness']} | {item['gates']} | {item['blockers']} |"
+            f"{readiness} | {item['gates']} | {item['blockers']} |"
         )
     lines += [
         "",
@@ -124,6 +132,15 @@ def render_readiness() -> str:
         "Embedding indexed: see knowledge-rag-coverage.md. Excel and JSON API: available for "
         "every GENERATION_READY row through `lane=KNOWLEDGE_PREVIEW`.",
     ]
+    if shadowed:
+        lines += [
+            "",
+            f"{shadowed} preview structure(s) above carry the same message and current-live "
+            "release as a configured pack. The catalogue does not list them beside the "
+            "configured entry — the reviewed pack is the authority for that release — but "
+            "their structure evidence is recorded here and on "
+            "`GET /api/v1/knowledge/messages/{message}/status`.",
+        ]
     return _normalise(lines)
 
 

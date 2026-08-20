@@ -114,8 +114,9 @@ business language, and there is an **ℹ** button next to each one that explains
 | **Recent Messages** | Everything you generated lately, ready to download again. |
 
 There is also an **Advanced** page holding specialist workflows (settlement lifecycle,
-corporate actions, penalties, the approval stack). You do not need any of it to make a
-message.
+corporate actions, penalties, the approval stack) and, since Phase 6, the **Knowledge
+Base** screen — what is indexed, how ready each discovered message is, and search with
+citations. You do not need any of it to make a message.
 
 ---
 
@@ -138,6 +139,20 @@ change one value and generate it again. It then shows you exactly what differs b
 message you pasted and the one it built, and *why*: a value you changed, a field written in
 specification order, or something a messaging interface supplies that the tool refuses to
 invent.
+
+### Beyond the configured 23: the knowledge base
+
+If you hold authorised SWIFT Message Reference Guides or ISO 20022 schemas, drop them into
+an ignored local folder (`swiftKnowledgeBase/`), run `make knowledge-sync`, and the studio
+indexes them for search, lets a model draft samples grounded in them with page-level
+citations, and — where deterministic structure evidence exists — generates test messages
+for types nobody configured by hand, in a separate, clearly labelled **knowledge-preview
+lane**. On the operator's folder that is 209 generation-ready message/release structures
+beside the 23 configured ones; a message without structural evidence can be searched but
+is never generated, and the readiness report names the exact blocker. Nothing licensed is
+ever committed, and no source text leaves the machine unless you say so twice. See
+[docs/universal-financial-message-rag.md](docs/universal-financial-message-rag.md) and
+[docs/knowledge-source-handling.md](docs/knowledge-source-handling.md).
 
 ### An honest note about coverage
 
@@ -164,7 +179,10 @@ Two audiences, in the order you should read.
 | If you want to… | Read |
 |---|---|
 | Make your first message | [docs/for-manual-testers.md](docs/for-manual-testers.md) |
-| Call it from a test suite | [docs/for-automation-testers.md](docs/for-automation-testers.md) |
+| Call it from a test suite | [docs/for-automation-testers.md](docs/for-automation-testers.md) · [docs/automation-api.md](docs/automation-api.md) |
+| Index your own guides and schemas | [docs/knowledge-source-handling.md](docs/knowledge-source-handling.md) |
+| Let a model draft a sample from a business request | [docs/ai-assisted-authoring.md](docs/ai-assisted-authoring.md) |
+| Run the Phase 6 manual checklist | [docs/testing/phase-06-universal-rag-uat-checklist.md](docs/testing/phase-06-universal-rag-uat-checklist.md) |
 | Understand a message format | [docs/how-messages-are-built.md](docs/how-messages-are-built.md) |
 | Know exactly what is and is not supported | [docs/limitations.md](docs/limitations.md) |
 | Demo this to somebody in twenty minutes | [docs/CLIENT_DEMO_RUNBOOK.md](docs/CLIENT_DEMO_RUNBOOK.md) |
@@ -174,6 +192,8 @@ Two audiences, in the order you should read.
 | If you want to… | Read |
 |---|---|
 | Understand how the pieces fit together | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Understand the knowledge base and preview lane | [docs/universal-financial-message-rag.md](docs/universal-financial-message-rag.md) |
+| Read what Phase 6 built and measured | [docs/history/specification-engine-phase-06-report.md](docs/history/specification-engine-phase-06-report.md) |
 | Tour the backend service | [backend/README.md](backend/README.md) |
 | Tour the frontend app | [frontend/README.md](frontend/README.md) |
 | Know how a message is defined (the source of truth) | [backend/config/README.md](backend/config/README.md) |
@@ -202,7 +222,12 @@ make build       # production frontend build
 make coverage       # fail if the message-coverage report is out of date
 make coverage-write # regenerate it
 make secret-scan    # no secret-shaped strings in tracked files
+make knowledge-sync     # index swiftKnowledgeBase/ (add KNOWLEDGE_SOURCE_DIR=a,b for more roots)
+make knowledge-status   # what is indexed, and the embedding/LLM policy in force
+make knowledge-dev      # sync, then run the API in local UAT mode (enables the sync endpoint)
+make knowledge-reports-write   # regenerate the three docs/generated knowledge reports
 ```
 
-`make check` runs lint, typecheck, the full test suite and the coverage gate together — run
-it before you push.
+`make check` runs lint, typecheck, the full test suite, the coverage gate and the offline
+knowledge-retrieval evaluation together — run it before you push. It needs no PDF, no
+schema and no key.

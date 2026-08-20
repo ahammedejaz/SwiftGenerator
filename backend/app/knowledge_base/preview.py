@@ -76,7 +76,18 @@ class PreviewRegistries:
         self._load_structures()
         mt_dir = self.pack_dir / "mt"
         if mt_dir.is_dir():
+            # A pack the compiler already judged KNOWLEDGE_ONLY (no structure to load —
+            # e.g. a Prowide model without block-4 fields) is not a load failure; its
+            # status row says why. Only packs that claim a structure are loaded.
+            knowledge_only = {
+                (message_type, release)
+                for (format_, message_type, release), status in self.structures.items()
+                if format_ == "MT" and status.readiness is Readiness.KNOWLEDGE_ONLY
+            }
             for path in sorted(mt_dir.glob("*.yaml")):
+                stem = path.stem.split("-", 1)
+                if len(stem) == 2 and (stem[0], stem[1]) in knowledge_only:
+                    continue
                 try:
                     spec = load_mt_pack(path)
                 except Exception as error:  # noqa: BLE001 - one bad pack must not hide the rest

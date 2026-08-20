@@ -56,6 +56,8 @@ class SyncOptions:
     #: Compile the committed Prowide evidence as well as discovered sources. Tests that only
     #: care about their own fixtures switch it off; the operator's sync keeps it on.
     include_prowide: bool = True
+    #: Restrict Prowide compilation to these message types (tests); None means all.
+    prowide_filter: tuple[str, ...] | None = None
 
 
 class KnowledgeIndexer:
@@ -118,6 +120,7 @@ class KnowledgeIndexer:
                     self._pack_dir,
                     report,
                     include_prowide=opts.include_prowide,
+                    prowide_filter=opts.prowide_filter,
                 )
             self._write_corpus_version()
             if opts.write_manifest:
@@ -248,11 +251,15 @@ class KnowledgeIndexer:
             report.segments_reused += reused
             report.segments_created += len(segments) - reused
             self._database.delete_segments(connection, checksum)
+            self._database.delete_segments_for_source_id(connection, record.source_id)
             self._database.insert_segments(connection, checksum, segments)
             if artifact_problem and not record.failure_detail:
                 record.failure_detail = artifact_problem
             self._database.upsert_source(connection, record)
-            self._database.record_path(connection, item.relative_path, checksum, run_id)
+            orphaned = self._database.record_path(connection, item.relative_path, checksum, run_id)
+            if orphaned is not None and orphaned != checksum:
+                # The previous bytes of this document: no path holds them any more.
+                self._database.tombstone_source(connection, orphaned)
             if artifact is not None:
                 from app.knowledge_base.structures.mrg import MRG_STRUCTURE_KIND
 

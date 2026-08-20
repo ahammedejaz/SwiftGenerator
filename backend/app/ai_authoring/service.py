@@ -751,6 +751,10 @@ def ai_sample(
             cache_status="HIT",
             attempts=0,
             repair_log=[],
+            outcome=str(cached.get("outcome") or "CACHE"),
+            # The proof travels with the cached values: the round trip was run when the
+            # sample was first validated, and the structure checksum is part of the key.
+            round_trip=cached.get("roundTrip"),
         )
 
     seed_values = _seed_values(spec, variant)

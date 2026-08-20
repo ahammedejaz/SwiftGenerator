@@ -4,8 +4,24 @@ import { defineConfig, devices } from "@playwright/test";
  *  the first test. Thirty seconds is comfortable locally and marginal in CI. */
 const CI_SERVER_TIMEOUT_MS = process.env.CI ? 180_000 : 30_000;
 
+/**
+ * The knowledge base the AI-authoring specs run against. Built from the synthetic fixture
+ * corpus under backend/tests/fixtures/knowledge into ignored build/ paths, by global-setup,
+ * before either server starts. Paths are relative to the repository root; the backend
+ * resolves them itself. The same values go to the backend so it reads what setup wrote.
+ */
+export const KNOWLEDGE_ENV = {
+  KNOWLEDGE_AI_PROVIDER: "scripted",
+  KNOWLEDGE_SOURCE_DIR: "backend/tests/fixtures/knowledge",
+  KNOWLEDGE_DB_PATH: "build/knowledge-e2e/knowledge.sqlite3",
+  KNOWLEDGE_PACK_DIR: "build/knowledge-e2e/packs",
+  KNOWLEDGE_SOURCE_CACHE_DIR: "build/knowledge-e2e/cache",
+  EMBEDDING_PROVIDER: "fake",
+};
+
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -48,6 +64,11 @@ export default defineConfig({
         // past 600 requests a minute. The throttle itself is still tested, in
         // backend/tests/security/test_cors_and_throttling.py, which installs its own limiter.
         RATE_LIMIT_REQUESTS_PER_MINUTE: "1000000",
+        // local_uat exposes the sync endpoint, which the Knowledge Base page offers only
+        // when the backend says it may. The scripted provider answers from deterministic
+        // seeds, so no model is ever called and no key is needed.
+        KNOWLEDGE_MODE: "local_uat",
+        ...KNOWLEDGE_ENV,
       },
     },
     {

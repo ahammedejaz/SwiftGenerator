@@ -55,3 +55,10 @@ backend/config/rule_sources/*
 # dropped in locally for Phase 5B semantic ingestion. The bytes never enter Git; only
 # derived metadata (hashes, rule ids, page numbers) is committed.
 /swiftKnowledgeBase/
+
+# Phase 6 Knowledge Base: the SQLite index (segments, embedding vectors, sample cache),
+# extracted source cache and compiled dynamic packs are derived from licensed sources and
+# live outside Git. Only docs/generated reports (counts, hashes, no source text) are tracked.
+build/knowledge/
+build/knowledge-e2e/
+build/knowledge-*/

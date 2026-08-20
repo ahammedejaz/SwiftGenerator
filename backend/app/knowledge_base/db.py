@@ -364,13 +364,43 @@ class KnowledgeDatabase:
 
     def record_path(
         self, connection: sqlite3.Connection, relative_path: str, checksum: str, run_id: str
-    ) -> None:
+    ) -> str | None:
+        """Record that a path now holds these bytes.
+
+        Returns the checksum the path held before when no other path still holds it — the
+        previous version of a changed document, which the caller tombstones so its segments
+        and embeddings do not linger beside the new ones.
+        """
+        previous = connection.execute(
+            "SELECT checksum FROM knowledge_source_path WHERE relative_path = ?",
+            (relative_path,),
+        ).fetchone()
         connection.execute(
             "INSERT INTO knowledge_source_path(relative_path, checksum, seen_run) "
             "VALUES (?, ?, ?) ON CONFLICT(relative_path) DO UPDATE SET "
             "checksum = excluded.checksum, seen_run = excluded.seen_run",
             (relative_path, checksum, run_id),
         )
+        if previous is None or previous["checksum"] == checksum:
+            return None
+        remaining = connection.execute(
+            "SELECT COUNT(*) AS n FROM knowledge_source_path WHERE checksum = ?",
+            (previous["checksum"],),
+        ).fetchone()
+        return None if remaining and remaining["n"] else str(previous["checksum"])
+
+    def delete_segments_for_source_id(self, connection: sqlite3.Connection, source_id: str) -> None:
+        """Segment ids are derived from the source id, so a re-parsed document must shed the
+        segments of every earlier byte version before its new ones are written."""
+        checksums = [
+            str(row["checksum"])
+            for row in connection.execute(
+                "SELECT DISTINCT checksum FROM knowledge_segment WHERE source_id = ?",
+                (source_id,),
+            ).fetchall()
+        ]
+        for checksum in checksums:
+            self.delete_segments(connection, checksum)
 
     def paths_not_seen(self, connection: sqlite3.Connection, run_id: str) -> list[str]:
         rows = connection.execute(
@@ -660,7 +690,7 @@ class KnowledgeDatabase:
     def last_run(self) -> dict[str, Any] | None:
         with self.read() as connection:
             row = connection.execute(
-                "SELECT * FROM knowledge_index_run ORDER BY started_at DESC LIMIT 1"
+                "SELECT * FROM knowledge_index_run ORDER BY started_at DESC, rowid DESC LIMIT 1"
             ).fetchone()
             if row is None:
                 return None

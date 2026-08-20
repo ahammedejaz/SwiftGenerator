@@ -142,7 +142,8 @@ def _xsd_blocks(text: str) -> list[_Block]:
         if raw.startswith("## ") or current is None:
             if current is not None and current.text:
                 blocks.append(current)
-            current = _Block([], None, Section.ELEMENT_DEFINITION, raw[3:].strip()[:120] or None)
+            heading = raw[3:].strip()[:120] if raw.startswith("## ") else raw.strip()[:120]
+            current = _Block([], None, Section.ELEMENT_DEFINITION, heading or None)
             if not raw.startswith("## "):
                 current.section = Section.MESSAGE_DEFINITION
         if len(current.text) + len(raw) > MAX_SEGMENT_CHARS:

@@ -23,6 +23,7 @@ def compile_all(
     report: SyncProgress,
     *,
     include_prowide: bool = True,
+    prowide_filter: tuple[str, ...] | None = None,
 ) -> None:
     """Compile every structure the indexed sources support. Failures are recorded per
     message and never stop the run."""
@@ -30,6 +31,11 @@ def compile_all(
     from app.knowledge_base.structures.mx_pack import compile_mx_structures
 
     compile_mt_structures(
-        settings, database, pack_dir / "mt", report, include_prowide=include_prowide
+        settings,
+        database,
+        pack_dir / "mt",
+        report,
+        include_prowide=include_prowide,
+        prowide_filter=prowide_filter,
     )
     compile_mx_structures(settings, database, pack_dir / "mx", report)

@@ -97,6 +97,8 @@ export function RecentMessages() {
           warnings: [],
         },
         outputs: body.outputs,
+        lane: "CONFIGURED",
+        provenance: null,
         envelopeFields: [],
         renderedLines: [],
         checksum: message.checksum,

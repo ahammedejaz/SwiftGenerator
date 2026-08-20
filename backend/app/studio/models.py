@@ -252,7 +252,10 @@ class CatalogueFormat(ApiModel):
     label: str
     description: str
     business_areas: list[CatalogueBusinessArea]
+    #: Every listed entry in this format, both lanes.
     message_count: int
+    #: Entries served by the configured lane (reviewed packs); the rest are preview.
+    configured_message_count: int = 0
 
 
 class StudioCatalogue(ApiModel):
@@ -577,6 +580,10 @@ class ExcelScenarioResult(ApiModel):
     outputs: MessageOutputs | None = None
     message_id: str | None = None
     checksum: str | None = None
+    #: The lane the scenario was generated in and what that rests on (Phase 6). A failed
+    #: scenario has no provenance because nothing was generated.
+    lane: Lane = Lane.CONFIGURED
+    provenance: LaneProvenance | None = None
 
 
 class ExcelGenerateResponse(ApiModel):

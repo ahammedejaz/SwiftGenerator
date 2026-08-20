@@ -16,7 +16,11 @@ from app.profiles.loader import profiles
 from app.specifications.models import MessageSpecification
 from app.specifications.registry import specification_registry
 from app.studio.capability import (
+    BusinessRuleStatus,
     CapabilityDimensions,
+    ExternalValidationStatus,
+    OverlayStatus,
+    StructureStatus,
     capability_summary,
     derive_dimensions,
 )
@@ -581,7 +585,13 @@ def _knowledge_only_entry(
         authoritative_completeness_known=False,
         source_reference=structure_source or "KNOWLEDGE_BASE",
         limitations=["Generation is disabled: " + ", ".join(blockers or [readiness.value])],
-        capability=None,
+        capability=CapabilityDimensions(
+            structure=StructureStatus.UNVERIFIED,
+            business_rules=BusinessRuleStatus.NOT_CONFIGURED,
+            market_practice=OverlayStatus.NOT_CONFIGURED,
+            client_profile=OverlayStatus.NOT_CONFIGURED,
+            external_validation=ExternalValidationStatus.NOT_RUN,
+        ),
         capability_summary=label,
         lane=Lane.KNOWLEDGE_PREVIEW,
         release=release,
@@ -634,6 +644,9 @@ def build_catalogue(*, include_preview: bool = True) -> StudioCatalogue:
                 description=FORMAT_DESCRIPTIONS[format_],
                 business_areas=areas,
                 message_count=len(subset),
+                configured_message_count=sum(
+                    1 for entry in subset if entry.lane is Lane.CONFIGURED
+                ),
             )
         )
     return StudioCatalogue(
@@ -659,6 +672,8 @@ def _preview_entries() -> list[CatalogueEntry]:
     for (format_name, message_type, release), status in sorted(registries.structures.items()):
         seen.add((format_name, message_type, release))
         format_ = MessageFormat(format_name)
+        if _shadowed_by_configured(format_, message_type, release):
+            continue
         sources = source_counts.get((format_name, message_type, release), 0)
         if status.generation_ready:
             try:
@@ -706,6 +721,8 @@ def _preview_entries() -> list[CatalogueEntry]:
     for (format_name, message_type, release), count in sorted(source_counts.items()):
         if (format_name, message_type, release) in seen or format_name not in {"MT", "MX"}:
             continue
+        if _shadowed_by_configured(MessageFormat(format_name), message_type, release):
+            continue
         entries.append(
             _knowledge_only_entry(
                 MessageFormat(format_name),
@@ -720,6 +737,20 @@ def _preview_entries() -> list[CatalogueEntry]:
             )
         )
     return entries
+
+
+def _shadowed_by_configured(format_: MessageFormat, message_type: str, release: str) -> bool:
+    """A preview entry for the release the configured lane already serves is not listed:
+    the configured pack is the authority for that message in the current live release.
+    A future-release preview of the same message (MT541 SR2026 beside configured MT541)
+    is a different thing and stays listed."""
+    if format_ is MessageFormat.MT:
+        if not specification_registry.known(message_type):
+            return False
+        from app.knowledge_base.models import ReleaseLane, release_lane
+
+        return release_lane(release) is ReleaseLane.CURRENT_LIVE
+    return mx_registry.known(release)
 
 
 def resolve_format(message_type: str) -> MessageFormat:

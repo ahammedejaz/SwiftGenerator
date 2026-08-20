@@ -7,6 +7,7 @@ never an absolute path or a credential.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -262,7 +263,7 @@ class RetrievalResult:
                 document_type=_document_type(hit.segment),
                 section=hit.segment.section,
                 page=hit.segment.page,
-                heading=hit.segment.heading,
+                heading=_locator_heading(hit.segment.heading, allow_snippets),
                 segment_id=hit.segment.segment_id,
                 segment_hash=hit.segment.segment_hash,
                 score=round(hit.score, 6),
@@ -271,6 +272,22 @@ class RetrievalResult:
             )
             for hit in self.hits
         ]
+
+
+_RULE_HEADING = re.compile(r"^(C\d{1,3})\b")
+
+
+def _locator_heading(heading: str | None, allow_snippets: bool) -> str | None:
+    """A heading is a locator, not an excerpt. For licensed sources a rule heading is
+    reduced to the rule id and any heading is cut short, so a citation never carries a
+    sentence of the source; synthetic fixtures may show the full heading."""
+    if heading is None or allow_snippets:
+        return heading
+    text = heading.strip()
+    match = _RULE_HEADING.match(text)
+    if match:
+        return match.group(1)
+    return text if len(text) <= 60 else text[:57].rstrip() + "…"
 
 
 def _title(segment: SegmentRecord) -> str:

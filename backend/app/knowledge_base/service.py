@@ -94,6 +94,14 @@ class KnowledgeService:
 
     # -- wiring ----------------------------------------------------------------------------
 
+    def reconfigure(self, settings: Settings) -> None:
+        """Point the process-wide service at other settings (tests, and the sync endpoint
+        after it rebuilds the database). Never called on a request path."""
+        with self._lock:
+            self._settings = settings
+            self._database = KnowledgeDatabase(knowledge_db_path(settings))
+            self._embeddings = None
+
     @property
     def settings(self) -> Settings:
         return self._settings

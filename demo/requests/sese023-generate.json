@@ -79,5 +79,6 @@
     "businessMessageIdentifier": "SESE023DEMO0000001",
     "creationDate": "2026-08-16T09:00:00Z"
   },
-  "persist": false
+  "persist": false,
+  "lane": "CONFIGURED"
 }

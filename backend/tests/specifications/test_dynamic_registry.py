@@ -130,12 +130,14 @@ def test_catalogue_descriptions_come_from_the_manifest() -> None:
 
 def test_every_manifest_message_reaches_the_studio_catalogue() -> None:
     from app.studio.catalogue import build_catalogue
-    from app.studio.models import MessageFormat
+    from app.studio.models import Lane, MessageFormat
 
+    # The configured lane only: the knowledge-preview lane adds dynamic entries when a
+    # Knowledge Base is synced (the knowledge fixtures do so for the session).
     catalogue_types = {
         entry.message_type
         for entry in build_catalogue().messages
-        if entry.format is MessageFormat.MT
+        if entry.format is MessageFormat.MT and entry.lane is Lane.CONFIGURED
     }
     assert catalogue_types == set(
         spec.message_type for spec in specification_registry.list()

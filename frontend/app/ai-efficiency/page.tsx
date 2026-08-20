@@ -1,4 +1,5 @@
 import { AiEfficiencyDashboard } from "@/components/ai/AiEfficiencyDashboard";
+import { KnowledgeTelemetryPanel } from "@/components/ai/KnowledgeTelemetryPanel";
 
 export default function AiEfficiencyPage() {
   return (
@@ -11,6 +12,9 @@ export default function AiEfficiencyPage() {
         </p>
       </header>
       <AiEfficiencyDashboard />
+      <div className="mt-7">
+        <KnowledgeTelemetryPanel />
+      </div>
     </main>
   );
 }

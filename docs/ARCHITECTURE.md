@@ -80,6 +80,31 @@ produce FIN blocks. They meet only at the service that dispatches to them and at
 they both return. That separation is deliberate: the two standards are genuinely different,
 and blending them would produce plausible nonsense.
 
+Since Phase 6 there is a second thing beside that room, not inside it:
+
+```
+   swiftKnowledgeBase/  (operator's PDFs, XSDs, ZIPs — ignored by Git)
+            │  make knowledge-sync            ← offline; the only thing that opens a source
+            ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  KNOWLEDGE BASE            build/knowledge/ (ignored)         │
+   │  identify → segment → SQLite + FTS5 → embed (policy) →        │
+   │  compile local Structure Packs (MT from Prowide + MRG,        │
+   │  MX from XSD) and gate each one                               │
+   └──────────┬──────────────────────────────┬────────────────────┘
+              │ read at runtime              │ read at runtime
+              ▼                              ▼
+      /api/v1/knowledge              KNOWLEDGE_PREVIEW lane
+      /api/v1/ai  (RAG, AI authoring)        │ only when a caller names it
+              │ proposes values              ▼
+              └──────────────────►  the same StudioService, composer,
+                                    validator, XSD check and result
+```
+
+The knowledge base is retrieval, index and cache state. It is never validation authority.
+Structure Packs define structure, reviewed Rule Packs define semantic validation, the
+composer builds FIN and XML, and the deterministic endpoints never call into it.
+
 ---
 
 ## Following one request all the way through
@@ -147,6 +172,8 @@ backend/config/mx/*.yaml            MX: the full element tree
 backend/config/profiles/*.yaml      Per-client settings and envelope values
 backend/config/rules/*.yaml         Reviewed business rules: base, market practice, client
 backend/config/rule_sources/        The documents rules were derived from (synthetic only here)
+swiftKnowledgeBase/                 Operator's authorised sources for the knowledge base (ignored)
+build/knowledge/packs/              Local Structure Packs the sync compiled (ignored, preview lane only)
 ```
 
 **MT** is defined in two halves. The *knowledge base* describes each tag once — meaning,
@@ -205,6 +232,32 @@ format hint — comes from those lines. Nothing about it is written in TypeScrip
 | `mx/generator.py` | MX composition, validation, AppHdr |
 | `mx/xsd.py` | Schema validation |
 
+### The knowledge base — `backend/app/knowledge_base/`
+
+| File | Owns |
+|---|---|
+| `discovery.py` | Which files exist under the roots and whether they are safe to read: no symlinks, ZIP limits, never writes a source |
+| `identify.py` | What a file *is*, from its content — an MRG's cover page, an XSD's namespace — never from its name |
+| `chunking.py` | Stable segments with a section label and a page number |
+| `db.py` | The SQLite schema: sources, paths, segments, FTS5, embeddings, runs, structures |
+| `index.py` | The incremental sync; checksums decide what is re-read |
+| `embeddings.py` · `vector_store.py` | Provider-neutral embedding adapter and NumPy cosine over stored vectors |
+| `policy.py` | Whether a source's text may leave the machine. Two gates, default closed |
+| `retrieval.py` | Lexical + semantic → reciprocal rank fusion. Deterministic |
+| `structures/` | Local Structure Packs: MT from Prowide evidence reconciled with MRG tables, MX from XSD through the existing compiler; gates and readiness |
+| `preview.py` | Loads those packs into the `KNOWLEDGE_PREVIEW` lane — separate registry instances of the runtime types |
+| `service.py` | The one runtime door: status, search, caches, telemetry |
+| `reports.py` | The three generated readiness reports |
+
+### AI authoring — `backend/app/ai_authoring/`
+
+| File | Owns |
+|---|---|
+| `service.py` | identify · prepare · samples · test data · presentation · ask · releases/compare — each computes a deterministic seed first |
+| `provider.py` | The structured-completion provider: organisation endpoint, OpenRouter, or the `scripted` stand-in |
+| `prompts.py` | Prompt templates; retrieved text is fenced as untrusted evidence |
+| `schemas.py` | The closed JSON schema every model answer must satisfy |
+
 ### The layers underneath — reused, not rewritten
 
 The studio sits on top of code that already existed and already had tests:
@@ -223,7 +276,8 @@ door into the same specifications.
 
 ```
 app/                    one folder per route
-components/studio/      the studio components
+components/studio/      the studio components (incl. KnowledgeBase.tsx, reached from Advanced)
+components/ai/          AI Efficiency panels, incl. knowledge telemetry
 components/<other>/     the pre-existing Advanced screens
 lib/studio-types.ts     TypeScript mirror of the API contract
 lib/studio-api.ts       the typed client — the only place fetch() is called
@@ -366,11 +420,45 @@ The AI layer interprets **intent**. That is all.
 
 A model never renders a message, never validates one, never parses one, never reads a
 spreadsheet and never builds XML. If the AI layer is switched off entirely — which it is by
-default — you lose one convenience feature and nothing else.
+default — you lose the convenience features and nothing else.
+
+Phase 6 widened what the model may *propose* without moving that line:
+
+```
+"Set up a receive-against-payment for 1,000 XS0000000009 settling Tuesday"
+                    │
+                    ▼
+   identify the message ─── from the discovered catalogue only; never a type it was not given
+                    │
+                    ▼
+   prepare values ───────── for fields the Structure Pack declares; nothing else may appear
+   (MINIMAL / TYPICAL / FULL samples, bulk test data)
+                    │          ▲
+                    ▼          │  validator findings, at most KNOWLEDGE_AI_MAX_REPAIR_ATTEMPTS times
+   deterministic validator ────┘
+                    │
+                    ▼
+   deterministic composer → FIN / XML → the same GenerateResult as any other caller
+                    │
+                    ▼
+   validated-sample cache    (a second identical request makes zero model calls)
+```
+
+Where a model needs to know what a standard says, it is shown **retrieved excerpts with
+citations** from the local knowledge base — fenced as untrusted evidence, inside a closed
+answer schema — and only excerpts whose source policy allows the text to leave the machine.
+A blocked source is cited by document, page and section without being quoted.
+
+Every AI operation first computes a deterministic seed. With `KNOWLEDGE_AI_PROVIDER=scripted`
+(development and test only) the seed *is* the answer, which is how CI and Playwright
+exercise these screens with no key. With no provider configured the operations fall back to
+the seed. The deterministic endpoints — generate, validate, import, diff, Excel — never call
+a model or the knowledge base, whatever is configured.
 
 When AI is used, the order is **deterministic → cache → model**, so a repeated question
-costs nothing. The AI Efficiency screen shows live calls, cache hits, tokens, cost, latency,
-and how much was avoided.
+costs nothing. The AI Efficiency screen shows live calls, cache hits, tokens, cost where the
+provider reports it, latency, how much was avoided, and — since Phase 6 — embedding and
+retrieval telemetry.
 
 ---
 
@@ -385,6 +473,14 @@ SQLite by default. PostgreSQL is required when `APP_ENV=production`, enforced in
 
 Everything else in the database belongs to the pre-existing authoring stack (drafts,
 approvals, audit, AI telemetry) and is untouched by the studio.
+
+The knowledge base has its **own** SQLite file, `build/knowledge/knowledge.sqlite3` by
+default (`KNOWLEDGE_DB_PATH`), beside the compiled packs and the extracted source cache. It
+is derived entirely from the operator's sources and is rebuilt by `make knowledge-sync`; it
+is ignored by Git, as are the sources. What *is* committed is code, the synthetic fixture
+corpus the tests index, and three generated reports that record counts and checksums but no
+source text. There is no migration for it: the schema is created on first use and carries
+`KNOWLEDGE_SCHEMA_VERSION`.
 
 ---
 
@@ -435,6 +531,24 @@ tested and unaffected by the engine.
 **A new output format**
 Add it to `OutputMode`, produce it in `StudioService`, and give it a file extension in
 `routes.OUTPUT_FILE_TYPES`.
+
+**Another MT message, from its Message Reference Guide, without code**
+Put the PDF under `swiftKnowledgeBase/` and run `make knowledge-sync`. The sync identifies
+it from its own cover page, indexes it for search, and compiles a Structure Pack from the
+pinned Prowide evidence reconciled with the guide's Format Specifications. The pack is
+gated — load, sample, validate, compose, parse, round trip — and lands in the
+`KNOWLEDGE_PREVIEW` lane with a readiness the gates decided. `GET
+/api/v1/knowledge/messages/{m}/status` and
+[generated/universal-message-readiness.md](generated/universal-message-readiness.md) show
+the row and, where it is not `GENERATION_READY`, the exact blocker. Nothing is promoted into
+the configured lane; that stays a reviewed commit. See
+[knowledge-source-handling.md](knowledge-source-handling.md).
+
+**Another MX message, from its XSD, without code**
+Put the `.xsd` (or a ZIP of schemas) under `swiftKnowledgeBase/` and run
+`make knowledge-sync`. The same compiler and six gates that produce a committed pack run
+against it, and the result is served in the preview lane. The eight `pacs` messages were
+added exactly this way.
 
 ---
 

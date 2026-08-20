@@ -23,6 +23,11 @@ row from the table below based on why you are here.
 | Ingest MT semantic rule sources | [mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md) |
 | Read a SWIFT Message Reference Guide as evidence | [mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md) |
 | Understand occurrence-scoped rule evaluation | [rule-occurrence-semantics.md](rule-occurrence-semantics.md) |
+| Index authorised PDFs/XSDs and test messages nobody configured by hand | [universal-financial-message-rag.md](universal-financial-message-rag.md) |
+| Drop a source into the knowledge base, and know what may leave the machine | [knowledge-source-handling.md](knowledge-source-handling.md) |
+| Let a model draft a sample or interpret a business request | [ai-assisted-authoring.md](ai-assisted-authoring.md) |
+| Call the knowledge, lane and AI endpoints from automation | [automation-api.md](automation-api.md) |
+| Run Phase 6 internal UAT | [testing/phase-06-universal-rag-uat-checklist.md](testing/phase-06-universal-rag-uat-checklist.md) |
 | Demo the platform to a client | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Know what to ask a client for | [AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md) |
 | Know what is and is not supported | [limitations.md](limitations.md) |
@@ -87,6 +92,11 @@ row from the table below based on why you are here.
     ├── mt-structure-importer-plan.md  the Phase 4 implementation plan
     ├── mt-source-versioning.md        live release and Prowide lock policy
     ├── mt-standards-upgrades.md       procedure for SRU/standards upgrades
+    ├── universal-financial-message-rag.md   the local knowledge base: discovery, index, RAG, preview lane
+    ├── universal-financial-message-rag-phase-06-plan.md   the Phase 6 plan
+    ├── knowledge-source-handling.md   what goes in swiftKnowledgeBase/, privacy gates, what is committed
+    ├── ai-assisted-authoring.md       identify, prepare, samples, test data — what the model may propose
+    ├── automation-api.md              the /api/v1 contract incl. knowledge, lane/release and AI routes
     ├── ai-assistance.md               what the AI layer does (and does not)
     ├── security.md                    threat model and controls
     ├── testing.md                     run tests, add tests, the CI gate
@@ -95,7 +105,10 @@ row from the table below based on why you are here.
     │
     │   Machine-generated
     ├── generated/
-    │   └── message-coverage.md        every configured message, measured — regenerate via `make coverage-write`
+    │   ├── message-coverage.md        every configured message, measured — regenerate via `make coverage-write`
+    │   ├── universal-message-readiness.md   every message/release the knowledge base knows, with its exact blocker
+    │   ├── knowledge-rag-coverage.md  sources, segments, embedding state — checksums, no text
+    │   └── ai-sample-readiness.md     which generation-ready messages have a validated cached AI sample
     │
     │   Point-in-time reports (not current-state docs)
     └── history/
@@ -118,6 +131,9 @@ row from the table below based on why you are here.
 | [generated/mt540-sr2026-rule-review.md](generated/mt540-sr2026-rule-review.md) | `make mt-mrg-reports-write` |
 | [generated/mt541-sr2026-rule-review.md](generated/mt541-sr2026-rule-review.md) | `make mt-mrg-reports-write` |
 | [generated/mt-sr2026-semantic-readiness.md](generated/mt-sr2026-semantic-readiness.md) | `make mt-mrg-reports-write` |
+| [generated/universal-message-readiness.md](generated/universal-message-readiness.md) | `make knowledge-reports-write` (needs a synced knowledge base) |
+| [generated/knowledge-rag-coverage.md](generated/knowledge-rag-coverage.md) | `make knowledge-reports-write` |
+| [generated/ai-sample-readiness.md](generated/ai-sample-readiness.md) | `make knowledge-reports-write` |
 
 Do not edit generated files by hand. `make coverage` fails the build if message coverage
 is stale. It covers every configured message in both formats, and every figure in it is
@@ -125,7 +141,11 @@ measured from the real component rather than read from a flag. `GET /api/v1/cove
 serves the same data. `make mt-prowide-check` fails the build if the Prowide-generated
 reports are stale. `make mt-rule-check` fails the build if the MT semantic readiness
 reports or synthetic MT corpus drift. `make mt-mrg-check` fails if the SR2026 MT540/MT541
-Message Reference Guide fixture or generated reviewer reports drift.
+Message Reference Guide fixture or generated reviewer reports drift. The three knowledge
+reports are rendered from the operator's local index, which CI does not have, so they are
+not a CI gate: `make knowledge-reports-check` compares them against the local database,
+and `make knowledge-check` (which *is* in `make check`) evaluates retrieval over the
+synthetic fixture corpus instead.
 
 [authoritative-sources.md](authoritative-sources.md) is the procedure for importing a
 licensed specification, schema or client guideline — where each one goes and what it

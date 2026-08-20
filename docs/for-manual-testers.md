@@ -247,3 +247,8 @@ Whatever your downstream test system needs:
 
 The message you download is byte-for-byte what the API returns. Nothing is reformatted for
 display and then saved differently.
+
+For the AI-prepared samples, the "Describe what you want to test" box and the Knowledge
+Base page, follow
+[testing/phase-06-universal-rag-uat-checklist.md](testing/phase-06-universal-rag-uat-checklist.md);
+how the assistant is kept honest is in [ai-assisted-authoring.md](ai-assisted-authoring.md).

@@ -55,6 +55,63 @@ python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"  
 `app/config.py` validates all of these at startup and refuses to boot on a bad value,
 rather than failing later in a confusing place.
 
+### The organisation AI endpoint (Phase 6)
+
+An Azure OpenAI resource or any OpenAI-compatible server. Only the **origin** of the
+endpoint is used; its path and query are ignored, except that an `api-version` query is
+kept for the legacy deployment-scoped Azure surface. Each of the first three accepts an
+older spelling as an alias, so an existing `.env` need not be renamed. Values are never
+printed, logged or returned by any endpoint.
+
+| Variable | Alias | Default | What it does |
+|---|---|---|---|
+| `AI_ENDPOINT` | `ENDPOINT` | *(empty)* | `https://…` origin of the resource. Must be HTTPS. |
+| `AI_API_KEY` | `API_KEY` | *(empty)* | The key. Secret. |
+| `AI_CHAT_DEPLOYMENT` | `MODEL` | *(empty)* | Chat deployment (Azure) or model name used for AI authoring. |
+| `AI_API_VERSION` | — | *(empty → endpoint query → `2024-10-21`)* | Azure `api-version`. |
+| `AI_MAX_OUTPUT_TOKENS` | — | `2000` | Ceiling per structured completion. |
+| `EMBEDDINGS_DEPLOYMENT` | — | *(empty)* | Embedding deployment or model name. |
+| `EMBEDDING_PROVIDER` | — | `auto` | `auto`, `azure_openai`, `openai_compatible`, `fake`, `disabled`. `auto` becomes `azure_openai` when the endpoint host is Azure's, `openai_compatible` when an endpoint and key exist, `disabled` otherwise. `fake` is for tests and CI only. |
+| `EMBEDDING_DIMENSIONS` | — | *(unset)* | Sent as `dimensions` when set; every stored vector is checked against it on read. |
+| `EMBEDDING_BATCH_SIZE` | — | `64` | Segments per embedding request. |
+| `EMBEDDING_TIMEOUT_SECONDS` | — | `30` | Per request. |
+| `EMBEDDING_MAX_RETRIES` | — | `3` | On 408/409/425/429/5xx. |
+
+`AI_PROVIDER` keeps its meaning for the settlement-intent screen and now also accepts
+`azure_openai` and `openai_compatible`. The AI authoring paths use the organisation endpoint
+when all three of endpoint, key and chat deployment are set, fall back to OpenRouter when
+that is what is configured, and are otherwise disabled — in which case every AI operation
+returns its deterministic seed. `AI_PROVIDER=disabled` switches all of it off.
+
+### The local knowledge base (Phase 6)
+
+Off unless asked for, so a production-style process never reads arbitrary workstation
+files. Sources stay in the operator's folder; everything derived lands under the ignored
+`build/knowledge/`. Paths are relative to the project root.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `KNOWLEDGE_MODE` | `disabled` | `disabled`, `local` or `local_uat`. `local_uat` additionally enables `POST /api/v1/knowledge/sync`; everywhere else that route answers 404. |
+| `KNOWLEDGE_SOURCE_DIR` | `swiftKnowledgeBase` | Comma-separated roots `make knowledge-sync` walks, e.g. `swiftKnowledgeBase,build/mx-real-sources`. Symlinks are never followed. |
+| `KNOWLEDGE_DB_PATH` | `build/knowledge/knowledge.sqlite3` | The index: sources, segments, FTS5, vectors, sample cache, compiled-structure table. |
+| `KNOWLEDGE_PACK_DIR` | `build/knowledge/packs` | Where compiled preview Structure Packs are written. |
+| `KNOWLEDGE_SOURCE_CACHE_DIR` | `build/knowledge/source-cache` | Extracted ZIP members and cached XSDs. |
+| `KNOWLEDGE_AUTO_SYNC_ON_START` | `false` | Run an incremental sync when the backend starts. |
+| `KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED` | `false` | Global gate: may a source's text be sent to the embedding endpoint? |
+| `KNOWLEDGE_EXTERNAL_LLM_ALLOWED` | `false` | Global gate: may a source's text be quoted to the chat endpoint? |
+| `KNOWLEDGE_EXTERNAL_PROCESSING_CLASSIFICATIONS` | `SYNTHETIC_FIXTURE` | Comma-separated classifications the two gates apply to: `SYNTHETIC_FIXTURE`, `OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL`, `OPERATOR_SUPPLIED_XSD`, `OPERATOR_SUPPLIED_DOCUMENT`, `LICENSED_UNKNOWN`. A source leaves the machine only when its gate **and** its classification both say so. An API key is never permission. |
+| `KNOWLEDGE_MAX_SOURCE_BYTES` | `67108864` | Largest single file read. |
+| `KNOWLEDGE_MAX_ZIP_MEMBER_BYTES` | `67108864` | Largest member extracted from a ZIP. |
+| `KNOWLEDGE_MAX_ZIP_TOTAL_BYTES` | `268435456` | Largest total extracted from one ZIP; a 100:1 ratio is refused too. |
+| `KNOWLEDGE_CONTEXT_CHARS` | `6000` | Retrieved-evidence budget handed to a prompt. |
+| `KNOWLEDGE_AI_MAX_BATCH` | `20` | Ceiling on `count` for one AI test-data request; a larger request is clamped, not refused. |
+| `KNOWLEDGE_AI_MAX_REPAIR_ATTEMPTS` | `3` | How many times validator findings are fed back to the model before a sample is refused. |
+| `KNOWLEDGE_AI_REVIEWER_MODE` | `false` | Declared, validated, and **not yet read by any code path**. Whether `REVIEW_REQUIRED` candidate rules may be considered for negative test data is decided per request by the `reviewerMode` field of `POST /api/v1/ai/test-data/generate`, and even then no candidate rule is installed for runtime evaluation. |
+| `KNOWLEDGE_AI_PROVIDER` | `auto` | `auto`, `scripted`, `disabled`. `scripted` returns each operation's deterministic seed with no network call and is honoured in `development` and `test` only; the process refuses to start with it elsewhere. |
+
+Names and defaults live in `.env.example`. `make knowledge-status` prints the effective
+mode, roots, provider and policy without printing any value that is secret.
+
 ---
 
 ## Client profiles
@@ -126,6 +183,7 @@ the AppHdr must be transported separately.
 | `backend/config/specifications/` | MT: which sequences and rows each message has |
 | `backend/config/mx/` | MX: the complete element tree, one file per message |
 | `backend/config/mx/xsd/official/` | Optional official ISO 20022 schemas |
+| `swiftKnowledgeBase/` (ignored) | Authorised PDFs, XSDs and ZIPs for the knowledge base; indexed by `make knowledge-sync`, served in the `KNOWLEDGE_PREVIEW` lane, never committed |
 
 These are the source of truth for the API, the UI, the Excel templates and Message
 Intelligence at once. Editing one YAML file changes all four.

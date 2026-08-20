@@ -16,6 +16,9 @@ class Settings(BaseSettings):
         env_file=PROJECT_ROOT / ".env",
         env_ignore_empty=True,
         extra="ignore",
+        # Fields with an environment alias (AI_ENDPOINT / Endpoint …) stay constructible by
+        # their Python name too, which is how tests build a Settings without an .env.
+        populate_by_name=True,
     )
 
     app_env: str = "development"

@@ -79,6 +79,10 @@ Every interaction is recorded with its source: `LIVE_API`, `CACHE`, `DETERMINIST
 
 ---
 
+Phase 6 added a second, knowledge-backed assistant (message identification, value
+preparation, AI samples, test data, cited answers). It follows the same boundary and is
+described in [ai-assisted-authoring.md](ai-assisted-authoring.md).
+
 ## Configuration
 
 | Variable | Default | Notes |

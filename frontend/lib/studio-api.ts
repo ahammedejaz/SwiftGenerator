@@ -2,6 +2,20 @@
 
 import { apiUrl } from "@/lib/api-client";
 import type {
+  AiAskRequest,
+  AiAskResponse,
+  AiCompareRequest,
+  AiCompareResponse,
+  AiIdentifyRequest,
+  AiIdentifyResponse,
+  AiPrepareRequest,
+  AiPrepareResponse,
+  AiPresentationRequest,
+  AiPresentationResponse,
+  AiSampleRequest,
+  AiSampleResponse,
+  AiTestDataRequest,
+  AiTestDataResponse,
   ExcelGenerateResponse,
   DiffResult,
   GenerateRequest,
@@ -9,6 +23,14 @@ import type {
   ImportResult,
   IntelligenceDetail,
   IntelligenceSearchResponse,
+  KnowledgeMessagesResponse,
+  KnowledgeSearchRequest,
+  KnowledgeSearchResponse,
+  KnowledgeSourcesResponse,
+  KnowledgeStatus,
+  KnowledgeSyncResponse,
+  KnowledgeTelemetry,
+  Lane,
   MessageFormat,
   MessageSpec,
   OutputMode,
@@ -17,6 +39,25 @@ import type {
   SampleVariant,
   StudioCatalogue,
 } from "@/lib/studio-types";
+
+/** Which registry a call addresses. Omitted entirely for the configured lane, so every
+ *  existing call site — and every existing URL — is unchanged. */
+export interface LaneOptions {
+  lane?: Lane | null;
+  release?: string | null;
+}
+
+function laneQuery(options?: LaneOptions): string {
+  if (!options?.lane || options.lane === "CONFIGURED") return "";
+  let query = `&lane=${options.lane}`;
+  if (options.release) query += `&release=${encodeURIComponent(options.release)}`;
+  return query;
+}
+
+function laneBody(options?: LaneOptions): { lane?: Lane; release?: string } {
+  if (!options?.lane || options.lane === "CONFIGURED") return {};
+  return { lane: options.lane, ...(options.release ? { release: options.release } : {}) };
+}
 
 export class StudioError extends Error {
   constructor(
@@ -78,19 +119,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const studioApi = {
   catalogue: () => request<StudioCatalogue>("/api/v1/catalogue"),
 
-  spec: (format: MessageFormat, messageType: string) =>
+  spec: (format: MessageFormat, messageType: string, options?: LaneOptions) =>
     request<MessageSpec>(
-      `/api/v1/messages/${encodeURIComponent(messageType)}/spec?format=${format}`,
+      `/api/v1/messages/${encodeURIComponent(messageType)}/spec?format=${format}${laneQuery(options)}`,
     ),
 
-  samples: (format: MessageFormat, messageType: string) =>
+  samples: (format: MessageFormat, messageType: string, options?: LaneOptions) =>
     request<SampleMessage[]>(
-      `/api/v1/messages/${encodeURIComponent(messageType)}/samples?format=${format}`,
+      `/api/v1/messages/${encodeURIComponent(messageType)}/samples?format=${format}${laneQuery(options)}`,
     ),
 
-  sample: (format: MessageFormat, messageType: string, variant: SampleVariant) =>
+  sample: (
+    format: MessageFormat,
+    messageType: string,
+    variant: SampleVariant,
+    options?: LaneOptions,
+  ) =>
     request<SampleMessage>(
-      `/api/v1/messages/${encodeURIComponent(messageType)}/samples/${variant}?format=${format}`,
+      `/api/v1/messages/${encodeURIComponent(messageType)}/samples/${variant}?format=${format}${laneQuery(options)}`,
     ),
 
   validate: (payload: GenerateRequest) =>
@@ -108,13 +154,19 @@ export const studioApi = {
   /** Read an existing ISO 20022 message back into canonical values. */
   /** `messageType` is only read when the message cannot name itself — a pasted MT text
    *  block. An MT header that disagrees with it is a refusal, not a reconciliation. */
-  importMessage: (text: string, profileId?: string, messageType?: string | null) =>
+  importMessage: (
+    text: string,
+    profileId?: string,
+    messageType?: string | null,
+    options?: LaneOptions,
+  ) =>
     request<ImportResult>("/api/v1/messages/import", {
       method: "POST",
       body: JSON.stringify({
         text,
         ...(profileId ? { profileId } : {}),
         ...(messageType ? { messageType } : {}),
+        ...laneBody(options),
       }),
     }),
 
@@ -145,16 +197,87 @@ export const studioApi = {
   async generateFromExcel(
     file: File,
     profileId: string,
+    options?: LaneOptions,
   ): Promise<ExcelGenerateResponse> {
     const body = new FormData();
     body.append("file", file);
     return request<ExcelGenerateResponse>(
-      `/api/v1/messages/generate-from-excel?profileId=${encodeURIComponent(profileId)}`,
+      `/api/v1/messages/generate-from-excel?profileId=${encodeURIComponent(profileId)}${laneQuery(options)}`,
       { method: "POST", body },
     );
   },
 
-  templateUrl: (format: MessageFormat) => apiUrl(`/api/v1/templates/${format}.xlsx`),
+  /** A template for every configured message, or for one named message in either lane. */
+  templateUrl: (format: MessageFormat, messageType?: string, options?: LaneOptions) => {
+    const query = messageType
+      ? `?messageType=${encodeURIComponent(messageType)}${laneQuery(options)}`
+      : "";
+    return apiUrl(`/api/v1/templates/${format}.xlsx${query}`);
+  },
+
+  /* ---------------------------------------------------------- knowledge base */
+
+  knowledgeStatus: () => request<KnowledgeStatus>("/api/v1/knowledge/status"),
+
+  knowledgeMessages: () => request<KnowledgeMessagesResponse>("/api/v1/knowledge/messages"),
+
+  knowledgeSources: () => request<KnowledgeSourcesResponse>("/api/v1/knowledge/sources"),
+
+  knowledgeSearch: (payload: KnowledgeSearchRequest) =>
+    request<KnowledgeSearchResponse>("/api/v1/knowledge/search", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  knowledgeTelemetry: () => request<KnowledgeTelemetry>("/api/v1/knowledge/telemetry"),
+
+  /** Exists only while the backend reports `adminEnabled`; a 404 otherwise. */
+  knowledgeSync: () =>
+    request<KnowledgeSyncResponse>("/api/v1/knowledge/sync", { method: "POST" }),
+
+  /* ----------------------------------------------------------- AI authoring */
+
+  aiIdentify: (payload: AiIdentifyRequest) =>
+    request<AiIdentifyResponse>("/api/v1/ai/messages/identify", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  aiPrepare: (payload: AiPrepareRequest) =>
+    request<AiPrepareResponse>("/api/v1/ai/messages/prepare", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  aiSample: (payload: AiSampleRequest) =>
+    request<AiSampleResponse>("/api/v1/ai/samples", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  aiTestData: (payload: AiTestDataRequest) =>
+    request<AiTestDataResponse>("/api/v1/ai/test-data/generate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  aiAsk: (payload: AiAskRequest) =>
+    request<AiAskResponse>("/api/v1/ai/ask", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  aiPresentation: (payload: AiPresentationRequest) =>
+    request<AiPresentationResponse>("/api/v1/ai/presentation", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  aiCompare: (payload: AiCompareRequest) =>
+    request<AiCompareResponse>("/api/v1/ai/releases/compare", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   downloadUrl: (messageId: string, output: OutputMode) =>
     apiUrl(`/api/v1/messages/id/${messageId}/download/${output}`),

@@ -106,12 +106,85 @@ const ENDPOINTS: Array<{ method: string; path: string; body: string }> = [
     path: "/api/v1/sources",
     body: "Which authoritative specification artifacts are present, and what each unlocks.",
   },
+  // Knowledge base: what has been indexed, and retrieval over it. Read-mostly; no model.
+  {
+    method: "GET",
+    path: "/api/v1/knowledge/status",
+    body: "Whether the knowledge base is indexed, what it holds, and how it may be used. Never a key or an endpoint.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/knowledge/messages",
+    body: "Every message identity the index yields, with readiness, blockers and structure source.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/knowledge/messages/{message}/status",
+    body: "One message's sources, gates and readiness.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/knowledge/sources",
+    body: "Every discovered source with its identity, policy and index state.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/knowledge/search",
+    body: "Hybrid retrieval over the index. Citations — source, section, page — with an excerpt only where policy allows.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/knowledge/telemetry",
+    body: "Model calls, tokens, cache hits, embedding and retrieval counters. No cost is invented.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/knowledge/sync",
+    body: "Run an incremental sync. Local UAT mode only; a 404 anywhere else.",
+  },
+  // AI authoring: the model proposes, the deterministic engine decides.
+  {
+    method: "POST",
+    path: "/api/v1/ai/messages/identify",
+    body: "Which catalogue message fits a business request. Candidates come only from the catalogue.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/messages/prepare",
+    body: "A business scenario in, validated canonical values for one message out.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/samples",
+    body: "An AI-prepared, deterministically validated synthetic sample. Cached by identity; a repeat costs no model call.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/test-data/generate",
+    body: "Bulk synthetic scenarios, each independently validated and composed.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/presentation",
+    body: "Plain-language metadata for one field. No validation authority.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/ask",
+    body: "A cited answer from indexed evidence, or a plain statement that the evidence does not establish it.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/releases/compare",
+    body: "What changed between two releases of one message. Never promotes either.",
+  },
 ];
 
 export function Automation() {
   // apiUrl is pure and resolves identically on the server and the client.
   const base = apiUrl("");
   const [language, setLanguage] = useState<Language>("curl");
+  const [aiLanguage, setAiLanguage] = useState<"curl" | "java">("curl");
   const [catalogue, setCatalogue] = useState<StudioCatalogue | null>(null);
 
   useEffect(() => {
@@ -221,10 +294,35 @@ export function Automation() {
       </div>
 
       <Panel
+        title="AI Test Data API"
+        description="Deterministic API: 0 LLM calls · AI Test Data: RAG + LLM prepare values → deterministic generation. Every message that comes back was composed and validated by the same engine as the deterministic call; the model only proposes the values."
+        action={
+          <SegmentedControl
+            label="AI example language"
+            value={aiLanguage}
+            onChange={setAiLanguage}
+            options={[
+              { value: "curl", label: "curl example" },
+              { value: "java", label: "Java example" },
+            ]}
+          />
+        }
+        bodyClassName="px-0 py-0"
+      >
+        <CodeBlock
+          code={aiLanguage === "curl" ? samples.aiTestDataCurl : samples.aiTestDataJava}
+          label={aiLanguage === "curl" ? "curl · AI test data" : "Java / REST Assured · AI test data"}
+        />
+        <div className="border-t border-proof-line">
+          <CodeBlock code={samples.previewLane} label="Deterministic generate · knowledge-preview lane" />
+        </div>
+      </Panel>
+
+      <Panel
         title="Every endpoint"
         description={
           catalogue
-            ? `${catalogue.messages.length} message types are generatable through these endpoints.`
+            ? `${catalogue.messages.filter((entry) => entry.generatable).length} message entries are generatable through these endpoints; ${catalogue.messages.length} are listed.`
             : "The complete automation surface."
         }
         bodyClassName="px-0 py-0"
@@ -298,7 +396,9 @@ function CodeBlock({ code, label }: { code: string; label?: string }) {
   );
 }
 
-function buildSamples(base: string): Record<Language | "excel", string> {
+function buildSamples(
+  base: string,
+): Record<Language | "excel" | "aiTestDataCurl" | "aiTestDataJava" | "previewLane", string> {
   return {
     curl: `curl -X POST ${base}/api/v1/messages/generate \\
   -H 'Content-Type: application/json' \\
@@ -431,6 +531,75 @@ curl -X POST '${base}/api/v1/messages/generate-from-excel?profileId=BASE_DEMO_V1
 # Download the template first so the columns are right:
 curl -o mt-template.xlsx '${base}/api/v1/templates/MT.xlsx'
 curl -o mx-template.xlsx '${base}/api/v1/templates/MX.xlsx'`,
+
+    aiTestDataCurl: `# Five synthetic MT541 scenarios. The model proposes values from indexed evidence;
+# the deterministic engine validates and composes every one. Nothing in .outputs came
+# from the model. A repeat of the same request is served from the validated cache.
+curl -X POST ${base}/api/v1/ai/test-data/generate \\
+  -H 'Content-Type: application/json' \\
+  -d '{"format":"MT","messageType":"MT541","scenario":"Typical receive-against-payment settlement","count":5,"sampleType":"TYPICAL"}' \\
+  | jq '{
+      generated, total,
+      modelCalls: .aiUsage.llmCalls,
+      cache: .cache.status,
+      sections: .retrievalEvidence.segmentsUsed,
+      scenarios: [.scenarios[] | {scenarioId, valid, fin: .outputs.fin}]
+    }'`,
+
+    aiTestDataJava: `// Java + REST Assured — the same call as the curl example
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+
+public class AiTestDataMt541 {
+
+    @Test
+    void generatesFiveValidatedScenarios() {
+        RestAssured.baseURI = "${base}";
+
+        String body = """
+            {"format":"MT","messageType":"MT541","scenario":"Typical receive-against-payment settlement","count":5,"sampleType":"TYPICAL"}
+            """;
+
+        given()
+                .contentType("application/json")
+                // .header("X-API-Key", System.getenv("STUDIO_API_KEY"))  // outside development
+                .body(body)
+            .when()
+                .post("/api/v1/ai/test-data/generate")
+            .then()
+                .statusCode(200)
+                .body("generated", equalTo(5))
+                .body("scenarios.valid", everyItem(is(true)))
+                .body("scenarios.outputs.fin", everyItem(containsString(":20C::SEME//")))
+                // The deterministic engine decided validity; the model only proposed values.
+                .body("synthetic", is(true));
+    }
+}`,
+
+    previewLane: `# A message compiled from indexed source evidence lives in the knowledge-preview lane.
+# Name the lane and the release on every call — the preview lane is never implied by the
+# message type, and the response says what the message rests on in .provenance.
+curl -X POST ${base}/api/v1/messages/generate \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "format": "MT",
+    "messageType": "MT103",
+    "lane": "KNOWLEDGE_PREVIEW",
+    "release": "SR2025",
+    "scenarioId": "TC-MT103-001",
+    "fields": [
+      { "id": "MT103-ROOT-20-NONE",  "value": "TESTREF001" },
+      { "id": "MT103-ROOT-23B-NONE", "value": "CRED" },
+      { "id": "MT103-ROOT-32A-NONE", "value": "260818USD1000," },
+      { "id": "MT103-ROOT-50A-NONE", "value": "DEMOGB2LXXX" },
+      { "id": "MT103-ROOT-59-NONE",  "value": "/12345678 BENEFICIARY" },
+      { "id": "MT103-ROOT-71A-NONE", "value": "SHA" }
+    ]
+  }' | jq '{valid, lane, provenance, fin: .outputs.fin}'
+
+# The same lane and release select the specification, the samples and the Excel template:
+curl '${base}/api/v1/messages/MT103/spec?format=MT&lane=KNOWLEDGE_PREVIEW&release=SR2025'
+curl -o mt103-template.xlsx '${base}/api/v1/templates/MT.xlsx?messageType=MT103&lane=KNOWLEDGE_PREVIEW&release=SR2025'`,
   };
 }
 

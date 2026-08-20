@@ -48,6 +48,9 @@ class RetrievalOptions:
     #: Nearest-neighbour search always answers; a cosine score below this is noise, not
     #: evidence, so such hits are dropped and an unrelated question gets no answer.
     min_semantic_score: float = 0.25
+    #: A semantic hit that no lexical evidence corroborates must clear a higher bar before
+    #: it is offered on its own.
+    semantic_only_floor: float = 0.35
 
 
 def fts_query(text: str) -> str | None:
@@ -137,6 +140,8 @@ class HybridRetriever:
                         semantic_reason = getattr(error, "code", "EMBEDDING_PROVIDER_UNAVAILABLE")
         elif not self._embeddings.available:
             semantic_reason = "EMBEDDING_PROVIDER_UNAVAILABLE"
+        if not lexical:
+            semantic = [item for item in semantic if item[1] >= opts.semantic_only_floor]
         fused = _fuse(lexical, semantic)
         diversified = _diversify(fused, opts.max_per_section)
         budgeted, context_chars = _budget(diversified, opts.context_chars)

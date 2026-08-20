@@ -40,9 +40,15 @@ def test_catalogue_lists_both_formats(client) -> None:  # type: ignore[no-untype
 
     formats = {item["id"]: item for item in payload["formats"]}
     assert set(formats) == {"MT", "MX"}
-    assert formats["MT"]["messageCount"] == len(specification_registry.list())
-    assert formats["MX"]["messageCount"] == len(mx_registry.all_specs())
-    assert formats["MX"]["messageCount"] > 0
+    # The configured lane is exactly the registries; the knowledge-preview lane may add
+    # entries on top (each labelled), never silently inflate the configured count.
+    assert formats["MT"]["configuredMessageCount"] == len(specification_registry.list())
+    assert formats["MX"]["configuredMessageCount"] == len(mx_registry.all_specs())
+    assert formats["MX"]["configuredMessageCount"] > 0
+    for item in formats.values():
+        assert item["messageCount"] >= item["configuredMessageCount"]
+    configured = [m for m in payload["messages"] if m["lane"] == "CONFIGURED"]
+    assert len(configured) == len(specification_registry.list()) + len(mx_registry.all_specs())
     assert payload["defaultProfileId"] == "BASE_DEMO_V1"
 
 
@@ -56,13 +62,23 @@ def test_catalogue_declares_completeness_honestly(client) -> None:  # type: igno
 def test_catalogue_only_offers_generatable_messages(client) -> None:  # type: ignore[no-untyped-def]
     payload = client.get("/api/v1/catalogue").json()
 
-    assert all(item["generatable"] for item in payload["messages"])
-    assert all(item["sampleVariants"] for item in payload["messages"])
+    configured = [item for item in payload["messages"] if item["lane"] == "CONFIGURED"]
+    assert all(item["generatable"] for item in configured)
+    assert all(item["sampleVariants"] for item in configured)
+    # A preview entry that cannot generate says so and names why; it never pretends.
+    for item in payload["messages"]:
+        if not item["generatable"]:
+            assert item["lane"] == "KNOWLEDGE_PREVIEW"
+            assert item["blockers"] and item["sampleVariants"] == []
 
 
 def test_mt_and_mx_offer_different_output_modes(client) -> None:  # type: ignore[no-untyped-def]
     payload = client.get("/api/v1/catalogue").json()
-    by_type = {item["messageType"]: item for item in payload["messages"]}
+    by_type = {
+        item["messageType"]: item
+        for item in payload["messages"]
+        if item["lane"] == "CONFIGURED"
+    }
 
     assert "FIN" in by_type["MT541"]["outputModes"]
     assert "XML" not in by_type["MT541"]["outputModes"]

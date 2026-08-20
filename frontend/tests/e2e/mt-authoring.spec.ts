@@ -225,7 +225,9 @@ test.describe("Scenario D — Expert mode", () => {
     await deag.getByLabel("Delivering Agent proprietary identifier").fill("DEMODEAG01");
 
     const proof = await generated(page);
-    await expect(proof).toContainText(":95R::DEAG//AGT/DEMODEAG01");
+    // Option R is `:4!c/8c/34x`: one slash before the data source scheme, not the `//`
+    // that precedes a BIC in option P. The golden fixtures render it the same way.
+    await expect(proof).toContainText(":95R::DEAG/AGT/DEMODEAG01");
     await expect(proof).not.toContainText(":95P::DEAG//");
   });
 });
