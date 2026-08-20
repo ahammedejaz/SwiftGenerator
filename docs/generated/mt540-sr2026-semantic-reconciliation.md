@@ -60,4 +60,3 @@ source above, and a configured subset of it. Nothing in this report changes it.
 - `EXISTING_RULE_NOT_FOUND_IN_SOURCE` — this repository enforces something the guide does not state as a Network Validated Rule for this message. That is not necessarily wrong; it is a claim that needs its own evidence.
 
 - The installed structure declares no settlement amount for this message, which is consistent with the guide: a receive *free* of payment has no settlement-amount rule at all.
-

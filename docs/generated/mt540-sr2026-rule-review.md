@@ -677,4 +677,3 @@ does not have it learns nothing from this file that they were not licensed to.
 **Deterministic cross-check against the guide's own rule references:**
 
 - TARGET_NOT_CROSS_REFERENCED: E4:36:NTWK is bound by this reading of C18, but that qualifier's own table does not list the rule.
-

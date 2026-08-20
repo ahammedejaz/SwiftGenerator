@@ -104,6 +104,16 @@ RUNTIME_MT_BUSINESS_RULES: tuple[RuntimeBusinessRule, ...] = (
 # --------------------------------------------------------------------------------------
 
 
+def _document(lines: list[str]) -> str:
+    """One rendered document, ending in exactly one newline.
+
+    `git diff --check` fails a *new* blank line at end of file, and it only sees one when a
+    base ref is supplied — which CI does and a local `git diff --check` does not. Normalising
+    here rather than in each renderer means a new report cannot reintroduce it.
+    """
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
 def _prowide_message(extraction: MtProwideExtraction, message_type: str) -> Any:
     return next(
         (item for item in extraction.messages if item.message_type == message_type), None
@@ -256,7 +266,7 @@ def render_structure_reconciliation(
                 lines.append("| " + " | ".join(f"`{item}`" for item in row) + " |")
             lines.append("")
     lines += _structure_notes(guides, registry)
-    return "\n".join(lines) + "\n"
+    return _document(lines)
 
 
 def _structure_notes(
@@ -418,7 +428,7 @@ def render_semantic_reconciliation(
             f"`{corresponding or 'NONE'}` | `{verdict.value}` |"
         )
     lines += _semantic_notes(guide, registry, message_type)
-    return "\n".join(lines) + "\n"
+    return _document(lines)
 
 
 def _semantic_notes(
@@ -526,7 +536,7 @@ def render_review_package(
     ]
     for rule in guide.rules():
         lines += _review_entry(guide, rule, objections.get(rule["sourceRuleId"], []))
-    return "\n".join(lines) + "\n"
+    return _document(lines)
 
 
 def _review_entry(
@@ -722,7 +732,7 @@ def render_readiness(
         "- Not that any candidate has been reviewed. Every one is `REVIEW_REQUIRED`.",
         "",
     ]
-    return "\n".join(lines) + "\n"
+    return _document(lines)
 
 
 # --------------------------------------------------------------------------------------

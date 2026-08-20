@@ -42,4 +42,3 @@ a future release becoming readable is not the same as it becoming effective.
 - Not that SR2026 is current. It becomes live on 14 November 2026; until then the installed structure and rules are the effective ones.
 - Not that client market practice or MyStandards usage guidelines are covered. Neither has been supplied.
 - Not that any candidate has been reviewed. Every one is `REVIEW_REQUIRED`.
-

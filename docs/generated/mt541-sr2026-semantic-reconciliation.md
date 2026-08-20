@@ -62,4 +62,3 @@ source above, and a configured subset of it. Nothing in this report changes it.
 - `EXISTING_RULE_NOT_FOUND_IN_SOURCE` — this repository enforces something the guide does not state as a Network Validated Rule for this message. That is not necessarily wrong; it is a claim that needs its own evidence.
 
 - The installed structure declares `MT541-E-19A-SETT` in sequence `E`, whereas the guide places the settlement amount in subsequence `E3 Amounts`. The requirement is expressed structurally here and as a Network Validated Rule there; a reviewer should decide whether the runtime subset should gain the subsequence.
-

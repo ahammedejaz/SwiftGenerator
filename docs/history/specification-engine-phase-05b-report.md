@@ -529,7 +529,7 @@ in the package is imported by the request path.
 
 ## 55. Tests added
 
-`backend/tests/rule_engine/test_mt_mrg.py` — 82 tests covering identity and its refusals,
+`backend/tests/rule_engine/test_mt_mrg.py` — 92 tests covering identity and its refusals,
 mis-declaration, digest mismatch, section classification including the shared page and the
 foreign-message heading, format and qualifier table parsing, code-list attribution,
 structure-digest movement, rule discovery and numbering, error-code capture, page
@@ -543,12 +543,12 @@ clean-clone guarantee, and the graceful report where a present guide cannot be r
 ## 56. Exact backend results
 
 ```
-1417 passed, 23 skipped, 1 deselected in 9.8s
+1427 passed, 23 skipped, 1 deselected in 9.8s
 ruff:  All checks passed
 mypy --strict:  Success: no issues found in 194 source files
 ```
 
-Baseline was 1,335 passed / 184 files; this phase adds 82 tests and 10 source files.
+Baseline was 1,335 passed / 184 files; this phase adds 92 tests and 10 source files.
 
 ## 57. Exact Playwright results
 

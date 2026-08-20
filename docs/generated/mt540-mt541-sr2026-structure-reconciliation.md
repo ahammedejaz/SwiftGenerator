@@ -82,4 +82,3 @@ Format Specification rows: `93`. Qualifier-table rows: `228`. Field Specificatio
 
 - MT540 subsequence `E3 Amounts` is `OPTIONAL` in SR2026. That difference between the two messages is the free-versus-against-payment distinction, stated structurally rather than inferred from the message name.
 - MT541 subsequence `E3 Amounts` is `MANDATORY` in SR2026. That difference between the two messages is the free-versus-against-payment distinction, stated structurally rather than inferred from the message name.
-

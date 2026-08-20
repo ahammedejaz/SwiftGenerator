@@ -49,6 +49,7 @@ from app.rule_engine.mt_mrg.pipeline import (
 )
 from app.rule_engine.mt_mrg.rules import RuleFidelity, UnsupportedReason
 from app.rule_engine.mt_mrg.structure import MrgStructureIndex
+from app.rule_engine.mt_mrg.templates import translate
 from app.rule_engine.refs import FieldRef, StructureIndex
 from app.rule_engine.registry import RulePackRegistry
 from app.rule_engine.sources import normalise
@@ -622,6 +623,144 @@ def test_the_evidence_fingerprint_binds_bytes_structure_and_reader(
         objections=synthetic.objections,
     )
     assert source_fingerprint(moved) != first
+
+
+#: One real rule per shape a Network Validated Rule takes, with what the guides state about
+#: it. Together these are the evaluation set: a change to any of them means SWIFT changed
+#: the rule, this reader changed its mind, or something is wrong — and all three need a
+#: person before a candidate derived from them is trusted again.
+RULE_SHAPES: tuple[tuple[str, str, str, str, str, tuple[str, ...]], ...] = (
+    (
+        "simple mandatory field",
+        "MT541",
+        "C2",
+        "E92",
+        "MANDATORY_QUALIFIED_FIELD",
+        ("E3:19A:SETT",),
+    ),
+    (
+        "conditional requirement",
+        "MT541",
+        "C3",
+        "E90",
+        "CONDITIONAL_PRESENCE",
+        ("A:99a:TOSE", "A:99a:SETT"),
+    ),
+    (
+        "conditional requirement on an absent indicator",
+        "MT540",
+        "C5",
+        "E91",
+        "ABSENT_INDICATOR_REQUIRES_TWO_PARTIES",
+        ("E:22F:DBNM", "E1:95a:DEAG", "E1:95a:PSET"),
+    ),
+    (
+        "mutual exclusion across subsequences",
+        "MT541",
+        "C20",
+        "E73",
+        "CROSS_SUBSEQUENCE_EXCLUSION",
+        ("E3:19A:NTWK", "E4:36D:NTWK"),
+    ),
+    (
+        "repeated occurrence limit",
+        "MT540",
+        "C1",
+        "E87",
+        "AMOUNT_FIELDS_UNIQUE_PER_SUBSEQUENCE",
+        ("E3:19A:SETT", "E3:19A:BOOK"),
+    ),
+    (
+        "party chain",
+        "MT541",
+        "C7",
+        "E86",
+        "PARTY_CHAIN_COMPLETENESS",
+        ("E1:95a:DEI2", "E1:95a:DEI1", "E1:95a:DECU", "E1:95a:SELL"),
+    ),
+    (
+        "date and amount dependency",
+        "MT541",
+        "C15",
+        "C28",
+        "VALUE_DATE_REQUIRES_SPLIT_SETTLEMENT",
+        ("E3:98a:VALU", "E:22F:STCO", "E3:19A:SETT"),
+    ),
+    (
+        "same-occurrence exclusion, refused",
+        "MT541",
+        "C9",
+        "E52",
+        "SAME_OCCURRENCE_EXCLUSION",
+        ("E1:95a:PSET",),
+    ),
+)
+
+
+def _shape_id(shape: tuple[str, str, str, str, str, tuple[str, ...]]) -> str:
+    return f"{shape[1]}-{shape[2]}-{shape[0].replace(' ', '-')}"
+
+
+@pytest.mark.parametrize("shape", RULE_SHAPES, ids=_shape_id)
+def test_each_rule_shape_reads_the_way_the_guides_state_it(
+    shape: tuple[str, str, str, str, str, tuple[str, ...]],
+    evidence: dict[str, object],
+) -> None:
+    _, message_type, source_rule_id, error_code, template, targets = shape
+    guide = fixture.source_for(evidence, message_type)
+    assert guide is not None
+    rule = next(item for item in guide.rules() if item["sourceRuleId"] == source_rule_id)
+    assert rule["errorCodes"] == [error_code]
+    assert rule["template"] == template
+    assert rule["firstPage"] >= 1
+    assert rule["textHash"].startswith("sha256:")
+    bound = {
+        f"{item['sequencePath']}:{item['tag']}"
+        + (f":{item['qualifier']}" if item["qualifier"] else "")
+        for item in rule["references"]
+    }
+    assert set(targets) <= bound, sorted(bound)
+
+
+def test_a_paragraph_that_states_no_rule_produces_no_rule(synthetic: MrgReading) -> None:
+    # The synthetic guide's Usage Rules name the amount the rules are about and state no
+    # requirement over it. A reader that filled the gap from what it already knew about
+    # settlement amounts would produce a rule here; this one produces nothing, because it
+    # only reads the section the guide's own heading establishes.
+    usage = next(
+        item for item in synthetic.spans if item.section is MrgSection.USAGE_RULE
+    )
+    assert not [
+        item
+        for item in synthetic.rules
+        if usage.first_line <= item.first_line <= usage.last_line
+    ]
+
+
+def test_an_unrecognised_sentence_is_refused_rather_than_interpreted(
+    synthetic: MrgReading,
+) -> None:
+    invented = synthetic.rules[0].__class__(
+        message_type="MT999",
+        standards_release="SR2026",
+        source_rule_id="C99",
+        ordinal=99,
+        error_codes=("Z99",),
+        first_page=6,
+        last_page=6,
+        first_line=1,
+        last_line=1,
+        text_hash="sha256:" + "0" * 64,
+        character_count=90,
+        text=(
+            "Settlement of this instruction should generally reflect the market practice "
+            "agreed between the parties for :19A::SETT."
+        ),
+    )
+    outcome = translate(invented, synthetic.structure)
+    assert outcome.fidelity is RuleFidelity.NOT_RECOGNISED
+    assert outcome.reason is UnsupportedReason.SENTENCE_FORM_NOT_RECOGNISED
+    assert outcome.assertion is None
 
 
 # --------------------------------------------------------------------------------------
