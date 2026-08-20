@@ -22,3 +22,13 @@ python_version = "3.12"
 plugins = ["pydantic.mypy"]
 strict = true
 exclude = ["tests"]
+
+# `pypdf` is deliberately not a dependency of this repository: a PDF parser is a real
+# attack surface, and every licensed document that would justify it is one CI can never
+# see. The adapter exists so an operator who installs it can use it. That makes the import
+# environment-dependent, and a `# type: ignore` on it is *itself* environment-dependent —
+# correct on a runner without the package, an unused-ignore error on a laptop with it.
+# Declaring the module here is the only spelling that is right on both machines.
+[[tool.mypy.overrides]]
+module = ["pypdf.*"]
+ignore_missing_imports = true

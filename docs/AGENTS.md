@@ -95,17 +95,32 @@ dependency, not Swift certification and not a conformance claim. See
 `app/rule_engine` path with MT source metadata, source privacy gating, canonical
 Prowide-derived structural-reference validation, an MT synthetic extraction corpus and
 readiness reports. It installs zero real MT Rule Packs, activates zero candidate messages
-and leaves runtime MT structures untouched. No authorised MT semantic source is present;
-`SYNTH-MT-SEMANTIC-V1` is synthetic only. See
+and leaves runtime MT structures untouched. See
 [mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md),
 [mt-semantic-source-handling.md](mt-semantic-source-handling.md),
 [generated/mt-semantic-readiness.md](generated/mt-semantic-readiness.md) and
 [generated/mt-semantic-source-readiness.md](generated/mt-semantic-source-readiness.md).
 
+**Real SWIFT Message Reference Guides are read as evidence (Phase 5B).**
+`app/rule_engine/mt_mrg/` reads an authorised SWIFT MyStandards MT Message Reference Guide
+deterministically — identity, sections, Format Specifications, qualifier tables, Network
+Validated Rules — and translates the rules it recognises into candidate expressions
+compiled by the ordinary compiler. The two guides read are **SR2026**, which goes live on
+14 November 2026 and is therefore a **future-test** lane, never current-live. MT540 states
+18 Network Validated Rules and MT541 states 20; 15 translate exactly, 15 more weakly than
+stated, 8 not at all. Every candidate is `REVIEW_REQUIRED`, none is written to
+`config/rules/`, and runtime activations are **0**. The documents are licensed and live in
+an ignored drop directory; what is committed is derived metadata
+(`backend/tests/fixtures/mt_mrg/`), which is what lets `make check` verify the pipeline on
+a machine that has never held one. See
+[mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md),
+[generated/mt-sr2026-semantic-readiness.md](generated/mt-sr2026-semantic-readiness.md) and
+the reviewer packages in `docs/generated/mt54*-sr2026-rule-review.md`.
+
 **Verification status (all passing):**
 
 ```
-1317 backend tests (pytest)     ruff: clean      mypy --strict: clean (182 files)
+1417 backend tests (pytest)     ruff: clean      mypy --strict: clean (194 files)
  80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
 CI: six jobs on every PR and every push to main    see §11
 production build: clean         migrations: up/down/up clean
@@ -200,6 +215,7 @@ app/specifications/manifest.py   the manifest index — the single authority for
 app/spec_engine/                 XSD -> specification-pack compiler (offline CLI; never in the request path)
 app/spec_engine/mt_prowide/      pinned Prowide MT extractor; build-time only
 app/rule_engine/mt_semantics.py  MT semantic source readiness + canonical reference checks
+app/rule_engine/mt_mrg/          reads a SWIFT Message Reference Guide as evidence; offline only
 app/studio/capability.py         derived capability dimensions + plain-language summary
 app/studio/registry.py           format-neutral message-definition projection (catalogue metadata only)
 app/knowledge/loader.py          MT knowledge base
@@ -276,6 +292,7 @@ backend/tests/studio/test_coverage_and_sources.py  coverage is measured, not dec
 backend/tests/studio/test_message_diff.py     every difference is attributed correctly
 backend/tests/studio/test_mx_lifecycle.py     the four cancellation/modification messages
 backend/tests/rule_engine/test_mt_semantics.py Phase 5A MT source/reference/runtime boundaries
+backend/tests/rule_engine/test_mt_mrg.py      Phase 5B guide reading, release isolation, candidate proofs
 backend/tests/studio/test_excel_api.py        templates, parsing, upload guards
 backend/tests/studio/test_studio_api.py       the /api/v1 contract
 backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay readable
@@ -516,6 +533,10 @@ make mt-prowide-check          # generated Prowide reports are current; offline
 make verify-prowide-mt-source  # pinned Prowide source reproduction + MT541 parser proof
 make mt-rule-check             # MT semantic readiness docs + synthetic MT corpus
 make evaluate-mt-rule-extraction
+make mt-mrg-check              # SR2026 generated reports are current; needs no document
+make mt-mrg-extract            # re-read the Message Reference Guides (local documents)
+make mt-mrg-evaluate           # prove the SR2026 candidate rules behave
+make verify-real-mt540-mt541-source   # the committed SR2026 evidence reproduces
 docker compose up --build
 ```
 
@@ -749,6 +770,51 @@ Defects found and fixed while building this. These are the ones likely to recur:
 29. **The coverage document is gated by `make check`, so it must be deterministic.** Render
     counts, never values: sample dates move with the clock and would fail the build on an
     unrelated commit. A test renders it twice and compares.
+
+**Reading a standards document as evidence**
+
+38. **A release is a lane, not a date comparison.** The SR2026 Message Reference Guides go
+    live on 14 November 2026. Deriving the lane from the clock would make a validation rule
+    change overnight without a commit, so the lane is a recorded constant and every report
+    says the same thing whenever it is rendered. An SR2026 rule never becomes an SR2025 or
+    a runtime fact by the calendar moving.
+39. **A translation may say less than the source; it may never say more.** A weaker rule
+    misses a violation a reviewer can still catch. A stronger rule rejects messages SWIFT
+    accepts, which is the one outcome a testing platform must never produce. Five MT540/541
+    rules constrain fields *within one occurrence* of a repeating subsequence and are
+    recorded `UNSUPPORTED` rather than approximated by presence — the presence version
+    forbids combinations the source permits.
+40. **A page number is not a row number.** The Format Specifications table numbers its rows
+    in a right-hand column, and a wrapped row leaves that number alone on a line —
+    indistinguishable from a page number at the foot of the page. Deleting "furniture" by
+    shape silently deleted row 18. Furniture is now identified by *what it is*: the page's
+    own number, and only at the bottom of that page.
+41. **A lookahead window can eat the thing it is looking past.** The CODES blocks were
+    matched over a three-line window to catch a wrapped introduction, and matching it
+    *anywhere* in that window let the next list's introduction claim the previous list's
+    final code — `DBNM` lost `VEND`, `SETR` lost `TURN`. Anchor a multi-line match at the
+    start of its own line.
+42. **Two sections share a page, so classification is per line.** The Usage Rules end and
+    the Field Specifications begin on the same sheet. Page-level classification filed usage
+    prose under the wrong authority.
+43. **A document with no blank lines becomes one segment.** An extracted PDF can run a
+    hundred pages without one, and every rule in the book would then share a single evidence
+    identity. Segmentation now ends a block at a page break and at the segment ceiling too.
+44. **The document refutes itself, for free.** Every qualifier table carries a `CR` column
+    naming the rules that govern that qualifier. Comparing it against what a translation
+    binds is a criticism with no way for two readings to agree by having made the same
+    mistake — and it found a real over-reach in the linked-quantity rule.
+45. **"Receive free" does not mean "no settlement amount".** MT540's own `C1` lists
+    `:19A::SETT` among the amounts it constrains, and additionally lists `:19A::BOOK`, which
+    MT541 does not. What MT540 lacks is MT541's `C2`, which makes the amount *mandatory*.
+    Inferring the rule from the message name would have been wrong in both directions.
+46. **`Cn` is a label, not an identity.** MT541 `C2` is the settlement-amount rule (`E92`);
+    MT540 `C2` is a linked-count rule (`E90`). Matching rules by number across two books
+    attributes one message's rules to another.
+47. **An environment-dependent import needs an environment-independent annotation.**
+    `# type: ignore[import-not-found]` on the optional `pypdf` import is correct on a runner
+    without the package and an *unused-ignore error* on a laptop with it. A
+    `[[tool.mypy.overrides]]` entry is the only spelling that is right on both machines.
 
 ---
 

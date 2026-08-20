@@ -38,6 +38,7 @@ build/mx-real-candidates/
 build/mt-prowide-cache/
 build/mt-prowide-candidates/
 build/mt-prowide-inspect/
+build/mt-mrg/
 
 # The autonomous engagement brief. Kept locally, never committed.
 workPrompt.txt
@@ -47,4 +48,10 @@ workPrompt.txt
 backend/config/rule_sources/*
 !backend/config/rule_sources/README.md
 !backend/config/rule_sources/sources.yaml
+!backend/config/rule_sources/mt-mrg-sources.yaml
 !backend/config/rule_sources/synthetic-*.md
+
+# Operator-supplied SWIFT/MyStandards Message Reference Guides are licensed documents
+# dropped in locally for Phase 5B semantic ingestion. The bytes never enter Git; only
+# derived metadata (hashes, rule ids, page numbers) is committed.
+/swiftKnowledgeBase/

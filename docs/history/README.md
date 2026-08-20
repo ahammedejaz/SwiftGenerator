@@ -58,6 +58,8 @@ overnight-implementation-report → what the plan actually produced
 | [ci-implementation-report.md](ci-implementation-report.md) | The GitHub Actions pipeline and the two defects it found. |
 | [specification-engine-phase-04-report.md](specification-engine-phase-04-report.md) | Prowide-derived MT structure evidence, source locks, reports and verification. |
 | [specification-engine-phase-04b-report.md](specification-engine-phase-04b-report.md) | All-category Prowide MT source discovery, inert candidate analysis and authoring-readiness blockers. |
+| [specification-engine-phase-05a-report.md](specification-engine-phase-05a-report.md) | The MT semantic-rule ingestion foundation: source metadata, privacy gating and canonical references. |
+| [specification-engine-phase-05b-report.md](specification-engine-phase-05b-report.md) | Reading real SWIFT SR2026 MT540/MT541 Message Reference Guides as evidence, and refusing to activate any of it. |
 
 ---
 

@@ -1,0 +1,50 @@
+# SWIFT MyStandards MT Message Reference Guides, declared but not carried.
+#
+# This file is metadata about documents this repository never contains. Each entry names a
+# guide, the release it states, the message it describes and the SHA-256 of the exact bytes
+# the derived rule candidates were read from. The documents themselves are licensed under
+# the MyStandards Terms of Use, are dropped into an ignored local directory
+# (`MT_MRG_SOURCE_DIRECTORY`, default `swiftKnowledgeBase/`), and never enter Git.
+#
+# `sourceChecksum` is the point of the file. If a guide is re-exported, corrected or
+# swapped, the digest stops matching and ingestion refuses rather than deriving rules from
+# bytes nobody reviewed. See docs/mt-real-semantic-phase-05b.md.
+#
+# Redistribution and external model processing are both withheld on purpose. The guides'
+# own Legal Notices restrict disclosure outside the licensee's organisation, so the
+# conservative defaults are the accurate ones: no excerpt is committed, and no segment is
+# sent to any model provider. Changing either flag is an operator decision about their own
+# licence, never a convenience for this tooling.
+
+sources:
+  - sourceId: SWIFT-MT-SR2026-MT540-MRG
+    sourceType: OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL
+    title: Standards MT November 2026 Message Reference Guide — MT 540 Receive Free
+    version: Standards MT November 2026
+    sourceLocation: SR_2026_MT540.pdf
+    adapter: PDF_TEXT
+    sourceChecksum: sha256:ef69b239e6483dbbebbc0fe531c3d91f386039012a14715ce0e16d503a86fe8c
+    standardsRelease: SR2026
+    applicableMessageCategories: [5]
+    messageIdentifiers: [MT540]
+    sourceAllowsExternalModelProcessing: false
+    providerApprovedForSourceClassification: false
+    redistribution:
+      sourceMayBeCommitted: false
+      excerptsMayBeCommitted: false
+
+  - sourceId: SWIFT-MT-SR2026-MT541-MRG
+    sourceType: OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL
+    title: Standards MT November 2026 Message Reference Guide — MT 541 Receive Against Payment
+    version: Standards MT November 2026
+    sourceLocation: SR_2026_MT541.pdf
+    adapter: PDF_TEXT
+    sourceChecksum: sha256:b15cbfcb4e15fd056aede2d92bd522d75c28bd92b560066cc50b8c6031233a39
+    standardsRelease: SR2026
+    applicableMessageCategories: [5]
+    messageIdentifiers: [MT541]
+    sourceAllowsExternalModelProcessing: false
+    providerApprovedForSourceClassification: false
+    redistribution:
+      sourceMayBeCommitted: false
+      excerptsMayBeCommitted: false

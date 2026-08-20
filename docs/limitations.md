@@ -239,6 +239,31 @@ location. That is a claim about *this evidence*, never about the standard:
 - **The field list given to an extraction pass is capped.** For a very large message a rule
   about a field beyond the cap could not be found. Truncation is reported, never silent.
 
+## Reading SWIFT Message Reference Guides
+
+- **The two guides read are SR2026, which is not live until 14 November 2026.** Everything
+  derived from them is future-test. No SR2026 rule validates anything, and the installed
+  runtime structure is a third release again.
+- **A rule scoped to one occurrence of a repeating subsequence cannot be expressed.** Five
+  of the 38 Network Validated Rules in MT540 and MT541 say "in the same subsequence" or "in
+  another subsequence". The evaluator addresses a field, not a field-in-an-occurrence, so
+  they are recorded `UNSUPPORTED` rather than approximated. This is the largest gap in the
+  rule DSL and the clearest candidate for a later phase.
+- **Fifteen more rules are represented more weakly than the source states them.** Each
+  carries the clause it dropped — a distinct-occurrence requirement, a data-source-scheme
+  caveat, a format-option constraint — so it can miss a violation but never invent one.
+- **A component of a field cannot be referenced.** A reference resolves to a field, so a
+  rule that turns on a data source scheme or a format option within one is partial by
+  construction.
+- **No independent SR2026 structural source exists to cross-check against.** Prowide
+  publishes SRU2026 source tags but no Maven Central artifact, and this repository pins
+  checksummed artifacts. Grounding is `MRG_DOCUMENTARY_ONLY`.
+- **Translation recognises a closed set of sentence forms.** A guide phrasing a rule in a
+  form the reader does not know reports `NOT_RECOGNISED` for that rule and extracts the
+  rest. Both guides read here were fully recognised; another message need not be.
+- **No candidate has been reviewed.** Machine checks establish that a candidate is well
+  formed. Only a person reading the named page establishes that it is right.
+
 ## External validation
 
 The platform accepts uploaded, checksum-correlated validation evidence. It does not

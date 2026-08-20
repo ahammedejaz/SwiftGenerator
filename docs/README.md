@@ -21,6 +21,7 @@ row from the table below based on why you are here.
 | Import a licensed specification, schema or client guideline | [authoritative-sources.md](authoritative-sources.md) |
 | Review MT Prowide structural evidence | [mt-structure-importer.md](mt-structure-importer.md) |
 | Ingest MT semantic rule sources | [mt-semantic-rule-ingestion.md](mt-semantic-rule-ingestion.md) |
+| Read a SWIFT Message Reference Guide as evidence | [mt-real-semantic-phase-05b.md](mt-real-semantic-phase-05b.md) |
 | Demo the platform to a client | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Know what to ask a client for | [AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md) |
 | Know what is and is not supported | [limitations.md](limitations.md) |
@@ -78,6 +79,7 @@ row from the table below based on why you are here.
     ├── specification-rule-engine-plan.md   the Phase 2 architecture plan
     ├── mt-structure-importer.md       Prowide-derived MT structure evidence, build-time only
     ├── mt-semantic-rule-ingestion.md  MT semantic rule ingestion foundation
+    ├── mt-real-semantic-phase-05b.md  reading a SWIFT Message Reference Guide as evidence
     ├── mt-semantic-source-handling.md MT semantic source metadata and privacy gate
     ├── mt-structure-importer-plan.md  the Phase 4 implementation plan
     ├── mt-source-versioning.md        live release and Prowide lock policy

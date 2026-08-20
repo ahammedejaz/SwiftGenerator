@@ -7,6 +7,11 @@
     python -m app.rule_engine inspect  [--message sese.023] [--profile BASE_DEMO_V1]
     python -m app.rule_engine diff     BEFORE.yaml AFTER.yaml
     python -m app.rule_engine evaluate [--live]
+    python -m app.rule_engine mrg-inspect
+    python -m app.rule_engine mrg-extract  [--out FIXTURE.json]
+    python -m app.rule_engine mrg-reports  --write | --check
+    python -m app.rule_engine mrg-evaluate
+    python -m app.rule_engine mrg-verify
 
 Extraction is offline by design. The running application never extracts a rule, never
 compiles a candidate and never writes to the rules directory: a reviewed pack becomes
@@ -329,6 +334,154 @@ def _cmd_mt_readiness(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_mrg_inspect(args: argparse.Namespace) -> int:
+    from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue, run
+
+    catalogue = MrgSourceCatalogue(
+        directory=Path(args.directory) if args.directory else None
+    )
+    print(f"manifest:  {catalogue._path}")  # noqa: SLF001 - the CLI reports its own inputs
+    print(f"drop:      {catalogue.directory}")
+    present = [item for item in catalogue.ids() if catalogue.present(item)]
+    for source_id in catalogue.ids():
+        bundle = catalogue.get(source_id)
+        state = "present" if source_id in present else "SOURCE_NOT_AVAILABLE"
+        print(
+            f"  {source_id}  {bundle.standards_release}  "
+            f"{', '.join(bundle.message_identifiers)}  {state}"
+        )
+        print(f"      declared:  {bundle.source_type.value} — an operator declaration")
+        print(f"      external model processing: "
+              f"{'ALLOWED' if bundle.external_model_processing_allowed() else 'BLOCKED'}")
+    if not present:
+        print(
+            "\nNo Message Reference Guide is present. Everything derived from them is "
+            "already committed; only re-reading them is unavailable."
+        )
+        return 0
+    outcome = run(catalogue)
+    for source_id, reason in outcome.unreadable:
+        print(f"\n  {source_id}: SOURCE_UNREADABLE — {reason}", file=sys.stderr)
+    for reading in outcome.readings:
+        print()
+        for key, value in reading.metrics().items():
+            print(f"  {key}: {value}")
+        if reading.problems:
+            print(f"  problems: {', '.join(reading.problems)}")
+    return 0 if outcome.readings or not outcome.unreadable else 2
+
+
+def _cmd_mrg_extract(args: argparse.Namespace) -> int:
+    from app.rule_engine.mt_mrg import fixture
+    from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue, run
+
+    catalogue = MrgSourceCatalogue(
+        directory=Path(args.directory) if args.directory else None
+    )
+    outcome = run(catalogue)
+    if not outcome.readings:
+        for source_id, reason in outcome.unreadable:
+            print(f"{source_id}: SOURCE_UNREADABLE — {reason}", file=sys.stderr)
+        print(
+            "SOURCE_NOT_AVAILABLE — no Message Reference Guide could be read from "
+            f"{catalogue.directory}.",
+            file=sys.stderr,
+        )
+        return 2
+    target = fixture.write(outcome, Path(args.out) if args.out else None)
+    print(f"read:      {', '.join(item.source_id for item in outcome.readings)}")
+    print(f"wrote:     {target}")
+    candidates = sum(len(item.pack.rules) if item.pack else 0 for item in outcome.readings)
+    print(f"candidates: {candidates} — all REVIEW_REQUIRED, none installed")
+    return 0
+
+
+def _cmd_mrg_reports(args: argparse.Namespace) -> int:
+    from app.rule_engine.mt_mrg import reports
+
+    if args.write:
+        for path in reports.write_reports():
+            print(f"wrote {path}")
+        return 0
+    stale = reports.stale_reports()
+    if stale:
+        for path in stale:
+            print(f"{path} is stale", file=sys.stderr)
+        print("Run `make mt-mrg-reports-write`.", file=sys.stderr)
+        return 1
+    print("MT MRG generated reports are current")
+    return 0
+
+
+def _cmd_mrg_evaluate(args: argparse.Namespace) -> int:
+    from app.rule_engine.mt_mrg.evaluation import ANCHOR_CASES, run_cases
+    from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue, run
+
+    catalogue = MrgSourceCatalogue(
+        directory=Path(args.directory) if args.directory else None
+    )
+    outcome = run(catalogue)
+    if not outcome.readings:
+        for source_id, reason in outcome.unreadable:
+            print(f"{source_id}: SOURCE_UNREADABLE — {reason}", file=sys.stderr)
+        print(
+            "SOURCE_NOT_AVAILABLE — candidate evaluation needs the Message Reference "
+            "Guides, which are licensed and never committed.",
+            file=sys.stderr,
+        )
+        return 2
+    report = run_cases(
+        {item.identity.message_type: item for item in outcome.readings}, ANCHOR_CASES
+    )
+    print(report.render())
+    return 0 if report.passed else 1
+
+
+def _cmd_mrg_verify(args: argparse.Namespace) -> int:
+    """Re-read the guides and prove the committed evidence still describes them."""
+    from app.rule_engine.mt_mrg import fixture
+    from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue, run
+
+    catalogue = MrgSourceCatalogue(
+        directory=Path(args.directory) if args.directory else None
+    )
+    outcome = run(catalogue)
+    if not outcome.readings:
+        for source_id, reason in outcome.unreadable:
+            print(f"  {source_id}: SOURCE_UNREADABLE — {reason}")
+        print(
+            "SOURCE_NOT_AVAILABLE — the SWIFT Message Reference Guides are licensed and "
+            "are never committed, so this proof runs only where an operator has dropped "
+            f"them into {catalogue.directory} and installed a PDF text extractor. "
+            "Everything derived from them is committed and is checked by "
+            "`make mt-mrg-check`.",
+        )
+        return 0
+    fresh = fixture.build(outcome)
+    if args.out:
+        target = Path(args.out)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(fixture.render(fresh), encoding="utf-8")
+        print(f"wrote {target}")
+    committed = fixture.load()
+    for reading in outcome.readings:
+        print(
+            f"  {reading.source_id}  {reading.identity.message_type}  "
+            f"{reading.identity.standards_release}  {reading.page_count} pages  "
+            f"{reading.checksum}"
+        )
+    if fixture.render(fresh) != fixture.render(committed):
+        print(
+            "\nThe guides no longer produce the committed evidence. Re-run "
+            "`make mt-mrg-extract`, re-read every candidate, and say in the commit what "
+            "changed.",
+            file=sys.stderr,
+        )
+        return 1
+    print("\nThe committed evidence reproduces exactly from the operator's documents.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.rule_engine", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -405,6 +558,39 @@ def main(argv: list[str] | None = None) -> int:
     mt_readiness.add_argument("--write", action="store_true", help="write generated docs")
     mt_readiness.add_argument("--check", action="store_true", help="check generated docs")
     mt_readiness.set_defaults(handler=_cmd_mt_readiness)
+
+    mrg_inspect = commands.add_parser(
+        "mrg-inspect", help="which Message Reference Guides are declared and present"
+    )
+    mrg_inspect.add_argument("--directory", help="drop directory holding the guides")
+    mrg_inspect.set_defaults(handler=_cmd_mrg_inspect)
+
+    mrg_extract = commands.add_parser(
+        "mrg-extract", help="read the guides into the committed evidence fixture"
+    )
+    mrg_extract.add_argument("--directory", help="drop directory holding the guides")
+    mrg_extract.add_argument("--out", help="fixture path (default: the committed one)")
+    mrg_extract.set_defaults(handler=_cmd_mrg_extract)
+
+    mrg_reports = commands.add_parser(
+        "mrg-reports", help="render or check the generated MRG reports"
+    )
+    mrg_reports.add_argument("--write", action="store_true")
+    mrg_reports.add_argument("--check", action="store_true")
+    mrg_reports.set_defaults(handler=_cmd_mrg_reports)
+
+    mrg_evaluate = commands.add_parser(
+        "mrg-evaluate", help="prove candidate rules against synthetic values"
+    )
+    mrg_evaluate.add_argument("--directory", help="drop directory holding the guides")
+    mrg_evaluate.set_defaults(handler=_cmd_mrg_evaluate)
+
+    mrg_verify = commands.add_parser(
+        "mrg-verify", help="prove the committed evidence reproduces from the real guides"
+    )
+    mrg_verify.add_argument("--directory", help="drop directory holding the guides")
+    mrg_verify.add_argument("--out", help="write the fresh fixture here for comparison")
+    mrg_verify.set_defaults(handler=_cmd_mrg_verify)
 
     args = parser.parse_args(argv)
     return int(args.handler(args))

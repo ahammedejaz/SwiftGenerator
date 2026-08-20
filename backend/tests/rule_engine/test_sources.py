@@ -241,7 +241,7 @@ def test_a_pdf_is_reported_honestly_when_no_extractor_is_installed(tmp_path: Pat
     # `pypdf` is deliberately not a dependency of this repository. The seam exists so an
     # operator who installs it can use it, and says so plainly when they have not.
     try:
-        import pypdf  # type: ignore[import-not-found]  # noqa: F401
+        import pypdf  # noqa: F401
     except ImportError:
         (tmp_path / "doc.pdf").write_bytes(b"%PDF-1.7\n%mock\n")
         with pytest.raises(RuleEngineError) as caught:
