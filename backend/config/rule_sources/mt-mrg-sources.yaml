@@ -1,10 +1,12 @@
-# SWIFT MyStandards MT Message Reference Guides, declared but not carried.
+# SWIFT MyStandards MT Message Reference Guides — the two the Phase 5B proof reads.
 #
-# This file is metadata about documents this repository never contains. Each entry names a
-# guide, the release it states, the message it describes and the SHA-256 of the exact bytes
-# the derived rule candidates were read from. The documents themselves are licensed under
-# the MyStandards Terms of Use, are dropped into an ignored local directory
-# (`MT_MRG_SOURCE_DIRECTORY`, default `swiftKnowledgeBase/`), and never enter Git.
+# Each entry names a guide, the release it states, the message it describes and the SHA-256
+# of the exact bytes the derived rule candidates were read from. Since the universal
+# completion engagement the guides live in the repository's own knowledge base
+# (`swiftKnowledgeBase/MT/`, carried through Git LFS for this internal project); the drop
+# directory (`MT_MRG_SOURCE_DIRECTORY`, default `swiftKnowledgeBase/`) is that folder and
+# `sourceLocation` is the path inside it. The corpus-wide reading of every guide needs no
+# entry here: `python -m app.rule_engine mrg-corpus` identifies each guide from its cover.
 #
 # `sourceChecksum` is the point of the file. If a guide is re-exported, corrected or
 # swapped, the digest stops matching and ingestion refuses rather than deriving rules from
@@ -21,7 +23,7 @@ sources:
     sourceType: OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL
     title: Standards MT November 2026 Message Reference Guide — MT 540 Receive Free
     version: Standards MT November 2026
-    sourceLocation: SR_2026_MT540.pdf
+    sourceLocation: MT/SR_2026_November_MT540_Receive_Free.pdf
     adapter: PDF_TEXT
     sourceChecksum: sha256:ef69b239e6483dbbebbc0fe531c3d91f386039012a14715ce0e16d503a86fe8c
     standardsRelease: SR2026
@@ -37,7 +39,7 @@ sources:
     sourceType: OFFICIAL_SWIFT_MT_STANDARDS_MATERIAL
     title: Standards MT November 2026 Message Reference Guide — MT 541 Receive Against Payment
     version: Standards MT November 2026
-    sourceLocation: SR_2026_MT541.pdf
+    sourceLocation: MT/SR_2026_November_MT541_Receive_Against_Payment.pdf
     adapter: PDF_TEXT
     sourceChecksum: sha256:b15cbfcb4e15fd056aede2d92bd522d75c28bd92b560066cc50b8c6031233a39
     standardsRelease: SR2026

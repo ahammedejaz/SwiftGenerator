@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from app.rule_engine.mt_mrg.document import (
@@ -33,12 +33,15 @@ from app.rule_engine.mt_mrg.document import (
 
 SEQUENCE_OPEN = re.compile(
     r"^(?:---->\s+)?(?P<presence>Mandatory|Optional)\s+(?P<repeat>Repetitive\s+)?"
-    r"(?P<kind>Sequence|Subsequence)\s+(?P<path>[A-Z]\d*[a-z]?\d*)\s+(?P<name>.*)$"
+    r"(?P<kind>Sequence|Subsequence)\s+(?P<path>[A-Z](?:\d+|[a-z]|[A-Z])*)\s+(?P<name>.*)$"
 )
 SEQUENCE_CLOSE = re.compile(
     r"^(?:----\|\s+)?End of (?:Mandatory|Optional) (?:Repetitive )?"
-    r"(?:Sequence|Subsequence) (?P<path>[A-Z]\d*[a-z]?\d*)\b"
+    r"(?:Sequence|Subsequence) (?P<path>[A-Z](?:\d+|[a-z]|[A-Z])*)\b"
 )
+#: Rows a guide lists outside any sequence — a flat message (MT103) or the fields before
+#: the first sequence opens — sit in the message body, named as the runtime names it.
+ROOT_SEQUENCE = "ROOT"
 REPEAT_OPEN = "---->"
 REPEAT_CLOSE = "----|"
 #: Column headings and the legend, which repeat on every page of the table.
@@ -50,14 +53,38 @@ TABLE_FURNITURE = frozenset(
         "M = Mandatory, O = Optional",
         "Status Tag Qualifier Generic Field",
         "Name",
+        # A message without generic fields has no qualifier columns.
+        "Status Tag Field Name Content/Options No.",
     }
 )
 ROW_HEAD = re.compile(r"^(?P<status>[MO])\s+(?P<tag>\d{2}[A-Za-z]?)\s+(?P<rest>.*)$")
+DELIMITER_ROW = re.compile(
+    r"^M\s+(?P<tag>16[RS])\s+(?P<label>(?:Start|End) of Block)\s+(?P<code>[A-Z0-9]+)"
+    r"\s+(?P<number>\d{1,3})$"
+)
+#: A complete table row ends with its own number; used only to resynchronise after a
+#: misnumbered row (see ``parse_format_specification``).
+ROW_NUMBER_TAIL = re.compile(r"^[MO]\s+\d{2}[A-Za-z]?\s+.*\s(?P<number>\d{1,3})$")
 #: The qualifier column holds either a literal qualifier or ``4!c`` — "any qualifier this
 #: field defines", with the actual list given by the field's own qualifier table.
 GENERIC_QUALIFIER = "4!c"
 QUALIFIER_TOKEN = re.compile(r"^(?P<qualifier>[A-Z]{4}|4!c)(?:\s+(?P<rest>.*))?$")
-OPTION_LIST = re.compile(r"^[A-Z](?:,\s*[A-Z])*$")
+#: A slash alone is not enough — ``Date/Currency/Amount`` is a field name.
+FORMAT_FRAGMENT = re.compile(r"[0-9!\[\]<>*$]")
+NO_LETTER_TOKEN = "NOLETTER"
+NO_LETTER_OPTION = re.compile(r"No letter option", re.IGNORECASE)
+OPTION_LIST = re.compile(rf"^(?:[A-Z]|{NO_LETTER_TOKEN})(?:,\s*(?:[A-Z]|{NO_LETTER_TOKEN}))*$")
+
+
+def parent_of(path: str) -> str | None:
+    """Strip one nesting level: a trailing number run, or a trailing letter."""
+    if "_" in path:
+        # ``B1_A`` is the repetitive group inside ``B1``; ``_A`` sits in the message body.
+        return path.rsplit("_", 1)[0] or None
+    if len(path) <= 1:
+        return None
+    stripped = path.rstrip("0123456789") if path[-1].isdigit() else path[:-1]
+    return stripped or None
 
 
 class SequencePresence(StrEnum):
@@ -68,6 +95,15 @@ class SequencePresence(StrEnum):
 class RowStatus(StrEnum):
     MANDATORY = "M"
     OPTIONAL = "O"
+
+
+@dataclass(frozen=True)
+class _OpenRepeat:
+    """A ``---->`` arrow waiting for its ``----|``."""
+
+    path: str
+    first_row: int
+    line: MrgLine
 
 
 @dataclass(frozen=True)
@@ -82,8 +118,9 @@ class MrgSequence:
 
     @property
     def parent_path(self) -> str | None:
-        """``E1``'s parent is ``E``. Derived from the guide's own naming convention."""
-        return self.path[:-1] if len(self.path) > 1 else None
+        """``E1``'s parent is ``E``, ``C1a1A1``'s is ``C1a1A``. Derived from the guide's own
+        naming convention: each nesting level appends one letter or one number."""
+        return parent_of(self.path)
 
 
 @dataclass(frozen=True)
@@ -155,6 +192,13 @@ class MrgFieldSpec:
     qualifiers: tuple[MrgQualifierRow, ...]
     #: Codes the CODES block enumerates, keyed by the qualifier the block names.
     codes: tuple[tuple[str, tuple[str, ...]], ...]
+    #: Qualifiers (``""`` for a field without one) whose list the guide leaves open — "may
+    #: be used", "or bilaterally agreed codes". Their codes are guidance, never a closed set.
+    open_code_lists: tuple[str, ...]
+    #: The FORMAT block's notation per option letter (``""`` for a field without letter
+    #: options): ``Option J 5*40x (Party Identification)`` → ``("J", "5*40x")``. Component
+    #: labels are dropped; wrapped lines are joined without the spaces the wrap introduced.
+    formats: tuple[tuple[str, str], ...]
     #: Error codes named anywhere in the specification's normative blocks.
     error_codes: tuple[str, ...]
     #: Which labelled blocks the specification actually carries.
@@ -276,7 +320,9 @@ def _split_row(rest: str) -> tuple[str | None, bool, tuple[str, ...], str, str]:
             qualifier = token
         rest = (match.group("rest") or "").strip()
     # The content/options column is the tail. An option list is a comma-separated run of
-    # single letters; anything else is a format string or a block code, kept verbatim.
+    # single letters — ``59a`` lists ``No letter option, A, F`` where the bare tag is one of
+    # the options; anything else is a format string or a block code, kept verbatim.
+    rest = NO_LETTER_OPTION.sub(NO_LETTER_TOKEN, rest)
     words = rest.split()
     for start in range(len(words)):
         tail = " ".join(words[start:])
@@ -284,12 +330,28 @@ def _split_row(rest: str) -> tuple[str | None, bool, tuple[str, ...], str, str]:
             return (
                 qualifier,
                 generic,
-                tuple(item.strip() for item in tail.split(",")),
-                tail,
+                tuple(
+                    "" if item.strip() == NO_LETTER_TOKEN else item.strip()
+                    for item in tail.split(",")
+                ),
+                tail.replace(NO_LETTER_TOKEN, "No letter option"),
                 " ".join(words[:start]),
             )
-    content = words[-1] if words else ""
-    return qualifier, generic, (), content, " ".join(words[:-1])
+    # A format string wraps across lines too (MT940's 61 takes three), and the PDF text
+    # then shows it as several words. Trailing words that carry a format marker — a digit,
+    # ``!``, a bracket, ``<``, ``*``, ``/`` or ``$`` — are the format, joined back without
+    # the spaces the wrap introduced; the words before them are the field name.
+    end = len(words)
+    while end > 0 and FORMAT_FRAGMENT.search(words[end - 1]):
+        end -= 1
+    if end == len(words):
+        end = max(len(words) - 1, 0)
+    content = "".join(words[end:])
+    return qualifier, generic, (), content, " ".join(words[:end])
+
+
+def _joined(lines: list[MrgLine]) -> str:
+    return re.sub(r"-\s(?=\S)", "", " ".join(item.text.strip() for item in lines))
 
 
 def parse_format_specification(
@@ -315,15 +377,19 @@ def parse_format_specification(
     rows: list[MrgFieldRow] = []
     problems: list[str] = []
     open_paths: list[str] = []
-    repeating = False
+    repeat_stack: list[_OpenRepeat] = []
+    group_counts: dict[str, int] = {}
     expected = 1
     buffer: list[MrgLine] = []
 
+    def current_path() -> str:
+        if repeat_stack:
+            return repeat_stack[-1].path
+        return open_paths[-1] if open_paths else ROOT_SEQUENCE
+
     def flush_unparsed() -> None:
         if buffer:
-            problems.append(
-                f"UNPARSED_TABLE_TEXT_AT_LINE_{buffer[0].number}_BEFORE_ROW_{expected}"
-            )
+            problems.append(f"UNPARSED_TABLE_TEXT_AT_LINE_{buffer[0].number}_BEFORE_ROW_{expected}")
             buffer.clear()
 
     for line in section_lines(
@@ -339,14 +405,14 @@ def parse_format_specification(
         close = SEQUENCE_CLOSE.match(stripped)
         if close:
             flush_unparsed()
-            repeating = False
+            repeat_stack.clear()
             if open_paths and open_paths[-1] == close.group("path"):
                 open_paths.pop()
             continue
         opened = SEQUENCE_OPEN.match(stripped)
         if opened:
             flush_unparsed()
-            repeating = False
+            repeat_stack.clear()
             path = opened.group("path")
             open_paths.append(path)
             sequences.append(
@@ -362,28 +428,133 @@ def parse_format_specification(
             )
             continue
         if stripped == REPEAT_OPEN:
-            repeating = True
+            # Arrows nest (MT801 repeats a block inside a repeated block), so each opening
+            # arrow pushes a group whose rows follow until its closing arrow.
+            parent_path = (
+                repeat_stack[-1].path if repeat_stack else (open_paths[-1] if open_paths else "")
+            )
+            ordinal = group_counts.get(parent_path, 0)
+            group_counts[parent_path] = ordinal + 1
+            repeat_stack.append(
+                _OpenRepeat(
+                    path=f"{parent_path}_{chr(ord('A') + ordinal)}",
+                    first_row=len(rows),
+                    line=line,
+                )
+            )
             continue
         if stripped == REPEAT_CLOSE:
-            repeating = False
+            if not repeat_stack:
+                continue
+            group = repeat_stack.pop()
+            grouped = rows[group.first_row :]
+            own_rows = [item for item in grouped if item.sequence_path == group.path]
+            child_groups = [item for item in sequences if item.path.startswith(group.path + "_")]
+            if len(own_rows) <= 1 and not child_groups:
+                # One field repeating on its own: a repetitive row, not a sequence. The row
+                # returns to the sequence around it and is marked repetitive.
+                outer = (
+                    repeat_stack[-1].path
+                    if repeat_stack
+                    else (open_paths[-1] if open_paths else ROOT_SEQUENCE)
+                )
+                rows[group.first_row :] = [
+                    replace(item, sequence_path=outer, repetitive=True)
+                    if item.sequence_path == group.path
+                    else item
+                    for item in grouped
+                ]
+                group_counts[outer if outer != ROOT_SEQUENCE else ""] -= 1
+                continue
+            # Several rows repeat together (MT940's 61 and 86, MT201's transaction block):
+            # an unbracketed repetitive group, which the runtime models as a sequence of its
+            # own so the rows repeat as a unit rather than severally.
+            sequences.append(
+                MrgSequence(
+                    path=group.path,
+                    presence=(
+                        SequencePresence.MANDATORY
+                        if any(item.status is RowStatus.MANDATORY for item in own_rows)
+                        else SequencePresence.OPTIONAL
+                    ),
+                    repetitive=True,
+                    name="Repetitive group",
+                    order=len(sequences) + 1,
+                    page=group.line.page,
+                    line=group.line.number,
+                )
+            )
             continue
 
-        buffer.append(line)
-        joined = re.sub(r"-\s(?=\S)", "", " ".join(item.text.strip() for item in buffer))
-        if not joined.endswith(f" {expected}"):
+        delimiter = DELIMITER_ROW.match(stripped)
+        if delimiter is not None:
+            # ``16R``/``16S`` rows are complete on one line and a guide numbers them
+            # unreliably (MT548 SR2026 closes GENL as row 14 after row 15). The delimiter
+            # is authoritative; the number due is the row's number.
+            flush_unparsed()
+            read = int(delimiter.group("number"))
+            if read != expected:
+                problems.append(f"ROW_NUMBER_RESYNC_EXPECTED_{expected}_READ_{read}")
+            rows.append(
+                MrgFieldRow(
+                    number=expected,
+                    sequence_path=current_path(),
+                    status=RowStatus.MANDATORY,
+                    tag=delimiter.group("tag"),
+                    qualifier=None,
+                    generic_qualifier=False,
+                    options=(),
+                    content=delimiter.group("code"),
+                    description=delimiter.group("label"),
+                    repetitive=False,
+                    page=line.page,
+                    line=line.number,
+                )
+            )
+            expected += 1
             continue
-        head = ROW_HEAD.match(joined[: -len(str(expected))].strip())
+        buffer.append(line)
+        joined = _joined(buffer)
+        number = expected
+        if not joined.endswith(f" {expected}"):
+            # A guide occasionally misnumbers one row (MT548 SR2026 closes GENL with
+            # ``16S … 14`` where 16 is due). Waiting for the due number would swallow the
+            # rest of the table, so a complete row whose number sits within a few of the
+            # one due is accepted, the numbering resynchronised and the slip recorded.
+            resync = ROW_NUMBER_TAIL.match(joined)
+            if resync is None or abs(int(resync.group("number")) - expected) > 3:
+                continue
+            read = int(resync.group("number"))
+            # A number lower than the one due is a misprint of the due number (the table
+            # never goes backwards); a higher one means rows were skipped, and the table's
+            # own numbering is then the authority.
+            number = max(read, expected)
+            problems.append(f"ROW_NUMBER_RESYNC_EXPECTED_{expected}_READ_{read}")
+        # Prose introducing the table ("The MT 201 consists of two types of sequences …")
+        # can sit in the buffer in front of the first row. The row is the shortest tail of
+        # the buffer that reads as one; whatever precedes it is recorded as unparsed.
+        head = None
+        for start in range(len(buffer)):
+            candidate = _joined(buffer[start:])
+            if not candidate.endswith(f" {number}"):
+                continue
+            head = ROW_HEAD.match(candidate[: -len(str(number))].strip())
+            if head is not None:
+                if start:
+                    problems.append(
+                        f"UNPARSED_TABLE_TEXT_AT_LINE_{buffer[0].number}_BEFORE_ROW_{number}"
+                    )
+                    del buffer[:start]
+                break
         if head is None:
             flush_unparsed()
             expected += 1
             continue
-        qualifier, generic, options, content, description = _split_row(
-            head.group("rest").strip()
-        )
+        qualifier, generic, options, content, description = _split_row(head.group("rest").strip())
         rows.append(
             MrgFieldRow(
-                number=expected,
-                sequence_path=open_paths[-1] if open_paths else "?",
+                number=number,
+                sequence_path=current_path(),
                 status=RowStatus(head.group("status")),
                 tag=head.group("tag"),
                 qualifier=qualifier,
@@ -391,13 +562,13 @@ def parse_format_specification(
                 options=options,
                 content=content,
                 description=description,
-                repetitive=repeating,
+                repetitive=False,
                 page=buffer[0].page,
                 line=buffer[0].number,
             )
         )
         buffer.clear()
-        expected += 1
+        expected = number + 1
     flush_unparsed()
     if open_paths:
         problems.append("SEQUENCE_NOT_CLOSED_" + "_".join(open_paths))
@@ -406,11 +577,15 @@ def parse_format_specification(
 
 # -- Field Specifications ----------------------------------------------------------------
 
+#: ``Mandatory in mandatory sequence A``, ``Conditional (see rules C2, C15)`` (a flat
+#: message has no sequence), ``Optional in conditional (see rule ) sequence C``. The
+#: sequence part is absent in a guide whose message has no sequences.
 PRESENCE_STATEMENT = re.compile(
     r"^(?P<status>Mandatory|Optional|Conditional)"
-    r"(?:\s+\(see rule (?P<rules>C\d+(?:,\s*C\d+)*)\))?"
-    r"\s+in\s+(?P<sequence_presence>mandatory|optional)\s+"
-    r"(?:sequence|subsequence)\s+(?P<path>[A-Z]\d*[a-z]?\d*)$"
+    r"(?:\s+\(see rules?\s*(?P<rules>C\d+(?:,\s*C\d+)*)?\s*\))?"
+    r"(?:\s+in\s+(?P<sequence_presence>mandatory|optional|conditional)"
+    r"(?:\s+\(see rules?\s*(?P<sequence_rules>[^)]*)\))?\s+"
+    r"(?:sequence|subsequence)\s+(?P<path>[A-Z](?:\d+|[a-z]|[A-Z])*))?$"
 )
 QUALIFIER_ROW = re.compile(
     r"^(?P<order>\d{1,3})\s+(?P<status>[MO])\s+(?P<qualifier>[A-Z0-9]{4})\s+"
@@ -429,7 +604,19 @@ QUALIFIER_TAIL_OPTIONS = re.compile(r"^\s*(?P<options>[A-Z](?:\s*,\s*[A-Z])*)(?:
 QUALIFIER_HEADER = "Order M/O Qualifier R/N CR Options Qualifier Description"
 CONDITIONAL_RULES = re.compile(r"C\d{1,2}")
 ERROR_CODES = re.compile(r"\(Error code\(s\):\s*(?P<codes>[^)]+)\)")
-CODE_ENTRY = re.compile(r"^(?P<code>[A-Z]{4})\s+(?P<label>[A-Z].*)$")
+#: ``CHQB Cheque``, ``CREDIT Credit transfer(s)``, ``BankOfRussia Central Bank …``: a code is
+#: one token of letters and digits, upper case or camel case, followed by a capitalised
+#: label. A line that wraps a description starts in lower case and is never an entry.
+CODE_ENTRY = re.compile(
+    r"^(?P<code>[A-Z][A-Z0-9]{1,11}|[A-Z][a-z]+(?:[A-Z][a-z]+)+)\s+(?P<label>[A-Z].*)$"
+)
+#: An introduction that closes the list ("must contain one of the following codes") against
+#: one that leaves it open ("may be used", "or bilaterally agreed codes"). Only a closed list
+#: becomes an allowed-value set: an open one, enforced, would reject codes the guide permits.
+CODES_CLOSED = re.compile(r"\bmust\b", re.IGNORECASE)
+CODES_OPEN = re.compile(
+    r"bilaterally agreed|may be used|may also be used|other codes?", re.IGNORECASE
+)
 #: Anchored at the start of its own line on purpose. The introduction wraps, so it has to
 #: be matched over a small window of following lines — but matching it *anywhere* in that
 #: window let the next list's introduction claim the previous list's final code, which is
@@ -504,6 +691,12 @@ def _one_field_spec(lines: list[MrgLine], heading: re.Match[str]) -> MrgFieldSpe
         stripped = line.text.strip()
         if stripped in FIELD_BLOCKS:
             current = BLOCK_BY_LABEL[stripped]
+            if current is MrgBlock.PRESENCE and current in blocks:
+                # A second PRESENCE inside one numbered specification belongs to a copied
+                # sub-part (MT n95's field 79 restates the copied fields). The field's own
+                # presence is the first statement; the restatement is not read.
+                current = None
+                continue
             blocks.setdefault(current, [])
             continue
         if current is not None:
@@ -515,12 +708,16 @@ def _one_field_spec(lines: list[MrgLine], heading: re.Match[str]) -> MrgFieldSpe
     if statement is None:
         return f"PRESENCE_NOT_UNDERSTOOD_FIELD_{ordinal}_LINE_{lines[0].number}"
 
+    # A flat message's fields sit in the body, ``ROOT`` — the name the runtime pack uses too.
+    sequence_path = statement.group("path") or ROOT_SEQUENCE
+    sequence_presence_text = (statement.group("sequence_presence") or "mandatory").upper()
     qualifiers = _qualifier_rows(
         blocks.get(MrgBlock.QUALIFIER, []),
         ordinal=ordinal,
         tag=tag,
-        sequence_path=statement.group("path"),
+        sequence_path=sequence_path,
     )
+    code_lists = _code_blocks(blocks.get(MrgBlock.CODES, []))
     normative = [
         line
         for block in (
@@ -535,17 +732,65 @@ def _one_field_spec(lines: list[MrgLine], heading: re.Match[str]) -> MrgFieldSpe
         tag=tag,
         heading=lines[0].text.strip(),
         presence_text=presence_text,
-        sequence_path=statement.group("path"),
-        sequence_presence=SequencePresence(statement.group("sequence_presence").upper()),
+        sequence_path=sequence_path,
+        # A conditional sequence is read as optional: weaker than the guide, never stronger.
+        sequence_presence=SequencePresence(
+            "OPTIONAL" if sequence_presence_text == "CONDITIONAL" else sequence_presence_text
+        ),
         field_status=statement.group("status").upper(),
         conditional_rules=tuple(CONDITIONAL_RULES.findall(statement.group("rules") or "")),
         qualifiers=qualifiers,
-        codes=_code_blocks(blocks.get(MrgBlock.CODES, [])),
+        codes=tuple((key, codes) for key, codes, _open in code_lists),
+        open_code_lists=tuple(key for key, _codes, is_open in code_lists if is_open),
+        formats=_format_block(blocks.get(MrgBlock.FORMAT, [])),
         error_codes=error_codes_in(" ".join(item.text for item in normative)),
         blocks=tuple(sorted(blocks, key=lambda item: item.value)),
         first_page=lines[0].page,
         last_page=lines[-1].page,
     )
+
+
+FORMAT_OPTION_LINE = re.compile(r"^Option (?P<option>[A-Z])\b\s*(?P<rest>.*)$")
+#: ``(Party Identifier)``, ``(D/C Mark)`` — words; never ``(1!n/33x)``, which is a group.
+FORMAT_COMPONENT_LABEL = re.compile(r"\([A-Z][A-Za-z/ '’,.-]*\)")
+#: Notation never has a run of three lower-case letters or a bare ``or``; prose does.
+FORMAT_PROSE = re.compile(r"[a-z]{3,}|^[Oo]r$")
+
+
+def _format_block(lines: list[MrgLine]) -> tuple[tuple[str, str], ...]:
+    """Option letter → notation, from the FORMAT block.
+
+    ``Option A [/1!a][/34x]`` / ``4!a2!a2!c[3!c]`` / ``(Identifier Code)`` is one option
+    whose notation wrapped; ``16x (Reference)`` is a field without letter options. A
+    ``Line n`` layout (structured narratives) is kept under the bare option as written,
+    which leaves it to the format compiler to accept or refuse.
+    """
+    found: dict[str, list[str]] = {}
+    current: str | None = None
+    closed = False
+    for line in lines:
+        text = line.text.strip()
+        if not text:
+            continue
+        option = FORMAT_OPTION_LINE.match(text)
+        if option is not None:
+            current = option.group("option")
+            closed = False
+            found.setdefault(current, [])
+            text = option.group("rest")
+        elif current is None:
+            current = ""
+            found.setdefault(current, [])
+        cleaned = FORMAT_COMPONENT_LABEL.sub("", text).strip()
+        if closed or not cleaned:
+            continue
+        if FORMAT_PROSE.search(cleaned):
+            # "In option F, the following line formats must be used …" — the notation is
+            # complete; what follows is prose about it, read by nothing here.
+            closed = True
+            continue
+        found[current].append(cleaned)
+    return tuple((option, "".join(parts)) for option, parts in found.items() if parts)
 
 
 @dataclass
@@ -641,31 +886,43 @@ def _qualifier_rows(
     return tuple(rows)
 
 
-def _code_blocks(lines: list[MrgLine]) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """Code lists the CODES block enumerates, attributed to the qualifier they belong to.
+def _code_blocks(lines: list[MrgLine]) -> tuple[tuple[str, tuple[str, ...], bool], ...]:
+    """``(qualifier, codes, open)`` per list the CODES block enumerates.
 
     A CODES block may introduce several lists, one per qualifier. Attributing all of them
     to the field would hand a qualifier codes that belong to a different one — the exact
     mistake a shared YAML anchor once made in this repository's own configuration.
     """
     collected: dict[str, list[str]] = {}
+    openness: dict[str, bool] = {}
     qualifier = ""
+    intro: list[str] = []
     text_lines = [line.text.strip() for line in lines]
     for index, stripped in enumerate(text_lines):
-        introduction = CODES_INTRODUCTION.match(
-            " ".join(text_lines[index : index + 3])
-        )
+        introduction = CODES_INTRODUCTION.match(" ".join(text_lines[index : index + 3]))
         if introduction:
             qualifier = introduction.group("qualifier")
             collected.setdefault(qualifier, [])
+            intro = [stripped]
             continue
         entry = CODE_ENTRY.match(stripped)
         if entry:
             collected.setdefault(qualifier, [])
+            if qualifier not in openness:
+                wording = " ".join(intro)
+                openness[qualifier] = bool(CODES_OPEN.search(wording)) or not CODES_CLOSED.search(
+                    wording
+                )
             code = entry.group("code")
             if code not in collected[qualifier]:
                 collected[qualifier].append(code)
-    return tuple((key, tuple(value)) for key, value in collected.items() if value)
+            continue
+        intro.append(stripped)
+    return tuple(
+        (key, tuple(value), openness.get(key, True))
+        for key, value in collected.items()
+        if value
+    )
 
 
 @dataclass

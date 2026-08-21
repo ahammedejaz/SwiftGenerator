@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from app.knowledge_base.identify import ParsedSource
@@ -125,6 +126,8 @@ def read_structure(parsed: ParsedSource) -> MrgStructureArtifact:
                 "fieldStatus": spec.field_status,
                 "conditionalRules": list(spec.conditional_rules),
                 "codes": {qualifier: list(codes) for qualifier, codes in spec.codes},
+                "openCodeLists": list(spec.open_code_lists),
+                "formats": {option: notation for option, notation in spec.formats},
                 "errorCodes": list(spec.error_codes),
                 "firstPage": spec.first_page,
                 "lastPage": spec.last_page,
@@ -134,6 +137,11 @@ def read_structure(parsed: ParsedSource) -> MrgStructureArtifact:
         problems=list(structure.problems),
         network_validated_rules=len(rules),
     )
+
+
+def cached_text_path(cache_dir: Path, checksum: str) -> Path:
+    """Where the sync keeps a guide's page-marked text, by content checksum."""
+    return cache_dir / "mrg-text" / f"{checksum.removeprefix('sha256:')}.txt"
 
 
 def table_problem_pages(parsed: ParsedSource, artifact: MrgStructureArtifact) -> frozenset[int]:

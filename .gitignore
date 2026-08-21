@@ -52,10 +52,14 @@ backend/config/rule_sources/*
 !backend/config/rule_sources/mt-mrg-sources.yaml
 !backend/config/rule_sources/synthetic-*.md
 
-# Operator-supplied SWIFT/MyStandards Message Reference Guides are licensed documents
-# dropped in locally for Phase 5B semantic ingestion. The bytes never enter Git; only
-# derived metadata (hashes, rule ids, page numbers) is committed.
-/swiftKnowledgeBase/
+# The authorised knowledge base (swiftKnowledgeBase/) is committed for this internal
+# project — source PDFs and XSDs through Git LFS (see .gitattributes) with their manifest.
+# What is never committed is anything derived from it or anything personal: the operator's
+# own notes, browser state or scratch files dropped beside the sources.
+/swiftKnowledgeBase/**/.DS_Store
+/swiftKnowledgeBase/**/*.tmp
+/swiftKnowledgeBase/**/~$*
+/swiftKnowledgeBase/**/.~lock.*
 
 # Phase 6 Knowledge Base: the SQLite index (segments, embedding vectors, sample cache),
 # extracted source cache and compiled dynamic packs are derived from licensed sources and

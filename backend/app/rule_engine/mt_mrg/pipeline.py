@@ -402,6 +402,8 @@ def refute(
 #: *weaker* than the source and therefore cannot reject a message the source accepts;
 #: the clause it drops travels with it as a limitation a reviewer must read.
 CANDIDATE_FIDELITIES = (RuleFidelity.EXACT, RuleFidelity.PARTIAL)
+#: A translation's residual marker for a rule the structure pack enforces on its own.
+STRUCTURE_ENFORCED = "ENFORCED_BY_STRUCTURE"
 
 
 def candidate_rule_id(translation: RuleTranslation) -> str:
@@ -467,6 +469,8 @@ def build_candidate_pack(reading: MrgReading, bundle: SourceBundle) -> RulePack 
     for translation in reading.translations:
         if translation.fidelity not in CANDIDATE_FIDELITIES or translation.assertion is None:
             continue
+        if STRUCTURE_ENFORCED in translation.residual:
+            continue  # exact by construction: the structure validator already enforces it
         objections = tuple(
             item.detail
             for item in reading.objections

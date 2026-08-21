@@ -74,9 +74,7 @@ MT_LIMITATIONS = [
 
 
 def _profile_configured(message_type: str) -> bool:
-    return any(
-        profile.requirements_for(message_type) for profile in profiles.list()
-    )
+    return any(profile.requirements_for(message_type) for profile in profiles.list())
 
 
 def _installed_rule_layers(format_: MessageFormat, message_type: str) -> dict[str, bool]:
@@ -283,9 +281,7 @@ def _mx_spec_from(spec: MxMessageSpec, registry: MxRegistry) -> MessageSpec:
         group_id = f"{root}/{top}" if top else root
         if group_id not in seen_groups:
             seen_groups.add(group_id)
-            top_element = next(
-                (item for item in spec.structure if item.name == top), None
-            )
+            top_element = next((item for item in spec.structure if item.name == top), None)
             groups.append(
                 SpecGroup(
                     id=group_id,
@@ -300,8 +296,7 @@ def _mx_spec_from(spec: MxMessageSpec, registry: MxRegistry) -> MessageSpec:
                     max_occurs=top_element.max_occurs if top_element else 1,
                     min_occurs=(
                         1
-                        if top_element is None
-                        or top_element.presence is Presence.MANDATORY
+                        if top_element is None or top_element.presence is Presence.MANDATORY
                         else 0
                     ),
                 )
@@ -519,9 +514,7 @@ def _entry(
         generatable=generatable,
         output_modes=spec.output_modes,
         field_count=len(spec.fields),
-        mandatory_field_count=sum(
-            1 for item in spec.fields if item.presence is Presence.MANDATORY
-        ),
+        mandatory_field_count=sum(1 for item in spec.fields if item.presence is Presence.MANDATORY),
         sample_variants=list(variants),
         authoritative_completeness_known=spec.authoritative_completeness_known,
         source_reference=spec.source_reference,
@@ -617,9 +610,7 @@ def build_catalogue(*, include_preview: bool = True) -> StudioCatalogue:
     entries: list[CatalogueEntry] = []
     for mt_spec in specification_registry.list():
         spec = message_spec(MessageFormat.MT, mt_spec.message_type)
-        entries.append(
-            _entry(spec, available_variants(MessageFormat.MT, mt_spec.message_type))
-        )
+        entries.append(_entry(spec, available_variants(MessageFormat.MT, mt_spec.message_type)))
     for mx_spec in mx_registry.all_specs():
         spec = message_spec(MessageFormat.MX, mx_spec.version)
         entries.append(_entry(spec, available_variants(MessageFormat.MX, mx_spec.version)))
@@ -718,9 +709,13 @@ def _preview_entries() -> list[CatalogueEntry]:
                 status.business_area,
             )
         )
+    from app.knowledge_base.common_group import is_common_group
+
     for (format_name, message_type, release), count in sorted(source_counts.items()):
         if (format_name, message_type, release) in seen or format_name not in {"MT", "MX"}:
             continue
+        if format_name == "MT" and is_common_group(message_type):
+            continue  # the guide is listed through MT190 … MT990, never as "MTn90"
         if _shadowed_by_configured(MessageFormat(format_name), message_type, release):
             continue
         entries.append(

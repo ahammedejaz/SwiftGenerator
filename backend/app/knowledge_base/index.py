@@ -35,6 +35,7 @@ from app.knowledge_base.models import (
     SegmentRecord,
     SourceClassification,
     SourceFormat,
+    SourceIdentity,
     SourceRecord,
     SourceType,
     SyncProgress,
@@ -167,7 +168,16 @@ class KnowledgeIndexer:
                 self._embed_source(existing, checksum, report, reuse_only=False)
             return
         try:
-            parsed = parse_and_identify(item, item.absolute_path.read_bytes())
+            cached_text: str | None = None
+            if item.suffix == ".pdf":
+                from app.knowledge_base.structures.mrg import cached_text_path
+
+                text_path = cached_text_path(self._cache_dir, checksum)
+                if text_path.exists():
+                    cached_text = text_path.read_text(encoding="utf-8")
+            parsed = parse_and_identify(
+                item, item.absolute_path.read_bytes(), cached_text=cached_text
+            )
         except SourceUnreadable as error:
             report.documents_failed += 1
             report.failures.append(
@@ -210,6 +220,15 @@ class KnowledgeIndexer:
             if not cached.exists():
                 cached.parent.mkdir(parents=True, exist_ok=True)
                 cached.write_bytes(item.absolute_path.read_bytes())
+        if item.suffix == ".pdf" and cached_text is None:
+            # The page-marked text is what the offline semantic-rule reader consumes and
+            # what a re-index re-reads; kept once per checksum in the ignored cache so a
+            # PDF is parsed a single time.
+            from app.knowledge_base.structures.mrg import cached_text_path
+
+            text_path = cached_text_path(self._cache_dir, checksum)
+            text_path.parent.mkdir(parents=True, exist_ok=True)
+            text_path.write_text(parsed.text, encoding="utf-8")
         artifact, partial_pages, artifact_problem = self._mrg_artifact(parsed)
         segments = segment_source(parsed.identity, parsed.text, partial_table_pages=partial_pages)
         policy = policy_for(parsed.classification, self._settings)
@@ -272,6 +291,87 @@ class KnowledgeIndexer:
                 )
         if opts.embed:
             self._embed_source(record, checksum, report, reuse_only=False)
+
+    def rebuild_structures(self, *, progress: Progress | None = None) -> SyncProgress:
+        """Re-read every guide's structural artifact from the cached page text and recompile
+        every Structure Pack — segments and embeddings untouched.
+
+        This is the development loop for the structure compiler and the guide reader: a
+        change to either is applied to the whole corpus in seconds, without re-parsing a
+        PDF or sending a segment anywhere.
+        """
+        from app.knowledge_base.structures import compile_all
+        from app.knowledge_base.structures.mrg import (
+            MRG_STRUCTURE_KIND,
+            cached_text_path,
+        )
+
+        report = SyncProgress()
+        started = time.monotonic()
+        self._database.initialise()
+        run_id = uuid.uuid4().hex
+        self._database.start_run(run_id)
+        state = "COMPLETED"
+        try:
+            for record in self._database.sources():
+                if (
+                    record.deleted
+                    or record.source_type is not SourceType.MT_MESSAGE_REFERENCE_GUIDE
+                ):
+                    continue
+                text_path = cached_text_path(self._cache_dir, record.checksum)
+                if not text_path.exists():
+                    report.failures.append(
+                        {
+                            "path": record.source_id,
+                            "code": "KNOWLEDGE_TEXT_CACHE_MISSING",
+                            "detail": "run `make knowledge-sync` to parse the source again",
+                        }
+                    )
+                    continue
+                parsed = ParsedSource(
+                    text_path.read_text(encoding="utf-8"),
+                    record.page_count,
+                    SourceIdentity(
+                        source_id=record.source_id,
+                        source_type=record.source_type,
+                        format=record.format,
+                        document_type=record.document_type,
+                        message_type=record.message_type,
+                        release=record.release,
+                    ),
+                    record.classification,
+                )
+                artifact, _pages, problem = self._mrg_artifact(parsed)
+                report.documents_parsed += 1
+                if artifact is None:
+                    report.failures.append(
+                        {
+                            "path": record.source_id,
+                            "code": "MRG_STRUCTURE_UNREADABLE",
+                            "detail": problem or "",
+                        }
+                    )
+                    continue
+                with self._database.write() as connection:
+                    self._database.put_artifact(
+                        connection,
+                        MRG_STRUCTURE_KIND,
+                        f"{artifact.message_type}:{artifact.release}",
+                        record.checksum,
+                        artifact.as_payload(),
+                    )
+                if progress:
+                    progress(record.source_id, report)
+            compile_all(self._settings, self._database, self._pack_dir, report)
+            self._write_corpus_version()
+        except BaseException:
+            state = "INTERRUPTED"
+            raise
+        finally:
+            report.elapsed_ms = round((time.monotonic() - started) * 1000)
+            self._database.finish_run(run_id, state, report.as_dict())
+        return report
 
     def _mrg_artifact(
         self, parsed: ParsedSource

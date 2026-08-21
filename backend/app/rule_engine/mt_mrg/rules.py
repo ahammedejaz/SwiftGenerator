@@ -78,6 +78,13 @@ class UnsupportedReason(StrEnum):
     REFERENCE_NOT_RESOLVED = "REFERENCE_NOT_RESOLVED"
     #: The rule names a field whose sequence the guide does not determine uniquely.
     REFERENCE_AMBIGUOUS = "REFERENCE_AMBIGUOUS"
+    #: The rule reads Block 1, 2 or 3 of the FIN envelope (BICs, user header, validation
+    #: flag), which a Block 4 rule engine does not see.
+    ENVELOPE_DEPENDENT = "ENVELOPE_DEPENDENT"
+    #: The rule adds or totals amounts; the DSL compares values and never computes them.
+    ARITHMETIC_NOT_MODELLED = "ARITHMETIC_NOT_MODELLED"
+    #: The sentence introduces a dependency table the reader could not read as rows.
+    TABLE_NOT_READ = "TABLE_NOT_READ"
 
 
 @dataclass(frozen=True)

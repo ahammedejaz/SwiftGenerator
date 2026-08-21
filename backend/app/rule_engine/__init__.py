@@ -20,5 +20,7 @@ RULE_ENGINE_VERSION = "rule-engine/2"
 SUPPORTED_RULE_ENGINE_VERSIONS = ("rule-engine/1", RULE_ENGINE_VERSION)
 
 #: The declarative language version recorded in every compiled pack.
-DSL_VERSION = "rule-dsl/2"
-SUPPORTED_DSL_VERSIONS = ("rule-dsl/1", DSL_VERSION)
+DSL_VERSION = "rule-dsl/3"
+#: Occurrence scope arrived with rule-dsl/2; component extraction and allEqual with rule-dsl/3.
+OCCURRENCE_DSL_VERSIONS = ("rule-dsl/2", DSL_VERSION)
+SUPPORTED_DSL_VERSIONS = ("rule-dsl/1", "rule-dsl/2", DSL_VERSION)

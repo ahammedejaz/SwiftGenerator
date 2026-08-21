@@ -116,10 +116,18 @@ class SourceBundle(RuleModel):
             raise ValueError(
                 f"{self.source_id} is not a source id: use upper-case words joined by hyphens"
             )
-        if "/" in self.source_location or "\\" in self.source_location:
-            raise ValueError("sourceLocation is a file name inside the drop directory")
-        if self.source_location in {".", ".."}:
-            raise ValueError("sourceLocation is a file name")
+        # A relative path inside the drop directory: ``MT/SR_2026_November_MT540_….pdf`` in
+        # the committed knowledge base. Never absolute, never climbing out; ``resolve_within``
+        # re-checks containment on the resolved path at read time.
+        location = self.source_location.replace("\\", "/")
+        parts = [part for part in location.split("/") if part]
+        if (
+            not parts
+            or location.startswith("/")
+            or any(part in {".", ".."} for part in parts)
+            or ":" in location
+        ):
+            raise ValueError("sourceLocation is a relative file path inside the drop directory")
         if any(item < 0 or item > 9 for item in self.applicable_message_categories):
             raise ValueError("MT message categories must be digits 0 through 9")
         return self

@@ -903,7 +903,9 @@ TEMPLATES: tuple[tuple[str, re.Pattern[str], Builder], ...] = (
 
 def translate(rule: MrgSourceRule, structure: MrgStructure) -> RuleTranslation:
     """Turn one source rule into an expression, or say precisely why it cannot be."""
-    for name, pattern, builder in TEMPLATES:
+    from app.rule_engine.mt_mrg.templates_generic import GENERIC_TEMPLATES
+
+    for name, pattern, builder in (*TEMPLATES, *GENERIC_TEMPLATES):
         match = pattern.search(rule.text)
         if match is None:
             continue

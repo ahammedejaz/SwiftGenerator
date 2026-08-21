@@ -3,6 +3,8 @@
 sync               discover, identify, segment, index, embed (policy permitting), compile
 status             what the knowledge base holds
 reindex            sync with every source re-parsed and every structure recompiled
+rebuild-structures re-read every guide's structure from the cached text and recompile packs
+manifest           write (--write) or verify the committed knowledge-source manifest
 clean-cache        remove the ignored caches (never a source document)
 probe-embeddings   one synthetic embedding call against the configured deployment
 evaluate-rag       the retrieval evaluation over the synthetic corpus
@@ -30,6 +32,44 @@ def _progress(path: str, report: SyncProgress) -> None:
         f"{path[:80]}",
         flush=True,
     )
+
+
+def cmd_manifest(args: argparse.Namespace) -> int:
+    from app.knowledge_base import manifest
+
+    if args.write:
+        path = manifest.write_manifest()
+        payload = manifest.load_manifest()
+        print(f"wrote {path}: {payload['fileCount']} file(s), {payload['totalBytes']} bytes")
+        return 0
+    verdict = manifest.verify_manifest(identify=bool(args.identify))
+    for problem in verdict.problems[:50]:
+        print(f"  {problem}", file=sys.stderr)
+    print(
+        f"knowledge manifest: {verdict.verified}/{verdict.listed} source file(s) verified"
+        + (", identities re-read" if args.identify else "")
+    )
+    return 0 if verdict.passed else 1
+
+
+def cmd_rebuild_structures(args: argparse.Namespace) -> int:
+    from app.knowledge_base.index import KnowledgeIndexer
+
+    settings = get_settings()
+    database = KnowledgeDatabase(knowledge_db_path(settings))
+    indexer = KnowledgeIndexer(settings, database, embedding_provider(settings))
+    report = indexer.rebuild_structures(progress=_progress if not args.quiet else None)
+    for key in (
+        "documentsParsed",
+        "structuresCompiled",
+        "structuresReused",
+        "structuresFailed",
+        "elapsedMs",
+    ):
+        print(f"  {key}: {report.as_dict().get(key)}")
+    for item in report.failures[:20]:
+        print(f"    {item.get('code')}: {item.get('path')} {item.get('detail', '')}")
+    return 0
 
 
 def cmd_sync(args: argparse.Namespace) -> int:
@@ -176,6 +216,19 @@ def main(argv: list[str] | None = None) -> int:
     sync.add_argument("--reports", action="store_true", help="write the generated reports")
     sync.add_argument("--quiet", action="store_true")
     sync.set_defaults(func=cmd_sync)
+
+    manifest = sub.add_parser(
+        "manifest", help="write or verify swiftKnowledgeBase/source-manifest.json"
+    )
+    manifest.add_argument("--write", action="store_true", help="write from the synced database")
+    manifest.add_argument("--identify", action="store_true", help="also re-read each identity")
+    manifest.set_defaults(func=cmd_manifest)
+
+    rebuild = sub.add_parser(
+        "rebuild-structures", help="re-read guide structures from cached text; recompile packs"
+    )
+    rebuild.add_argument("--quiet", action="store_true")
+    rebuild.set_defaults(func=cmd_rebuild_structures)
 
     status = sub.add_parser("status")
     status.set_defaults(func=cmd_status)

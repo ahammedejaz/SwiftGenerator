@@ -12,6 +12,7 @@
     python -m app.rule_engine mrg-reports  --write | --check
     python -m app.rule_engine mrg-evaluate
     python -m app.rule_engine mrg-verify
+    python -m app.rule_engine mrg-corpus   --extract | --write | --check
 
 Extraction is offline by design. The running application never extracts a rule, never
 compiles a candidate and never writes to the rules directory: a reviewed pack becomes
@@ -413,6 +414,34 @@ def _cmd_mrg_reports(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_mrg_corpus(args: argparse.Namespace) -> int:
+    """Every guide in the knowledge base: extract the evidence index, then render or
+    check the coverage report and the per-message review packs from it."""
+    from app.rule_engine.mt_mrg import corpus
+
+    if args.extract:
+        evidence = corpus.read_corpus(Path(args.directory) if args.directory else None)
+        path = corpus.write_index(evidence, Path(args.out) if args.out else None)
+        rules = sum(len(item.rules) for item in evidence.guides)
+        print(
+            f"wrote {path}: {len(evidence.guides)} guide(s), {rules} rule(s), "
+            f"{len(evidence.unreadable)} unreadable"
+        )
+    payload = corpus.load_index(Path(args.out) if args.out else None)
+    if args.write or args.extract:
+        written = corpus.write_reports(payload)
+        print(f"wrote {corpus.COVERAGE_PATH} and {len(written) - 1} review pack(s)")
+        return 0
+    stale = corpus.stale_reports(payload)
+    if stale:
+        for path in stale[:10]:
+            print(f"{path} is stale", file=sys.stderr)
+        print("Run `make mt-mrg-corpus-write`.", file=sys.stderr)
+        return 1
+    print("MT MRG corpus reports are current")
+    return 0
+
+
 def _cmd_mrg_evaluate(args: argparse.Namespace) -> int:
     from app.rule_engine.mt_mrg.evaluation import ANCHOR_CASES, run_cases
     from app.rule_engine.mt_mrg.pipeline import MrgSourceCatalogue, run
@@ -584,6 +613,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     mrg_evaluate.add_argument("--directory", help="drop directory holding the guides")
     mrg_evaluate.set_defaults(handler=_cmd_mrg_evaluate)
+
+    mrg_corpus = commands.add_parser(
+        "mrg-corpus", help="read every guide in the knowledge base; coverage and review packs"
+    )
+    mrg_corpus.add_argument("--extract", action="store_true", help="re-read the guides (PDFs)")
+    mrg_corpus.add_argument("--write", action="store_true", help="render reports from the index")
+    mrg_corpus.add_argument("--check", action="store_true", help="check reports against the index")
+    mrg_corpus.add_argument("--directory", help="guide folder (default swiftKnowledgeBase/MT)")
+    mrg_corpus.add_argument("--out", help="evidence index path (default: the committed one)")
+    mrg_corpus.set_defaults(handler=_cmd_mrg_corpus)
 
     mrg_verify = commands.add_parser(
         "mrg-verify", help="prove the committed evidence reproduces from the real guides"

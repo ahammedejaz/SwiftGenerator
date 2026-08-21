@@ -375,6 +375,35 @@ def _initial_selection(spec: MessageSpec, variant: SampleVariant) -> set[str]:
             if existing != field.choice_group:
                 continue
         chosen.add(field.id)
+    # A mandatory group whose fields are all optional (MT503's Agreement subsequence) still
+    # has to appear, and a message whose fields are all optional (MT052) is still a
+    # message: the first field of such a group opens it, as a tester would have to.
+    ordered = sorted(spec.fields, key=lambda item: item.order)
+    by_id = {group.id: group for group in spec.groups}
+
+    def lineage(group_id: str | None) -> set[str]:
+        found: set[str] = set()
+        while group_id is not None:
+            found.add(group_id)
+            parent = by_id.get(group_id)
+            group_id = parent.parent_id if parent is not None else None
+        return found
+
+    groups_with_values: set[str] = set()
+    for field in ordered:
+        if field.id in chosen:
+            groups_with_values |= lineage(field.group_id)
+    for group in spec.groups:
+        if group.id in optional_groups or group.id in groups_with_values:
+            continue
+        # The opener may sit in a nested group (MT066's ``_A`` holds only ``_A1`` repeats):
+        # the first field anywhere inside the group opens it and every level between.
+        opener = next((field for field in ordered if group.id in lineage(field.group_id)), None)
+        if opener is not None:
+            chosen.add(opener.id)
+            groups_with_values |= lineage(opener.group_id)
+    if not chosen and ordered:
+        chosen.add(ordered[0].id)
     return chosen
 
 
