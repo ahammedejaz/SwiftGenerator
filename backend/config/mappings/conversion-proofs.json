@@ -1,0 +1,32 @@
+[
+ {
+  "packId": "CANDIDATE_MT103_TO_PACS008_V1",
+  "status": "NEEDS_INPUT \u2192 READY after 6 answer(s)",
+  "mandatoryTargetMapped": 7,
+  "mandatoryTargetTotal": 7,
+  "sourceRowsRepresented": 12,
+  "sourceRowsTotal": 39,
+  "missing": "none",
+  "xsd": "accepted"
+ },
+ {
+  "packId": "CANDIDATE_MT202_TO_PACS009_V1",
+  "status": "NEEDS_INPUT \u2192 READY after 3 answer(s)",
+  "mandatoryTargetMapped": 6,
+  "mandatoryTargetTotal": 6,
+  "sourceRowsRepresented": 8,
+  "sourceRowsTotal": 20,
+  "missing": "none",
+  "xsd": "accepted"
+ },
+ {
+  "packId": "SYNTHETIC_MT541_TO_SESE023_V1",
+  "status": "READY",
+  "mandatoryTargetMapped": 8,
+  "mandatoryTargetTotal": 8,
+  "sourceRowsRepresented": 12,
+  "sourceRowsTotal": 17,
+  "missing": "none",
+  "xsd": "accepted"
+ }
+]

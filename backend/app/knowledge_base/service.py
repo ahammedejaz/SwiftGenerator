@@ -17,6 +17,7 @@ from typing import Any
 
 from app.config import Settings, get_settings
 from app.knowledge_base import CHUNKER_VERSION
+from app.knowledge_base.common_group import common_group_members, is_common_group
 from app.knowledge_base.db import KnowledgeDatabase
 from app.knowledge_base.embeddings import EmbeddingProvider, embedding_provider
 from app.knowledge_base.models import (
@@ -230,6 +231,12 @@ class KnowledgeService:
             else:
                 key = ("MT", source.message_type, source.release or "")
             counts[key] = counts.get(key, 0) + 1
+        # A common-group guide (``MTn90``) is a source for each member it stands for.
+        for (format_name, message_type, release), count in list(counts.items()):
+            if format_name == "MT" and is_common_group(message_type):
+                for member in common_group_members(message_type):
+                    member_key = (format_name, member, release)
+                    counts[member_key] = counts.get(member_key, 0) + count
         return counts
 
     def messages(self) -> list[dict[str, Any]]:
@@ -467,12 +474,10 @@ class KnowledgeService:
         try:
             with self._database.read() as connection:
                 rows = connection.execute(
-                    "SELECT DISTINCT format, message_type, release "
-                    "FROM knowledge_sample_cache"
+                    "SELECT DISTINCT format, message_type, release FROM knowledge_sample_cache"
                 ).fetchall()
             return {
-                (str(row["format"]), str(row["message_type"]), str(row["release"]))
-                for row in rows
+                (str(row["format"]), str(row["message_type"]), str(row["release"])) for row in rows
             }
         except sqlite3.Error:
             return set()
@@ -634,8 +639,7 @@ class KnowledgeService:
                     },
                 )
                 connection.execute(
-                    "DELETE FROM knowledge_operation_metric "
-                    "WHERE at < datetime('now', ?)",
+                    "DELETE FROM knowledge_operation_metric WHERE at < datetime('now', ?)",
                     (f"-{self._settings.knowledge_telemetry_retention_days} days",),
                 )
         except sqlite3.Error:

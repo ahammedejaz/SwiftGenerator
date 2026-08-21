@@ -28,7 +28,7 @@ from app.studio.mx.registry import MxRegistry, mx_registry
 
 MX_PATH_PATTERN = re.compile(r"^(/[A-Za-z][A-Za-z0-9_.-]{0,63})+$")
 MT_TAG_PATTERN = re.compile(r"^[0-9]{2}[A-Z]?$")
-MT_ROW_ID_PATTERN = re.compile(r"^MT\d{3}-[A-Z0-9]+-[0-9]{2}[A-Z]?(-[A-Z0-9]+)?$")
+MT_ROW_ID_PATTERN = re.compile(r"^MT\d{3}-[A-Za-z0-9_]+-[0-9]{2}[A-Z]?(-[A-Z0-9]+)?(-\d+)?$")
 
 
 class FieldKind(StrEnum):

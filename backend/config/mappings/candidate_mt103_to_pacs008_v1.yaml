@@ -1,0 +1,402 @@
+# Candidate Mapping Pack — see provenance.sourceReference for the evidence record.
+# CANDIDATE_PREVIEW: executes only behind the explicit preview opt-in; never production eligible.
+packId: CANDIDATE_MT103_TO_PACS008_V1
+version: 1.0.0
+source:
+  format: MT
+  messageType: MT103
+  release: SR2026
+  lane: KNOWLEDGE_PREVIEW
+target:
+  format: MX
+  messageType: pacs.008
+  release: pacs.008.001.14
+  lane: KNOWLEDGE_PREVIEW
+sourceStructureChecksum: 0d8512840239958a8bba40f55e6d5371b34ccb734d35b42fcf740c7923ab0514
+targetStructureChecksum: 9431152e5420f8cc63982dc4fd2ea16cc5d19e14727da62f20dab72b88eecdb7
+provenance:
+  sourceType: CANDIDATE_FROM_CITED_DEFINITIONS
+  sourceReference: backend/config/mapping_sources/candidate_mt103_to_pacs008_v1.md
+  sourceChecksum: ba25c9212357b5846e48c79e30669b7df0b5bea68ceeb454f23842e93137d8ad
+  reviewState: CANDIDATE_PREVIEW
+  productionEligible: false
+  evidenceClass: NAME_CORRESPONDENCE
+  relationshipCitations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 4
+    section: OTHER
+    note: States conversion to an ISO 20022 equivalent over InterAct FINplus; names no target.
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: FIToFICustomerCreditTransferV14
+  limitations:
+  - Candidate drawn from cited field definitions; not a SWIFT, CBPR+ or ISO 20022 translation rule and
+    not reviewed.
+  - The target relationship rests on the two documents' titles (name correspondence).
+  - SWIFT YYMMDD value dates are read as 20YY-MM-DD.
+  - 71A to ChrgBr is a candidate code correspondence by definition.
+  - NbOfTxs is set to 1; SttlmMtd and CreDtTm need caller input.
+  - Customer name/address options and correspondents are reported as not represented.
+rules:
+- id: message-identification
+  kind: ONE_TO_MANY
+  semantic: transaction_reference
+  sourceRefs:
+  - MT103-ROOT-20-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/GrpHdr/MsgId
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/PmtId/InstrId
+  note: The sender's reference identifies the message and the instruction; both target identifiers are
+    candidates.
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 14
+    section: FIELD_SPECIFICATION
+    note: Field 20 specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element GrpHdr/MsgId
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/PmtId/InstrId
+- id: value-date
+  kind: TRANSFORM
+  semantic: settlement_date
+  sourceRefs:
+  - MT103-ROOT-32A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmDt
+    transform: MT_DATED_AMOUNT_DATE
+  note: Value date component of 32A; two-digit year read as 20YY.
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 18
+    section: FIELD_SPECIFICATION
+    note: Field 32A specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/IntrBkSttlmDt
+- id: interbank-settlement-amount
+  kind: TRANSFORM
+  semantic: settlement_amount
+  sourceRefs:
+  - MT103-ROOT-32A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt
+    transform: MT_DATED_AMOUNT_TO_ISO
+  note: Currency and amount components of 32A.
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 18
+    section: FIELD_SPECIFICATION
+    note: Field 32A specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/IntrBkSttlmAmt
+- id: number-of-transactions
+  kind: TRANSFORM
+  sourceRefs: []
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/GrpHdr/NbOfTxs
+    transform: CONSTANT
+    constant: '1'
+  note: One MT message carries one transaction.
+  citations:
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element GrpHdr/NbOfTxs
+- id: creation-date-time-needs-input
+  kind: TARGET_REQUIRED_MISSING
+  sourceRefs: []
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/GrpHdr/CreDtTm
+  note: Not carried by the MT message; supplied by the caller.
+  citations:
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element GrpHdr/CreDtTm
+- id: settlement-method-needs-input
+  kind: TARGET_REQUIRED_MISSING
+  sourceRefs: []
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/GrpHdr/SttlmInf/SttlmMtd
+  note: Not carried by the MT message; supplied by the caller.
+  citations:
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element GrpHdr/SttlmInf/SttlmMtd
+- id: sender-to-receiver-information
+  kind: DIRECT
+  sourceRefs:
+  - MT103-ROOT-72-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/InstrForNxtAgt/InstrInf
+  note: 'Candidate: free-text instruction carried as instruction for the next agent.'
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 38
+    section: FIELD_SPECIFICATION
+    note: Field 72 specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/InstrForNxtAgt/InstrInf
+- id: charge-bearer
+  kind: CODE_MAP
+  sourceRefs:
+  - MT103-ROOT-71A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/ChrgBr
+    transform: ENUM
+    enum:
+      BEN: CRED
+      OUR: DEBT
+      SHA: SHAR
+  note: 'Candidate code correspondence by definition: BEN/creditor, OUR/debtor, SHA/shared.'
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 37
+    section: FIELD_SPECIFICATION
+    note: Field 71A specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/ChrgBr
+- id: instructed-amount
+  kind: TRANSFORM
+  sourceRefs:
+  - MT103-ROOT-33B-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/InstdAmt
+    transform: MT_AMOUNT_TO_ISO
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 19
+    section: FIELD_SPECIFICATION
+    note: Field 33B specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/InstdAmt
+- id: exchange-rate
+  kind: DIRECT
+  sourceRefs:
+  - MT103-ROOT-36-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/XchgRate
+  note: 'Candidate: rate carried as written; decimal comma is an open question for review.'
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 20
+    section: FIELD_SPECIFICATION
+    note: Field 36 specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/XchgRate
+- id: ordering-customer-bic
+  kind: TRANSFORM
+  sourceRefs:
+  - MT103-ROOT-50A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Id/OrgId/AnyBIC
+    transform: MT_PARTY_BIC
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 20
+    section: FIELD_SPECIFICATION
+    note: Field 50a specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/Dbtr/Id/OrgId/AnyBIC
+- id: ordering-customer-name-address-not-represented
+  kind: NOT_REPRESENTED
+  sourceRefs:
+  - MT103-ROOT-50F-NONE
+  - MT103-ROOT-50K-NONE
+  note: Structured and free-text name/address lines are not split by this candidate.
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 20
+    section: FIELD_SPECIFICATION
+    note: Field 50a specification
+- id: ordering-institution
+  kind: TRANSFORM
+  semantic: delivering_agent
+  sourceRefs:
+  - MT103-ROOT-52A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI
+    transform: MT_PARTY_BIC
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 24
+    section: FIELD_SPECIFICATION
+    note: Field 52a specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI
+- id: intermediary
+  kind: TRANSFORM
+  sourceRefs:
+  - MT103-ROOT-56A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/IntrmyAgt1/FinInstnId/BICFI
+    transform: MT_PARTY_BIC
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 29
+    section: FIELD_SPECIFICATION
+    note: Field 56a specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/IntrmyAgt1/FinInstnId/BICFI
+- id: account-with-institution
+  kind: TRANSFORM
+  semantic: receiving_agent
+  sourceRefs:
+  - MT103-ROOT-57A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI
+    transform: MT_PARTY_BIC
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 31
+    section: FIELD_SPECIFICATION
+    note: Field 57a specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI
+- id: beneficiary-customer-bic
+  kind: TRANSFORM
+  sourceRefs:
+  - MT103-ROOT-59A-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Id/OrgId/AnyBIC
+    transform: MT_PARTY_BIC
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 34
+    section: FIELD_SPECIFICATION
+    note: Field 59a specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/Cdtr/Id/OrgId/AnyBIC
+- id: beneficiary-customer-name-address-not-represented
+  kind: NOT_REPRESENTED
+  sourceRefs:
+  - MT103-ROOT-59-NONE
+  - MT103-ROOT-59F-NONE
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 34
+    section: FIELD_SPECIFICATION
+    note: Field 59a specification
+- id: remittance-information
+  kind: DIRECT
+  sourceRefs:
+  - MT103-ROOT-70-NONE
+  outputs:
+  - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/RmtInf/Ustrd
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 36
+    section: FIELD_SPECIFICATION
+    note: Field 70 specification
+  - sourceId: ISO20022-XSD-pacs.008.001.14
+    sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+    section: XSD
+    note: Element CdtTrfTxInf/RmtInf/Ustrd
+- id: bank-operation-code-not-represented
+  kind: NOT_REPRESENTED
+  sourceRefs:
+  - MT103-ROOT-23B-NONE
+  note: No candidate destination; a published table would be needed.
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 15
+    section: FIELD_SPECIFICATION
+    note: Field 23B specification
+- id: correspondents-not-represented
+  kind: NOT_REPRESENTED
+  sourceRefs:
+  - MT103-ROOT-53A-NONE
+  - MT103-ROOT-53B-NONE
+  - MT103-ROOT-53D-NONE
+  - MT103-ROOT-54A-NONE
+  - MT103-ROOT-54B-NONE
+  - MT103-ROOT-54D-NONE
+  - MT103-ROOT-55A-NONE
+  - MT103-ROOT-55B-NONE
+  - MT103-ROOT-55D-NONE
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 26
+    section: FIELD_SPECIFICATION
+    note: Field 53a specification
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 27
+    section: FIELD_SPECIFICATION
+    note: Field 54a specification
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 28
+    section: FIELD_SPECIFICATION
+    note: Field 55a specification
+- id: options-b-c-d-not-represented
+  kind: NOT_REPRESENTED
+  sourceRefs:
+  - MT103-ROOT-52D-NONE
+  - MT103-ROOT-56C-NONE
+  - MT103-ROOT-56D-NONE
+  - MT103-ROOT-57B-NONE
+  - MT103-ROOT-57C-NONE
+  - MT103-ROOT-57D-NONE
+  citations:
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 24
+    section: FIELD_SPECIFICATION
+    note: Field 52a specification
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 29
+    section: FIELD_SPECIFICATION
+    note: Field 56a specification
+  - sourceId: SWIFT-MT-SR2026-MT103-MRG
+    sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+    page: 31
+    section: FIELD_SPECIFICATION
+    note: Field 57a specification

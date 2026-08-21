@@ -85,7 +85,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # The one job that fetches Git LFS content: the committed knowledge base must arrive
+      # as real bytes on a fresh clone, and the manifest check below proves it did. Every
+      # other job keeps the default pointer-only checkout — nothing they run opens a source.
       - uses: actions/checkout@v7
+        with:
+          lfs: true
 
       # Deliberately no dependency cache. This job exists to prove a new machine can start
       # from git-tracked files alone, and a cached wheel would hide exactly the defect that
@@ -119,6 +124,11 @@ jobs:
         # The step that failed on every clean clone until the directory a file-backed SQLite
         # database lives in was created from somewhere alembic reaches.
         run: make migrate
+
+      - name: make knowledge-verify
+        # Every file the knowledge manifest lists is present, is real bytes rather than an
+        # LFS pointer, and hashes as recorded — what `git clone && git lfs pull` promises.
+        run: make knowledge-verify
 
       - name: make check
         run: make check

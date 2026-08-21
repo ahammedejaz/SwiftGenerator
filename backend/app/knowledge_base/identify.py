@@ -21,7 +21,7 @@ from app.knowledge_base.models import (
     SourceType,
 )
 
-PARSER_VERSION = "knowledge-parser/1"
+PARSER_VERSION = "knowledge-parser/2"
 MIN_PDF_CHARS_PER_PAGE = 50
 ISO_MESSAGE_ID = re.compile(r"\b([a-z]{4})\.(\d{3})\.(\d{3})\.(\d{2})\b")
 ISO_LOGICAL_ID = re.compile(r"\b([a-z]{4})\.(\d{3})\b")
@@ -51,8 +51,14 @@ class SourceUnreadable(Exception):
         self.detail = detail
 
 
-def parse_and_identify(item: DiscoveredFile, raw: bytes) -> ParsedSource:
+def parse_and_identify(
+    item: DiscoveredFile, raw: bytes, *, cached_text: str | None = None
+) -> ParsedSource:
     if item.suffix == ".pdf":
+        if cached_text is not None:
+            # The sync keeps each PDF's page-marked text by content checksum; identical
+            # bytes give identical text, so a re-index reads the cache, not the PDF again.
+            return _identify_text(cached_text, cached_text.count("[[PAGE "), item)
         text, pages = _pdf_text(raw, item.relative_path)
         return _identify_text(text, pages, item)
     if item.suffix in {".xsd", ".xml"}:

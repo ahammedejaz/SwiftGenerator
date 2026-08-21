@@ -67,12 +67,17 @@ _TOKEN = re.compile(
     r"(?P<anglelen><(?P<al_len>\d+)(?P<al_fixed>!)?(?P<al_cls>[nacxyzhe])>)"
     r"|(?P<amount><AMOUNT>(?P<macro_len>\d+)?)"
     r"|(?P<macro><[A-Z0-9-]+>)"
-    r"|(?P<lines>\d+)\*(?P<line_len>\d+)(?P<line_cls>[nacxyzhe])"
+    r"|(?P<glines>\d+|n)\*\("
+    r"|(?P<lines>\d+|n)\*(?P<line_len>\d+)(?P<line_cls>[nacxyzhe])"
     r"|(?P<len>\d+)(?P<fixed>!)?(?P<cls>[nacxyzhed])"
     r"|(?P<lit>[A-Z]+|/|:|-|,|\.|\$|\s)"
-    r"|(?P<open>\[)|(?P<close>\])(?P<rep>(?P<rep_min>\d+)-(?P<rep_max>\d+))?"
+    r"|(?P<open>\[)|(?P<close>\])(?P<rep>(?P<rep_min>\d+)-(?P<rep_max>\d+)|\*(?P<rep_times>\d+))?"
+    r"|(?P<gopen>\()|(?P<gclose>\))"
+    r"|(?P<alt>\|)"
     r"|(?P<annotation>\(\*+\))"
 )
+#: ``n*78z`` — as many lines as the field allows; the notation states no bound.
+UNBOUNDED_LINES = 100
 
 
 class FormatUnsupported(Exception):
@@ -133,9 +138,26 @@ def compile_format(notation: str) -> CompiledFormat:
     )
 
 
+@dataclass
+class _Frame:
+    """An open ``[``, ``(`` or ``N*(`` group while compiling: the alternatives seen so
+    far, each a list of regex parts."""
+
+    kind: str
+    alternatives: list[list[str]]
+    lines: int | None = None
+
+    @property
+    def parts(self) -> list[str]:
+        return self.alternatives[-1]
+
+    def close(self) -> str:
+        inner = "|".join("".join(parts) for parts in self.alternatives)
+        return f"(?:{inner})" if len(self.alternatives) > 1 else inner
+
+
 def _compile_sequence(notation: str) -> tuple[str, int | None, bool]:
-    parts: list[str] = []
-    stack: list[list[str]] = []
+    frames: list[_Frame] = [_Frame("top", [[]])]
     lengths: list[int] = [0]
     multiline = "$" in notation
     position = 0
@@ -145,6 +167,7 @@ def _compile_sequence(notation: str) -> tuple[str, int | None, bool]:
         if match is None:
             raise FormatUnsupported(f"unknown notation at {position}: {notation!r}")
         position = match.end()
+        parts = frames[-1].parts
         if match.group("annotation"):
             continue
         if match.group("anglelen"):
@@ -155,19 +178,46 @@ def _compile_sequence(notation: str) -> tuple[str, int | None, bool]:
             lengths[0] += width
             continue
         if match.group("open"):
-            stack.append(parts)
-            parts = []
+            frames.append(_Frame("[", [[]]))
             continue
-        if match.group("close"):
-            if not stack:
+        if match.group("gopen"):
+            frames.append(_Frame("(", [[]]))
+            continue
+        if match.group("glines"):
+            # ``4*(1!n/33x)``: a line layout repeated on up to four lines.
+            count = match.group("glines")
+            frames.append(
+                _Frame("lines", [[]], lines=UNBOUNDED_LINES if count == "n" else int(count))
+            )
+            multiline = True
+            continue
+        if match.group("alt"):
+            # ``A|B`` inside a group, or at the top level: the next alternative starts here.
+            frames[-1].alternatives.append([])
+            continue
+        if match.group("close") or match.group("gclose"):
+            frame = frames.pop() if len(frames) > 1 else None
+            if frame is None or frame.kind == "top":
                 raise FormatUnsupported(f"unbalanced bracket in {notation!r}")
-            inner = "".join(parts)
-            parts = stack.pop()
-            if match.group("rep"):
+            closing_square = bool(match.group("close"))
+            if closing_square != (frame.kind == "["):
+                raise FormatUnsupported(f"mismatched bracket in {notation!r}")
+            inner = frame.close()
+            parts = frames[-1].parts
+            if frame.kind == "lines":
+                assert frame.lines is not None  # noqa: S101 - set when the frame opened
+                parts.append(f"(?:{inner})(?:\\n(?:{inner})){{0,{frame.lines - 1}}}")
+                unbounded = True
+            elif frame.kind == "(":
+                parts.append(f"(?:{inner})")
+            elif match.group("rep_times"):
+                times = int(match.group("rep_times"))
+                parts.append(f"(?:{inner}){{0,{times}}}")
+                unbounded = unbounded or times > 1
+            elif match.group("rep"):
                 low = int(match.group("rep_min"))
                 high = int(match.group("rep_max"))
                 parts.append(f"(?:{inner}){{{low},{high}}}")
-                lengths[0] *= 1
                 unbounded = unbounded or high > 1
             else:
                 parts.append(f"(?:{inner})?")
@@ -186,12 +236,14 @@ def _compile_sequence(notation: str) -> tuple[str, int | None, bool]:
             lengths[0] += _macro_length(name)
             continue
         if match.group("lines"):
-            lines = int(match.group("lines"))
+            count = match.group("lines")
+            lines = UNBOUNDED_LINES if count == "n" else int(count)
             width = int(match.group("line_len"))
             cls = _CHAR_CLASSES[match.group("line_cls")]
             parts.append(f"{cls}{{1,{width}}}(?:\\n{cls}{{1,{width}}}){{0,{lines - 1}}}")
             lengths[0] += lines * width + lines - 1
             multiline = multiline or lines > 1
+            unbounded = unbounded or count == "n"
             continue
         if match.group("len"):
             width = int(match.group("len"))
@@ -217,9 +269,9 @@ def _compile_sequence(notation: str) -> tuple[str, int | None, bool]:
         else:
             parts.append(re.escape(literal))
             lengths[0] += len(literal)
-    if stack:
+    if len(frames) > 1:
         raise FormatUnsupported(f"unbalanced bracket in {notation!r}")
-    regex = "".join(parts)
+    regex = frames[0].close()
     if not regex:
         raise FormatUnsupported("empty format")
     try:
@@ -232,7 +284,9 @@ def _compile_sequence(notation: str) -> tuple[str, int | None, bool]:
 def _amount(width: int) -> str:
     """SWIFT amounts: digits, a mandatory decimal comma, at most ``width`` characters in
     total and at least one digit before the comma."""
-    return rf"(?=[\d,]{{1,{width}}}$)\d{{1,{width - 1}}},\d{{0,{width - 2}}}"
+    # The length bound looks ahead over the digit/comma run only, so an amount followed by
+    # more notation (MT940's 61: ``15d1!a3!c16x``) is bounded without anchoring at the end.
+    return rf"(?=[\d,]{{1,{width}}}(?![\d,]))\d{{1,{width - 1}}},\d{{0,{width - 2}}}"
 
 
 def _decimal(width: int) -> str:
@@ -286,6 +340,13 @@ def _describe(notation: str) -> str:
         .replace("$", " newline ")
     )
     return f"SWIFT format {notation}: {words}".strip()
+
+
+def is_single_code_token(value_notation: str) -> bool:
+    """``4!c``, ``10a``, ``16x``, ``3!a``: a value that is one token, so a code list can be
+    the whole value. ``8a/4!a2!c4!n4!a2!c`` or ``4!c[/4!c]`` carry more than the code, and
+    a list enforced against the whole value would reject what the guide allows."""
+    return re.fullmatch(r"\d{1,2}!?[acx]", value_notation.strip()) is not None
 
 
 def is_value_less(notation: str) -> bool:
@@ -361,10 +422,12 @@ def synthetic_value(notation: str, *, codes: list[str] | None = None, seed: str 
     """
     compiled = compile_format(notation)
     value_notation = compiled.value_notation
-    if codes and re.fullmatch(r"\d!c", value_notation):
+    if codes and is_single_code_token(value_notation):
         return codes[0]
     out: list[str] = []
-    depth = 0
+    depth = 0  # inside ``[…]``: optional content, left out of a minimal sample
+    skipping = 0  # inside a later ``|`` alternative: the first alternative is the sample
+    groups: list[bool] = []  # per open group: whether we are past its first alternative
     position = 0
     while position < len(value_notation):
         match = _TOKEN.match(value_notation, position)
@@ -373,19 +436,34 @@ def synthetic_value(notation: str, *, codes: list[str] | None = None, seed: str 
         position = match.end()
         if match.group("annotation"):
             continue
+        if match.group("open"):
+            depth += 1
+            groups.append(False)
+            continue
+        if match.group("gopen") or match.group("glines"):
+            groups.append(False)
+            continue
+        if match.group("alt"):
+            if groups:
+                if not groups[-1]:
+                    groups[-1] = True
+                    skipping += 1
+            else:
+                break  # a top-level alternative: the first one is the sample
+            continue
+        if match.group("close") or match.group("gclose"):
+            if groups and groups.pop():
+                skipping -= 1
+            if match.group("close"):
+                depth -= 1
+            continue
+        if depth or skipping:
+            continue
         if match.group("anglelen"):
             width = int(match.group("al_len"))
             fixed = bool(match.group("al_fixed"))
             out.append(_fill(match.group("al_cls"), width if fixed else min(width, 9), seed))
             continue
-        if match.group("open"):
-            depth += 1
-            continue
-        if match.group("close"):
-            depth -= 1
-            continue
-        if depth:
-            continue  # optional content is left out of a minimal sample
         if match.group("amount"):
             out.append("1000,")
             continue
@@ -426,24 +504,79 @@ def synthetic_value(notation: str, *, codes: list[str] | None = None, seed: str 
             elif value_notation[index] == "]":
                 depth -= 1
                 if depth == 0:
+                    tail = value_notation[index + 1 :]
+                    # ``[3!c]*10`` and ``[35x]0-3``: the repeat count belongs to the
+                    # bracket and goes with it.
+                    tail = re.sub(r"^(?:\*\d+|\d+-\d+)", "", tail)
                     unwrapped = (
-                        value_notation[:opened]
-                        + value_notation[opened + 1 : index]
-                        + value_notation[index + 1 :]
+                        value_notation[:opened] + value_notation[opened + 1 : index] + tail
                     )
                     return synthetic_value(unwrapped, codes=codes, seed=seed)
     return value
 
 
 def _fill(cls: str, width: int, seed: str) -> str:
+    repeat = width // 4 + 2  # long enough for any fixed width (MT026's 141 is ``64!h``)
     if cls == "n":
-        return ("1234567890" * 3)[:width]
+        return ("1234567890" * repeat)[:width]
     if cls == "a":
-        return (seed.upper() * 8)[:width]
+        return (seed.upper() * repeat)[:width]
     if cls == "c":
-        return ((seed.upper() + "01") * 8)[:width]
+        return ((seed.upper() + "01") * repeat)[:width]
     if cls == "h":
-        return ("ABCDEF0123" * 3)[:width]
+        return ("ABCDEF0123" * repeat)[:width]
     if cls == "e":
         return " " * width
-    return ("SYNTHETIC " * 8).strip()[:width].strip() or "S"
+    return ("SYNTHETIC " * repeat).strip()[:width].strip() or "S"
+
+
+# -- components ---------------------------------------------------------------------------
+
+
+#: Components a rule may name, and the notation tokens that carry them. The first matching
+#: token in the value notation is the component; nothing is inferred from the tag.
+_COMPONENT_TOKENS: dict[str, tuple[str, ...]] = {
+    "CURRENCY": ("<CUR>", "3!a"),
+    "AMOUNT": ("<AMOUNT>", "15d", "12d", "18d"),
+    "DATE": ("<DATE4>", "<DATE2>", "8!n", "6!n"),
+    "SIGN": ("<N>", "[N]", "<SIGN>"),
+}
+
+
+def component_pattern(notation: str, component: str) -> str | None:
+    """A regular expression with one named group ``value`` around the component.
+
+    ``6!n3!a15d`` with ``CURRENCY`` → ``^\\d{6}(?P<value>[A-Z]{3})``; ``[N]3!a15d`` →
+    ``^(?:N)?(?P<value>[A-Z]{3})``. ``None`` when the notation does not compile or does
+    not carry the component — a rule about it is then not expressible, never approximated.
+    """
+    tokens = _COMPONENT_TOKENS.get(component)
+    if not tokens:
+        return None
+    try:
+        compiled = compile_format(notation)
+    except FormatUnsupported:
+        return None
+    value_notation = compiled.value_notation
+    position = -1
+    chosen = ""
+    for token in tokens:
+        found = value_notation.find(token)
+        if found >= 0 and (position < 0 or found < position):
+            position, chosen = found, token
+    if position < 0:
+        return None
+    before = value_notation[:position]
+    target = value_notation[position : position + len(chosen)]
+    if target == "[N]":
+        target = "N"
+    try:
+        prefix, _length, _multiline = _compile_sequence(before) if before else ("", None, False)
+        group, _length, _multiline = _compile_sequence(target)
+    except FormatUnsupported:
+        return None
+    # Optional brackets opened before the component and closed after it cannot be split;
+    # such a notation is reported as not expressible rather than mis-grouped.
+    if before.count("[") != before.count("]") or before.count("(") != before.count(")"):
+        return None
+    return f"^{prefix}(?P<value>{group})"

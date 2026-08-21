@@ -178,12 +178,24 @@ class MtGenerator:
         self, specification: MessageSpecification, inputs: list[FieldInput]
     ) -> tuple[list[ResolvedField], list[ValidationIssue]]:
         by_id = {row.row_id.upper(): row for row in specification.fields}
-        by_address: dict[tuple[str, str, str | None], FieldSpecification] = {
-            (row.sequence_path, row.tag, row.qualifier): row for row in specification.fields
-        }
+        # A tag can be listed twice in one sequence (MT942's two ``34F`` floor limits,
+        # MT011's two ``175`` times): an address keeps every row in table order, and the
+        # n-th value addressed by tag for one occurrence is the n-th row — the order the
+        # composer writes and a spreadsheet lists them in.
+        rows_at: dict[tuple[str, str, str | None], list[FieldSpecification]] = {}
+        for spec_row in sorted(specification.fields, key=lambda item: item.row_number):
+            rows_at.setdefault(
+                (spec_row.sequence_path, spec_row.tag, spec_row.qualifier), []
+            ).append(spec_row)
         resolved: list[ResolvedField] = []
         issues: list[ValidationIssue] = []
         seen: set[tuple[str, int]] = set()
+
+        def unclaimed(candidates: list[FieldSpecification], occurrence: int) -> FieldSpecification:
+            for candidate in candidates:
+                if (candidate.row_id, occurrence) not in seen:
+                    return candidate
+            return candidates[0]
 
         for index, item in enumerate(inputs, start=1):
             row: FieldSpecification | None = None
@@ -208,8 +220,7 @@ class MtGenerator:
                     issues.append(
                         _error(
                             "MT_UNKNOWN_SEQUENCE",
-                            f"'{item.sequence}' is not a sequence of "
-                            f"{specification.message_type}.",
+                            f"'{item.sequence}' is not a sequence of {specification.message_type}.",
                             layer=ValidationLayer.STRUCTURE,
                             field_name=item.sequence,
                             location=f"input[{index}]",
@@ -234,15 +245,22 @@ class MtGenerator:
                     )
                     continue
                 if sequence_path:
-                    row = by_address.get((sequence_path, tag, qualifier))
+                    here = rows_at.get((sequence_path, tag, qualifier), [])
+                    row = unclaimed(here, item.occurrence) if here else None
                 else:
                     matches = [
                         candidate
                         for candidate in specification.fields
                         if candidate.tag == tag and candidate.qualifier == qualifier
                     ]
-                    row = matches[0] if len(matches) == 1 else None
-                    if len(matches) > 1:
+                    sequences_hit = {candidate.sequence_path for candidate in matches}
+                    if len(sequences_hit) == 1:
+                        row = unclaimed(
+                            rows_at[(matches[0].sequence_path, tag, qualifier)], item.occurrence
+                        )
+                    else:
+                        row = None
+                    if len(sequences_hit) > 1:
                         issues.append(
                             _error(
                                 "MT_AMBIGUOUS_FIELD",
@@ -398,9 +416,7 @@ class MtGenerator:
         # Two field options for one business value cannot both be present.
         for members in alternatives.values():
             for occurrence in sorted(occurrences):
-                present = [
-                    member for member in members if (member.row_id, occurrence) in supplied
-                ]
+                present = [member for member in members if (member.row_id, occurrence) in supplied]
                 if len(present) > 1:
                     errors.append(
                         _error(
@@ -758,8 +774,7 @@ def _code_expectation(row: FieldSpecification) -> str:
 
     values = code_lists.describe(row.code_list, row.allowed_codes)
     return ", ".join(
-        f"{item.code} ({item.label})" if item.label != item.code else item.code
-        for item in values
+        f"{item.code} ({item.label})" if item.label != item.code else item.code for item in values
     )
 
 
@@ -829,8 +844,7 @@ def _identifier_issue(row: FieldSpecification, value: str) -> ValidationIssue | 
         field_name=row.business_name,
         location=row.row_id,
         expected=(
-            f"A final check digit of {verdict.expected_check_digit} for identifier "
-            f"{value[:11]}"
+            f"A final check digit of {verdict.expected_check_digit} for identifier {value[:11]}"
         ),
         current=value,
         suggestion=(

@@ -52,7 +52,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check knowledge-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check mt-mrg-corpus-check mt-mx-mapping-check knowledge-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -268,6 +268,30 @@ mt-mrg-reports-write:
 mt-mrg-check:
 	cd backend && .venv/bin/python -m app.rule_engine mrg-reports --check
 
+# Every guide in the knowledge base: one disposition per Network Validated Rule, the
+# coverage table and a review pack per message. Extract reads the PDFs (or the sync's text
+# cache); write/check work from the committed evidence index alone.
+mt-mrg-corpus-extract:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-corpus --extract
+
+mt-mrg-corpus-write:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-corpus --write
+
+mt-mrg-corpus-check:
+	cd backend && .venv/bin/python -m app.rule_engine mrg-corpus --check
+
+# MT→MX mapping evidence: scan sweeps the local knowledge base and records every hit by
+# identity; write runs the conversion proofs locally and renders the coverage report;
+# check re-renders from the committed index and proofs and fails if the report drifted.
+mt-mx-mapping-scan:
+	cd backend && $(KNOWLEDGE_ENV) KNOWLEDGE_AI_PROVIDER=scripted .venv/bin/python -m app.mapping evidence --scan
+
+mt-mx-mapping-write:
+	cd backend && $(KNOWLEDGE_ENV) KNOWLEDGE_AI_PROVIDER=scripted .venv/bin/python -m app.mapping evidence --write
+
+mt-mx-mapping-check:
+	cd backend && .venv/bin/python -m app.mapping evidence --check
+
 mt-mrg-evaluate:
 	cd backend && .venv/bin/python -m app.rule_engine mrg-evaluate \
 		$(if $(MT_MRG_SOURCE_DIRECTORY),--directory $(abspath $(MT_MRG_SOURCE_DIRECTORY)),)
@@ -353,3 +377,18 @@ test-live-ai:
 
 reset-demo:
 	./scripts/reset-demo.sh
+
+knowledge-rebuild-structures:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base rebuild-structures
+
+# The committed knowledge base: write the source manifest from the synced database, and
+# verify on any clone that every listed file is present with real bytes (not an LFS
+# pointer) and the recorded hash. `--identify` re-reads each file's identity (local; slow).
+knowledge-manifest-write:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base manifest --write
+
+knowledge-verify:
+	cd backend && .venv/bin/python -m app.knowledge_base manifest
+
+knowledge-verify-identity:
+	cd backend && .venv/bin/python -m app.knowledge_base manifest --identify

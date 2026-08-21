@@ -370,8 +370,14 @@ class _TextBlockReader:
         self._by_code: dict[str, list[SequenceSpecification]] = {}
         for sequence in specification.sequences:
             self._by_code.setdefault(sequence.code, []).append(sequence)
+        # A tag can be listed twice in one sequence with two meanings (MT011's two ``175``
+        # times, MT360's two ``18A`` counts). The address keeps every row in table order;
+        # the n-th line read for an address is the n-th row, as the composer writes them.
+        self._rows_at: dict[tuple[str, str, str | None], list[FieldSpecification]] = {}
+        for row in sorted(specification.fields, key=lambda item: item.row_number):
+            self._rows_at.setdefault((row.sequence_path, row.tag, row.qualifier), []).append(row)
         self._by_address: dict[tuple[str, str, str | None], FieldSpecification] = {
-            (row.sequence_path, row.tag, row.qualifier): row for row in specification.fields
+            address: rows[0] for address, rows in self._rows_at.items()
         }
         self.fields: list[FieldInput] = []
         self.errors: list[ValidationIssue] = []
@@ -431,8 +437,7 @@ class _TextBlockReader:
                             location=f"line {number}",
                             current=text[:60],
                             expected="A line beginning with a colon, such as :20C::SEME//REF",
-                            suggestion="Remove the line, or paste the message again "
-                            "unedited.",
+                            suggestion="Remove the line, or paste the message again unedited.",
                         )
                     )
                     continue
@@ -471,14 +476,7 @@ class _TextBlockReader:
                     self._counts[target.path] = index
                     parent = None
                     if target.parent_path:
-                        parent = next(
-                            (
-                                item
-                                for item in reversed(self._instances)
-                                if item.path == target.parent_path
-                            ),
-                            None,
-                        )
+                        parent = self._implicit_parent(target.parent_path)
                     current_implicit = _Instance(
                         path=target.path, code=target.code, index=index, parent=parent
                     )
@@ -486,7 +484,17 @@ class _TextBlockReader:
                 elif target is not None:
                     current_implicit = target
                 if current_implicit is not None:
-                    row = self._by_address.get((current_implicit.path, tag, qualifier))
+                    floor = last_order.get(id(current_implicit), 0)
+                    row = next(
+                        (
+                            item
+                            for item in self._rows_at.get(
+                                (current_implicit.path, tag, qualifier), []
+                            )
+                            if item.row_number >= floor
+                        ),
+                        self._by_address.get((current_implicit.path, tag, qualifier)),
+                    )
                     if row is not None:
                         last_order[id(current_implicit)] = row.row_number
                     pending = _RawField(
@@ -507,8 +515,7 @@ class _TextBlockReader:
                         location=f"line {number}",
                         current=text[:60],
                         expected="Every field sits between a :16R: and a :16S: marker",
-                        suggestion="Paste the whole text block, starting at its first "
-                        ":16R: line.",
+                        suggestion="Paste the whole text block, starting at its first :16R: line.",
                     )
                 )
                 pending = None
@@ -535,6 +542,29 @@ class _TextBlockReader:
             )
         return raw
 
+    def _implicit_parent(self, parent_path: str) -> _Instance | None:
+        """The open occurrence of an unbracketed parent — opened here if the parent has
+        no line of its own before its child (MT020's ``_A`` is nothing but ``_A1`` repeats).
+
+        The composer's planner gives such a parent exactly one occurrence unless a field
+        addresses a further one directly; reading back therefore continues the most recent
+        occurrence where one exists and opens the first one where none does.
+        """
+        existing = next(
+            (item for item in reversed(self._instances) if item.path == parent_path), None
+        )
+        if existing is not None:
+            return existing
+        sequence = next((item for item in self._spec.sequences if item.path == parent_path), None)
+        if sequence is None:
+            return None
+        grandparent = self._implicit_parent(sequence.parent_path) if sequence.parent_path else None
+        index = self._counts.get(parent_path, 0) + 1
+        self._counts[parent_path] = index
+        opened = _Instance(path=parent_path, code=sequence.code, index=index, parent=grandparent)
+        self._instances.append(opened)
+        return opened
+
     def _implicit_target(
         self,
         tag: str,
@@ -555,18 +585,53 @@ class _TextBlockReader:
         """
         candidates = leading.get(tag, [])
         if current is not None:
-            row = self._by_address.get((current.path, tag, qualifier))
-            if row is not None and row.row_number >= last_order.get(id(current), 0):
+            # Any row at this address that comes no earlier than the last one read keeps
+            # the field here — the second ``18A`` of MT360's B1 is its later row, not the
+            # opener of the next sequence that also starts with ``18A``.
+            rows_here = self._rows_at.get((current.path, tag, qualifier), [])
+            if any(row.row_number >= last_order.get(id(current), 0) for row in rows_here):
                 return current
         if candidates:
             if current is None:
                 return candidates[0]
+            # The nearest structure wins: a sequence nested in the current one, then one
+            # nested in its parent, and so on outwards. MT360's B1 and E1 both open with
+            # ``18A``; inside E only E1 can be meant. Within one level the later sibling is
+            # the one being opened; the current sequence itself only if it repeats.
+            chain: list[str | None] = []
+            walker: _Instance | None = current
+            while walker is not None:
+                chain.append(walker.path)
+                walker = walker.parent
+            chain.append(None)
+            by_path = {item.path: item for item in self._spec.sequences}
+
+            def rank(candidate: SequenceSpecification) -> tuple[int, int]:
+                depth = (
+                    chain.index(candidate.parent_path)
+                    if candidate.parent_path in chain
+                    else len(chain)
+                )
+                return depth, candidate.order
+
             current_order = next(
                 (item.order for item in candidates if item.path == current.path), None
             )
-            for candidate in candidates:
+            for candidate in sorted(candidates, key=rank):
                 if candidate.path == current.path:
                     if candidate.max_occurs > 1:
+                        return candidate
+                    continue
+                if candidate.parent_path in chain:
+                    # A sibling of the occurrence that contains the current one must come
+                    # later in the table, or it is the opener of a new parent occurrence.
+                    sibling_of = (
+                        chain[chain.index(candidate.parent_path) - 1]
+                        if chain.index(candidate.parent_path) > 0
+                        else None
+                    )
+                    sibling = by_path.get(sibling_of) if sibling_of else None
+                    if sibling is None or candidate.order > sibling.order:
                         return candidate
                     continue
                 if current_order is None or candidate.order > current_order:
@@ -633,8 +698,7 @@ class _TextBlockReader:
             self.errors.append(
                 _issue(
                     "MT_IMPORT_SEQUENCE_MISMATCHED_END",
-                    f"Sequence {stack[-1].code} is still open, but line {number} closes "
-                    f"{code}.",
+                    f"Sequence {stack[-1].code} is still open, but line {number} closes {code}.",
                     layer=ValidationLayer.STRUCTURE,
                     location=f"line {number}",
                     expected=f":16S:{stack[-1].code}",
@@ -687,8 +751,7 @@ class _TextBlockReader:
                     self.warnings.append(
                         _issue(
                             "MT_IMPORT_EMPTY_SEQUENCE_DROPPED",
-                            f"The {instance.code} block held no values, so it is not "
-                            "reproduced.",
+                            f"The {instance.code} block held no values, so it is not reproduced.",
                             layer=ValidationLayer.STRUCTURE,
                             severity=IssueSeverity.WARNING,
                             location=instance.path,
@@ -745,9 +808,7 @@ class _TextBlockReader:
         """A first, mandatory sequence with no values is the ordinary "nothing filled in yet"
         case; the generator already reports its missing fields, so saying it was dropped as
         well would be two complaints about one thing."""
-        sequence = next(
-            (item for item in self._spec.sequences if item.path == instance.path), None
-        )
+        sequence = next((item for item in self._spec.sequences if item.path == instance.path), None)
         return bool(sequence and sequence.min_occurs >= 1 and instance.index == 1)
 
     # -- pass three: resolve every field ----------------------------------------------
@@ -756,8 +817,18 @@ class _TextBlockReader:
         claimed: dict[tuple[str, int], int] = {}
         highest: dict[int, int] = {}
         order_reported = False
+        seen_at: dict[tuple[int, str, str, str | None], int] = {}
         for item in raw:
-            row = self._by_address.get((item.instance.path, item.tag, item.qualifier))
+            address = (item.instance.path, item.tag, item.qualifier)
+            rows_here = self._rows_at.get(address, [])
+            ordinal_key = (id(item.instance), *address)
+            ordinal = seen_at.get(ordinal_key, 0)
+            seen_at[ordinal_key] = ordinal + 1
+            row = (
+                rows_here[ordinal]
+                if ordinal < len(rows_here)
+                else (rows_here[-1] if rows_here else None)
+            )
             if row is None:
                 label = item.tag + (f"/{item.qualifier}" if item.qualifier else "")
                 self.errors.append(
@@ -893,9 +964,7 @@ def _sequence_codes(body: str) -> set[str]:
     }
 
 
-def _root_order_warning(
-    specification: MessageSpecification, body: str
-) -> ValidationIssue | None:
+def _root_order_warning(specification: MessageSpecification, body: str) -> ValidationIssue | None:
     order = {sequence.code: sequence.order for sequence in specification.sequences}
     seen = [
         match.group("code")

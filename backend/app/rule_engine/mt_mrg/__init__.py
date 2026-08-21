@@ -25,4 +25,4 @@ from __future__ import annotations
 
 #: Bumped when the deterministic reading changes in a way that could move a segment id, a
 #: candidate rule id or a resolved reference. Recorded on every candidate pack.
-MRG_READER_VERSION = "mt-mrg-reader/2"
+MRG_READER_VERSION = "mt-mrg-reader/3"

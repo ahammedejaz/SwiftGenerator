@@ -65,7 +65,31 @@ def test_unknown_notation_is_refused_not_guessed() -> None:
     with pytest.raises(FormatUnsupported):
         compile_format("<VAR-SEQU-4>")
     with pytest.raises(FormatUnsupported):
-        compile_format("[3!c]*10")
+        compile_format("<PARTYFLD-J>")
+    with pytest.raises(FormatUnsupported):
+        compile_format("{65x}n")
+
+
+def test_groups_alternatives_and_repeats_compile_and_sample() -> None:
+    """``4*(1!n/33x)`` (50F), ``A|B`` (Prowide's 31X), ``[3!c]*10`` and ``n*78z`` are
+    real notations; each compiles, and its synthetic value matches its own pattern."""
+    import re
+
+    from app.knowledge_base.structures.swift_format import synthetic_value
+
+    for notation in (
+        "35x4*(1!n/33x)",
+        "(<DATE2>[<HHMM>])|7!a",
+        "[3!c]*10",
+        "73z[n*78z]",
+        "6!n[4!n]2a[1!a]15d1!a3!c16x[//16x][34x]",
+        "64!h",
+    ):
+        compiled = compile_format(notation)
+        value = synthetic_value(notation)
+        assert re.fullmatch(compiled.pattern, value), (notation, value)
+    assert compile_format("[3!c]*10").max_length is None
+    assert compile_format("64!h").max_length == 64
 
 
 def test_synthetic_values_satisfy_their_own_pattern_and_never_claim_reality() -> None:

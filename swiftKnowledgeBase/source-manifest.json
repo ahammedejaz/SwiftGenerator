@@ -1,0 +1,1648 @@
+{
+ "schemaVersion": "knowledge-source-manifest/1",
+ "root": "swiftKnowledgeBase",
+ "fileCount": 164,
+ "totalBytes": 38423389,
+ "sources": [
+  {
+   "relativePath": "MT/SR_2026_November_MT101_Request_for_Transfer.pdf",
+   "bytes": 297866,
+   "sha256": "64d16afa728f6eabf1af00161038524d66be881ec928fb48bebb87fcc0eeda85",
+   "sourceId": "SWIFT-MT-SR2026-MT101-MRG",
+   "format": "MT",
+   "messageType": "MT101",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT102_Multiple_Customer_Credit_Transfer.pdf",
+   "bytes": 257327,
+   "sha256": "bb0e4851dcdaae8fe4d11b49bfb57aa7f8dd12699b18e5c998b7bc52c695d254",
+   "sourceId": "SWIFT-MT-SR2026-MT102-MRG",
+   "format": "MT",
+   "messageType": "MT102",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT103_Single_Customer_Credit_Transfer.pdf",
+   "bytes": 461756,
+   "sha256": "69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0",
+   "sourceId": "SWIFT-MT-SR2026-MT103-MRG",
+   "format": "MT",
+   "messageType": "MT103",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT104_Direct_Debit_and_Request_for_Debit_Transfer_Message.pdf",
+   "bytes": 227945,
+   "sha256": "63332d89ad0bc59097c1b6175cd704669439c0ac7750ee1da0725a30bd023b26",
+   "sourceId": "SWIFT-MT-SR2026-MT104-MRG",
+   "format": "MT",
+   "messageType": "MT104",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT105_EDIFACT_Envelope.pdf",
+   "bytes": 43395,
+   "sha256": "38da9ed137da7a0d70b5b6a6a0f06d2cf3f8cdfb1340c1a3f4b39fe3a3d50299",
+   "sourceId": "SWIFT-MT-SR2026-MT105-MRG",
+   "format": "MT",
+   "messageType": "MT105",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT107_General_Direct_Debit_Message.pdf",
+   "bytes": 204184,
+   "sha256": "62513ad167c2c9b4718776b1c2332fe59edb4256334c5b2159ad2b247ed45384",
+   "sourceId": "SWIFT-MT-SR2026-MT107-MRG",
+   "format": "MT",
+   "messageType": "MT107",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT110_Advice_of_Cheque(s).pdf",
+   "bytes": 139452,
+   "sha256": "4739e1991df92d6b6e7623e0deb572a9dfcfb94e585f9a560a632d153566a58c",
+   "sourceId": "SWIFT-MT-SR2026-MT110-MRG",
+   "format": "MT",
+   "messageType": "MT110",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT111_Request_for_Stop_Payment_of_a_Cheque.pdf",
+   "bytes": 91327,
+   "sha256": "4519bae8d6b47ab5308781178c88927248e3f61d0288eb25236a6b8cedeb4cfc",
+   "sourceId": "SWIFT-MT-SR2026-MT111-MRG",
+   "format": "MT",
+   "messageType": "MT111",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT112_Status_of_a_Request_for_Stop_Payment_of_a_Cheque.pdf",
+   "bytes": 90918,
+   "sha256": "d19fac40cfc3b06e30612e9ebdbe0d02cca979507e4c7644ee7613413684d266",
+   "sourceId": "SWIFT-MT-SR2026-MT112-MRG",
+   "format": "MT",
+   "messageType": "MT112",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT200_Financial_Institution_Transfer_for_its_Own_Account.pdf",
+   "bytes": 123427,
+   "sha256": "7453f0e354d629d05683d945270651d4a143ac93b3938a1b92eb28be5712fd6b",
+   "sourceId": "SWIFT-MT-SR2026-MT200-MRG",
+   "format": "MT",
+   "messageType": "MT200",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT201_Multiple_Financial_Institution_Transfer_for_its_Own_Account.pdf",
+   "bytes": 129853,
+   "sha256": "3b59eaac60f7017bbc7d3f3100656af6b2ff4b4e35d90defc64f110c3a1bfe8f",
+   "sourceId": "SWIFT-MT-SR2026-MT201-MRG",
+   "format": "MT",
+   "messageType": "MT201",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT202_General_Financial_Institution_Transfer.pdf",
+   "bytes": 130555,
+   "sha256": "62ee02def1e4b3b014a1b739ad079538119518a81752dd3f28db82f4c32fb7ed",
+   "sourceId": "SWIFT-MT-SR2026-MT202-MRG",
+   "format": "MT",
+   "messageType": "MT202",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT203_Multiple_General_Financial_Institution_Transfer.pdf",
+   "bytes": 153688,
+   "sha256": "a2005f80ee22b8e0ceeca62867c4d05738977499a1a2960b360ac93fcf4f29f7",
+   "sourceId": "SWIFT-MT-SR2026-MT203-MRG",
+   "format": "MT",
+   "messageType": "MT203",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT204_Financial_Markets_Direct_Debit_Message.pdf",
+   "bytes": 130519,
+   "sha256": "6b3159a11af5edb70b473bdc4794f0a5fcc304090f74a909e670305c95f62c72",
+   "sourceId": "SWIFT-MT-SR2026-MT204-MRG",
+   "format": "MT",
+   "messageType": "MT204",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT205_Financial_Institution_Transfer_Execution.pdf",
+   "bytes": 138071,
+   "sha256": "89b76cd9c963d362f9b7dbdba033fe48bddb003de41737fa559209613eb7d2e5",
+   "sourceId": "SWIFT-MT-SR2026-MT205-MRG",
+   "format": "MT",
+   "messageType": "MT205",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT210_Notice_to_Receive.pdf",
+   "bytes": 121979,
+   "sha256": "92a001b4ee0f596fd7d6a7ccc046da0bc0302dd209aae1990f8f8a73fa60dfc8",
+   "sourceId": "SWIFT-MT-SR2026-MT210-MRG",
+   "format": "MT",
+   "messageType": "MT210",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT300_Foreign_Exchange_Confirmation.pdf",
+   "bytes": 467199,
+   "sha256": "6f40c2b602f31e8f016039c95b84c3f7e5e21ab5ae930d46a2460f80c783ce5f",
+   "sourceId": "SWIFT-MT-SR2026-MT300-MRG",
+   "format": "MT",
+   "messageType": "MT300",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT304_Advice_Instruction_of_a_Third_Party_Deal.pdf",
+   "bytes": 324220,
+   "sha256": "5d14b677972e6316e39e79f1ac282dfff14de9f7a2136c9dd106faf4dd5982d2",
+   "sourceId": "SWIFT-MT-SR2026-MT304-MRG",
+   "format": "MT",
+   "messageType": "MT304",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT305_Foreign_Currency_Option_Confirmation.pdf",
+   "bytes": 297503,
+   "sha256": "b24e8295bae7a7e75ee369949b2f88d0be1263654ef60b84530f4bf296bb1926",
+   "sourceId": "SWIFT-MT-SR2026-MT305-MRG",
+   "format": "MT",
+   "messageType": "MT305",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT306_Foreign_Currency_Option_Confirmation.pdf",
+   "bytes": 657095,
+   "sha256": "2fd5742ae5d7b34fcc5933f0a7abfee1111dc0b881cc119c9122ebee7fbcd35d",
+   "sourceId": "SWIFT-MT-SR2026-MT306-MRG",
+   "format": "MT",
+   "messageType": "MT306",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT320_Fixed_Loan_Deposit_Confirmation.pdf",
+   "bytes": 432161,
+   "sha256": "01faf5d761ab602e148226bdbf538c2d2ea75e10db86a9131beed066dce7514f",
+   "sourceId": "SWIFT-MT-SR2026-MT320-MRG",
+   "format": "MT",
+   "messageType": "MT320",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT321_Instruction_to_Settle_a_Third_Party_Loan_Deposit.pdf",
+   "bytes": 211924,
+   "sha256": "980cc674feabadaa6538a7c8c14cf591e50f24a240e1a19ef60fd31a5b19285c",
+   "sourceId": "SWIFT-MT-SR2026-MT321-MRG",
+   "format": "MT",
+   "messageType": "MT321",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT330_Call_Notice_Loan_Deposit_Confirmation.pdf",
+   "bytes": 374782,
+   "sha256": "bf97eb2b0a9e6442f4c32b1a5bbfc3d21057a418a3b7e3d60b5ce3a55eec315b",
+   "sourceId": "SWIFT-MT-SR2026-MT330-MRG",
+   "format": "MT",
+   "messageType": "MT330",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT340_Forward_Rate_Agreement_Confirmation.pdf",
+   "bytes": 399624,
+   "sha256": "2f85a45f768b5c8a52ee0b0eaf1cdcf2fb4c4b53e93460fb163f41a82551c868",
+   "sourceId": "SWIFT-MT-SR2026-MT340-MRG",
+   "format": "MT",
+   "messageType": "MT340",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT341_Forward_Rate_Agreement_Settlement_Confirmation.pdf",
+   "bytes": 277132,
+   "sha256": "11dc3a8cd82193bafba37154153ec6865e2772de2c77bd62bbf214fdead09bc1",
+   "sourceId": "SWIFT-MT-SR2026-MT341-MRG",
+   "format": "MT",
+   "messageType": "MT341",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT350_Advice_of_Loan_Deposit_Interest_Payment.pdf",
+   "bytes": 186771,
+   "sha256": "1bdd5653111af027f19160a462596dcf8a0d5e5c9b76ec9c255577171d872170",
+   "sourceId": "SWIFT-MT-SR2026-MT350-MRG",
+   "format": "MT",
+   "messageType": "MT350",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT360_Single_Currency_Interest_Rate_Derivative_Confirmation.pdf",
+   "bytes": 650979,
+   "sha256": "ef281b0c14a60eaf0dc66678725483bab6e85ad3d7017c3c854523da7f61c5ec",
+   "sourceId": "SWIFT-MT-SR2026-MT360-MRG",
+   "format": "MT",
+   "messageType": "MT360",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT361_Cross_Currency_Interest_Rate_Swap_Confirmation.pdf",
+   "bytes": 775023,
+   "sha256": "fa6c88a8894ff99254a817985af0fe9e03824a2f87b4034a8b5fc8a229285266",
+   "sourceId": "SWIFT-MT-SR2026-MT361-MRG",
+   "format": "MT",
+   "messageType": "MT361",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT362_Interest_Rate_Reset_Advice_of_Payment.pdf",
+   "bytes": 274429,
+   "sha256": "1b7417b9cf0db2928bb9192264ed7b206dbebbcd7499a2dc8412bf998cbec1b9",
+   "sourceId": "SWIFT-MT-SR2026-MT362-MRG",
+   "format": "MT",
+   "messageType": "MT362",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT364_Single_Currency_Interest_Rate_Derivative_Termination_Recouponing_Confirmation.pdf",
+   "bytes": 227526,
+   "sha256": "40a7f7dc7c3670db5c3785c6559b517360be65080baacc67e5581868c8e1eea7",
+   "sourceId": "SWIFT-MT-SR2026-MT364-MRG",
+   "format": "MT",
+   "messageType": "MT364",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT365_Cross_Currency_Interest_Rate_Swap_Termination_Recouponing_Confirmation.pdf",
+   "bytes": 291651,
+   "sha256": "4261b8ddc0addd40a26860daf7b71eb40a1e5b5a78bd324bcd1c62a0196531b7",
+   "sourceId": "SWIFT-MT-SR2026-MT365-MRG",
+   "format": "MT",
+   "messageType": "MT365",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT370_Netting_Position_Advice.pdf",
+   "bytes": 256892,
+   "sha256": "9f740925b58ca227e1655668dc3fe5574afb1ccd6755f365ffb911a10d437ab6",
+   "sourceId": "SWIFT-MT-SR2026-MT370-MRG",
+   "format": "MT",
+   "messageType": "MT370",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT380_Foreign_Exchange_Order.pdf",
+   "bytes": 132989,
+   "sha256": "eb5ac33f1d30ea602167c5d7864bbdbcadfdf300fb2e75b1505e01fd4d756d9a",
+   "sourceId": "SWIFT-MT-SR2026-MT380-MRG",
+   "format": "MT",
+   "messageType": "MT380",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT381_Foreign_Exchange_Order_Confirmation.pdf",
+   "bytes": 136860,
+   "sha256": "b6e2fba55214aec89bc4f25d5ede417fc0980ede8ef78694498a7c55e60f60bf",
+   "sourceId": "SWIFT-MT-SR2026-MT381-MRG",
+   "format": "MT",
+   "messageType": "MT381",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT400_Advice_of_Payment.pdf",
+   "bytes": 67734,
+   "sha256": "f5ce987e9cfdd4d2119f19e4965e02cbb3c6404fda116f5aebabc9527a120d3a",
+   "sourceId": "SWIFT-MT-SR2026-MT400-MRG",
+   "format": "MT",
+   "messageType": "MT400",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT410_Acknowledgement.pdf",
+   "bytes": 85338,
+   "sha256": "7620bae8c8029c9b949ff4acac44e8dbe1a38a48c74fc482066bf1625991d482",
+   "sourceId": "SWIFT-MT-SR2026-MT410-MRG",
+   "format": "MT",
+   "messageType": "MT410",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT412_Advice_of_Acceptance.pdf",
+   "bytes": 80682,
+   "sha256": "37a2803415264da1b5626b0b595bd3b65a82123d04c86508f26a6392f9398ec1",
+   "sourceId": "SWIFT-MT-SR2026-MT412-MRG",
+   "format": "MT",
+   "messageType": "MT412",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT416_Advice_of_Non-Payment_Non-Acceptance.pdf",
+   "bytes": 143592,
+   "sha256": "fa5c39d2950e46404df8f421c17eb0e6440e482b27691d91939b7bbac68a164c",
+   "sourceId": "SWIFT-MT-SR2026-MT416-MRG",
+   "format": "MT",
+   "messageType": "MT416",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT420_Tracer.pdf",
+   "bytes": 98538,
+   "sha256": "6144ce12282d90e628fb39a81389ce886e0b51d416485b0ef4c445092763051e",
+   "sourceId": "SWIFT-MT-SR2026-MT420-MRG",
+   "format": "MT",
+   "messageType": "MT420",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT422_Advice_of_Fate_and_Request_for_Instructions.pdf",
+   "bytes": 93185,
+   "sha256": "d08eb381be7305686dab2375fa0e3167cf50066f4aed08a044efc14b239c0c21",
+   "sourceId": "SWIFT-MT-SR2026-MT422-MRG",
+   "format": "MT",
+   "messageType": "MT422",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT430_Amendment_of_Instructions.pdf",
+   "bytes": 105963,
+   "sha256": "84f9e49f12d8cc16784b6b9d22361a03c3518ef4444abeb2affd0bdec3c82092",
+   "sourceId": "SWIFT-MT-SR2026-MT430-MRG",
+   "format": "MT",
+   "messageType": "MT430",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT450_Cash_Letter_Credit_Advice.pdf",
+   "bytes": 86517,
+   "sha256": "24cc7d9d8abca5f646370417f83f78c8a4ee5ae280f2f1b797bf894845cc79b7",
+   "sourceId": "SWIFT-MT-SR2026-MT450-MRG",
+   "format": "MT",
+   "messageType": "MT450",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT455_Cash_Letter_Credit_Adjustment_Advice.pdf",
+   "bytes": 88849,
+   "sha256": "6dc305fa5ff02c1b7feca7358b2ae13e0a70f0ac8879c7d8a1e9ff15ddb9c6cb",
+   "sourceId": "SWIFT-MT-SR2026-MT455-MRG",
+   "format": "MT",
+   "messageType": "MT455",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT456_Advice_of_Dishonour.pdf",
+   "bytes": 99785,
+   "sha256": "fcadbd5835777168ddb563c03c0039e559de7007739215f108bff0df6a0d7e9f",
+   "sourceId": "SWIFT-MT-SR2026-MT456-MRG",
+   "format": "MT",
+   "messageType": "MT456",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT499_Free_Format_Message.pdf",
+   "bytes": 37597,
+   "sha256": "785b99c2c05532592ba77a96998db16a2c5b2435c339cb534e1454abf4828150",
+   "sourceId": "SWIFT-MT-SR2026-MT499-MRG",
+   "format": "MT",
+   "messageType": "MT499",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT500_Instruction_to_Register.pdf",
+   "bytes": 296744,
+   "sha256": "aa9f94aadf56682d385fa3d7abb445e33c524042d85ffbfc6af1cf34850313b5",
+   "sourceId": "SWIFT-MT-SR2026-MT500-MRG",
+   "format": "MT",
+   "messageType": "MT500",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT501_Confirmation_of_Registration_or_Modification.pdf",
+   "bytes": 294029,
+   "sha256": "7a847a0bc3ba746c41ee2ddb7741848414f687b4680b7acbba2d3c53018c7107",
+   "sourceId": "SWIFT-MT-SR2026-MT501-MRG",
+   "format": "MT",
+   "messageType": "MT501",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT502_Order_to_Buy_or_Sell.pdf",
+   "bytes": 590067,
+   "sha256": "859c5df12301a12814059028ffc976e316717f286b115fe27398daef745afb0a",
+   "sourceId": "SWIFT-MT-SR2026-MT502-MRG",
+   "format": "MT",
+   "messageType": "MT502",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT503_Collateral_Claim.pdf",
+   "bytes": 303659,
+   "sha256": "87f7f232ecaffa7a3c1907ef860354ed310c2cd015f5ebd4978a84f9106f87a7",
+   "sourceId": "SWIFT-MT-SR2026-MT503-MRG",
+   "format": "MT",
+   "messageType": "MT503",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT504_Collateral_Proposal.pdf",
+   "bytes": 443318,
+   "sha256": "552d699129c124b68d41589d1d012cb61b964e2f374866daeec3deac2defde18",
+   "sourceId": "SWIFT-MT-SR2026-MT504-MRG",
+   "format": "MT",
+   "messageType": "MT504",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT505_Collateral_Substitution.pdf",
+   "bytes": 390667,
+   "sha256": "08729a351dfb57269da37475042b30f73c75024412f857941b19cfe08a218053",
+   "sourceId": "SWIFT-MT-SR2026-MT505-MRG",
+   "format": "MT",
+   "messageType": "MT505",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT506_Collateral_and_Exposure_Statement.pdf",
+   "bytes": 420023,
+   "sha256": "124a735e637f7321b87b4e9f11ad998653a9f3dd500fb15364010001bc605467",
+   "sourceId": "SWIFT-MT-SR2026-MT506-MRG",
+   "format": "MT",
+   "messageType": "MT506",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT507_Collateral_Status_and_Processing_Advice.pdf",
+   "bytes": 277137,
+   "sha256": "e78e20a7d78ae287bdafe760b7ed65c5e36ccf6b847b71a5f62a512e72dcd3dd",
+   "sourceId": "SWIFT-MT-SR2026-MT507-MRG",
+   "format": "MT",
+   "messageType": "MT507",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT508_Intra-Position_Advice.pdf",
+   "bytes": 236029,
+   "sha256": "5111c14d6a7f53bec0399c4c7a0414552a9c6b7ae2bbb2f0567e344040ba4d26",
+   "sourceId": "SWIFT-MT-SR2026-MT508-MRG",
+   "format": "MT",
+   "messageType": "MT508",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT509_Trade_Status_Message.pdf",
+   "bytes": 249861,
+   "sha256": "273955d6c60f7fa49d01503ebbc9a312d9967e3688e796b9c08c71f9c6be2212",
+   "sourceId": "SWIFT-MT-SR2026-MT509-MRG",
+   "format": "MT",
+   "messageType": "MT509",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT510_Registration_Status_and_Processing_Advice.pdf",
+   "bytes": 154779,
+   "sha256": "bdeb1437d24fdc96d7306071fd1983356481d5d487734c1b5cdee92a661fda9b",
+   "sourceId": "SWIFT-MT-SR2026-MT510-MRG",
+   "format": "MT",
+   "messageType": "MT510",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT513_Client_Advice_Of_Execution.pdf",
+   "bytes": 674577,
+   "sha256": "1a547395cdf7fade185e1200690026b57f462a3ea2a67f424e0f1c379acab027",
+   "sourceId": "SWIFT-MT-SR2026-MT513-MRG",
+   "format": "MT",
+   "messageType": "MT513",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT514_Trade_Allocation_Instruction.pdf",
+   "bytes": 585547,
+   "sha256": "0093df003b14cc0528ba32f9cb0915a396b3484dcf95554a605740833838d211",
+   "sourceId": "SWIFT-MT-SR2026-MT514-MRG",
+   "format": "MT",
+   "messageType": "MT514",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT515_Client_Confirmation_of_Purchase_or_Sale.pdf",
+   "bytes": 650056,
+   "sha256": "3ad98bed8629c4e2c64331c31cc630d07c1d3360c718311556d42efe880f0dbe",
+   "sourceId": "SWIFT-MT-SR2026-MT515-MRG",
+   "format": "MT",
+   "messageType": "MT515",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT517_Trade_Confirmation_Affirmation.pdf",
+   "bytes": 80712,
+   "sha256": "2186aba03573d00eac6eb537f37c79b99b35f1db06078cf67166c9202aa82c94",
+   "sourceId": "SWIFT-MT-SR2026-MT517-MRG",
+   "format": "MT",
+   "messageType": "MT517",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT518_Market-Side_Securities_Trade_Confirmation.pdf",
+   "bytes": 587160,
+   "sha256": "18e00de892511e29ebb34b04d7b5016322f9ba73751f2d4f69feb94b8e0f6cb7",
+   "sourceId": "SWIFT-MT-SR2026-MT518-MRG",
+   "format": "MT",
+   "messageType": "MT518",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT519_Modification_of_Client_Details.pdf",
+   "bytes": 272356,
+   "sha256": "e447b91038774aafc27a1d04c542bbfbed9f196c2ac5724a0eae9892bc3e5a5b",
+   "sourceId": "SWIFT-MT-SR2026-MT519-MRG",
+   "format": "MT",
+   "messageType": "MT519",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT524_Intra-Position_Instruction.pdf",
+   "bytes": 219533,
+   "sha256": "b0fe6d8eab4540f7282c5ab71f73137072d495fa332b9835df19e112e14672f4",
+   "sourceId": "SWIFT-MT-SR2026-MT524-MRG",
+   "format": "MT",
+   "messageType": "MT524",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT527_Triparty_Collateral_Instruction.pdf",
+   "bytes": 289168,
+   "sha256": "826d4118f17b0fe0eca97156cdb24ddeaf82c31923d2299f623940627b9052b0",
+   "sourceId": "SWIFT-MT-SR2026-MT527-MRG",
+   "format": "MT",
+   "messageType": "MT527",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT530_Transaction_Processing_Command.pdf",
+   "bytes": 213586,
+   "sha256": "06d02bb4895ff896e37f8665c7492fa7ecfa1bdd858e796e39d9f09fab453866",
+   "sourceId": "SWIFT-MT-SR2026-MT530-MRG",
+   "format": "MT",
+   "messageType": "MT530",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT535_Statement_of_Holdings.pdf",
+   "bytes": 472306,
+   "sha256": "e295aa30a8705f43440ca6f3fc64b10fbef49d22fe95daef2be2ed1b2b559e79",
+   "sourceId": "SWIFT-MT-SR2026-MT535-MRG",
+   "format": "MT",
+   "messageType": "MT535",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT536_Statement_of_Transactions.pdf",
+   "bytes": 357335,
+   "sha256": "e8075e70a52008e5dc5db7a5868459929b9e50072674a929388df2e2f435a699",
+   "sourceId": "SWIFT-MT-SR2026-MT536-MRG",
+   "format": "MT",
+   "messageType": "MT536",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT537_Statement_of_Pending_Transactions.pdf",
+   "bytes": 948529,
+   "sha256": "a4c29405c5bcabf7c913375114f65ce89a9a2badfcfd278c0ca551dd1a3b6cc4",
+   "sourceId": "SWIFT-MT-SR2026-MT537-MRG",
+   "format": "MT",
+   "messageType": "MT537",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT538_Statement_of_Intra-Position_Advices.pdf",
+   "bytes": 277991,
+   "sha256": "c56b807627e54b77b48ff3c743bca32654d4284cec7c49c154e83fd8afb4c16e",
+   "sourceId": "SWIFT-MT-SR2026-MT538-MRG",
+   "format": "MT",
+   "messageType": "MT538",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT540_Receive_Free.pdf",
+   "bytes": 592406,
+   "sha256": "ef69b239e6483dbbebbc0fe531c3d91f386039012a14715ce0e16d503a86fe8c",
+   "sourceId": "SWIFT-MT-SR2026-MT540-MRG",
+   "format": "MT",
+   "messageType": "MT540",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT541_Receive_Against_Payment.pdf",
+   "bytes": 596274,
+   "sha256": "b15cbfcb4e15fd056aede2d92bd522d75c28bd92b560066cc50b8c6031233a39",
+   "sourceId": "SWIFT-MT-SR2026-MT541-MRG",
+   "format": "MT",
+   "messageType": "MT541",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT542_Deliver_Free.pdf",
+   "bytes": 594533,
+   "sha256": "40714eefca891efcac84210543092f87f7f5b675472fa3fa73319cc10be6f55b",
+   "sourceId": "SWIFT-MT-SR2026-MT542-MRG",
+   "format": "MT",
+   "messageType": "MT542",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT543_Deliver_Against_Payment.pdf",
+   "bytes": 601150,
+   "sha256": "17e1db2d38ff5c0160c2c6ca7da1c3b879ab2d2f5e2f3aa56d6d01eab6ee56e7",
+   "sourceId": "SWIFT-MT-SR2026-MT543-MRG",
+   "format": "MT",
+   "messageType": "MT543",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT544_Receive_Free_Confirmation.pdf",
+   "bytes": 583206,
+   "sha256": "bf53c6be575e3b6bbabd6d248cb5f6d578058cf28c6537d40d472f71b6a438ec",
+   "sourceId": "SWIFT-MT-SR2026-MT544-MRG",
+   "format": "MT",
+   "messageType": "MT544",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT545_Receive_Against_Payment_Confirmation.pdf",
+   "bytes": 583418,
+   "sha256": "152a3c75731d4394fb76682aa006c767aff7fe56977cc4875cd9361b20ed718f",
+   "sourceId": "SWIFT-MT-SR2026-MT545-MRG",
+   "format": "MT",
+   "messageType": "MT545",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT546_Deliver_Free_Confirmation.pdf",
+   "bytes": 584645,
+   "sha256": "d75840601afbc903795006afe774f13cb2d2e0c021b749be27bdcc6856bebe0b",
+   "sourceId": "SWIFT-MT-SR2026-MT546-MRG",
+   "format": "MT",
+   "messageType": "MT546",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT547_Deliver_Against_Payment_Confirmation.pdf",
+   "bytes": 584712,
+   "sha256": "1b56dc203cac1881a8e987fb1c2832457edf329cce7a968218e0797d2a876908",
+   "sourceId": "SWIFT-MT-SR2026-MT547-MRG",
+   "format": "MT",
+   "messageType": "MT547",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT548_Settlement_Status_and_Processing_Advice.pdf",
+   "bytes": 654627,
+   "sha256": "c9aa4e3d2ea808e362ddaae6ed68dc06c255b8eb9e16660584475b3594a403ec",
+   "sourceId": "SWIFT-MT-SR2026-MT548-MRG",
+   "format": "MT",
+   "messageType": "MT548",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT549_Request_for_Statement_Status_Advice.pdf",
+   "bytes": 213697,
+   "sha256": "9dce82984b46188c61c1b902ba78001285c022b98722e3e451a660cff9486c0c",
+   "sourceId": "SWIFT-MT-SR2026-MT549-MRG",
+   "format": "MT",
+   "messageType": "MT549",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT558_Triparty_Collateral_Status_and_Processing_Advice.pdf",
+   "bytes": 350266,
+   "sha256": "76b0e3d44529625472bedfa681729faeab93a1aa2001aba7e5e2840f165b255d",
+   "sourceId": "SWIFT-MT-SR2026-MT558-MRG",
+   "format": "MT",
+   "messageType": "MT558",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT564_Corporate_Action_Notification.pdf",
+   "bytes": 958557,
+   "sha256": "3a926e76bd88c783bb7a4bd9c0c000974c06716ece8490ae33219beea57a245f",
+   "sourceId": "SWIFT-MT-SR2026-MT564-MRG",
+   "format": "MT",
+   "messageType": "MT564",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT565_Corporate_Action_Instruction.pdf",
+   "bytes": 333364,
+   "sha256": "f57305987c5391a9643af16a92b62f66f9a195f8759de29e2be9ac735789c28c",
+   "sourceId": "SWIFT-MT-SR2026-MT565-MRG",
+   "format": "MT",
+   "messageType": "MT565",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT566_Corporate_Action_Confirmation.pdf",
+   "bytes": 691092,
+   "sha256": "4170535020c811b1f92db0904dd8b6c34b4e55397d1cf16e1f98109c829b3af8",
+   "sourceId": "SWIFT-MT-SR2026-MT566-MRG",
+   "format": "MT",
+   "messageType": "MT566",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT567_Corporate_Action_Status_and_Processing_Advice.pdf",
+   "bytes": 287213,
+   "sha256": "911759f966b59d56b328448c127ab611e163fa9b0187dd916083e3d19e368d45",
+   "sourceId": "SWIFT-MT-SR2026-MT567-MRG",
+   "format": "MT",
+   "messageType": "MT567",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT568_Corporate_Action_Narrative.pdf",
+   "bytes": 210823,
+   "sha256": "82744eb0d8c1f8c1805e7648c588a6892f726189944e2a4cb676460a25bc9ff7",
+   "sourceId": "SWIFT-MT-SR2026-MT568-MRG",
+   "format": "MT",
+   "messageType": "MT568",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT569_Triparty_Collateral_and_Exposure_Statement.pdf",
+   "bytes": 360236,
+   "sha256": "a87943325b121bbdf7140a7da2cd8cf9e33db840357939bcbf905a9ad37e6355",
+   "sourceId": "SWIFT-MT-SR2026-MT569-MRG",
+   "format": "MT",
+   "messageType": "MT569",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT575_Report_of_Combined_Activity.pdf",
+   "bytes": 508577,
+   "sha256": "4acd3167553b5eeea1c969505e9abfc7ba02f0a037d735627ad719626a459783",
+   "sourceId": "SWIFT-MT-SR2026-MT575-MRG",
+   "format": "MT",
+   "messageType": "MT575",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT576_Statement_of_Open_Orders.pdf",
+   "bytes": 318737,
+   "sha256": "b9c4d6e0e0af69812d5470997f9067f1ac0dc68a874c11bce2f87bb25eaaf19c",
+   "sourceId": "SWIFT-MT-SR2026-MT576-MRG",
+   "format": "MT",
+   "messageType": "MT576",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT578_Settlement_Allegement.pdf",
+   "bytes": 466911,
+   "sha256": "cc147b82350c51a24dc8844e7d62c467f75932d2ad0ce76848bce451b851bdfb",
+   "sourceId": "SWIFT-MT-SR2026-MT578-MRG",
+   "format": "MT",
+   "messageType": "MT578",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT581_Collateral_Adjustment_Message.pdf",
+   "bytes": 93900,
+   "sha256": "d3195be4180a77ad7eafdd48dc988dc7d16fd1f8d31c5f4cf3a713659132232a",
+   "sourceId": "SWIFT-MT-SR2026-MT581-MRG",
+   "format": "MT",
+   "messageType": "MT581",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT586_Statement_of_Settlement_Allegements.pdf",
+   "bytes": 496787,
+   "sha256": "8aae2310fa4eb139600685071ea180b20efd76b633e56cfa9d8d551e8208ce7b",
+   "sourceId": "SWIFT-MT-SR2026-MT586-MRG",
+   "format": "MT",
+   "messageType": "MT586",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT600_Commodity_Trade_Confirmation.pdf",
+   "bytes": 318563,
+   "sha256": "3ddc6ae423f538e328d75fb43125f6136dae2e993edb3874392f49df96783b23",
+   "sourceId": "SWIFT-MT-SR2026-MT600-MRG",
+   "format": "MT",
+   "messageType": "MT600",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT601_Commodity_Option_Confirmation.pdf",
+   "bytes": 293219,
+   "sha256": "7cd717535c8c160965bdb0e5639be37874a6ee4fbd3b55060baf4465f295017c",
+   "sourceId": "SWIFT-MT-SR2026-MT601-MRG",
+   "format": "MT",
+   "messageType": "MT601",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT604_Commodity_Transfer_Delivery_Order.pdf",
+   "bytes": 143286,
+   "sha256": "18c0825aa022269b692c71d275d0e824e149a8e3c2422dc0bf49ac6d95f59695",
+   "sourceId": "SWIFT-MT-SR2026-MT604-MRG",
+   "format": "MT",
+   "messageType": "MT604",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT605_Commodity_Notice_to_Receive.pdf",
+   "bytes": 132708,
+   "sha256": "8536c302cff6d617425b92d00e698c14254b317dad4099f611939cdc1911fbd0",
+   "sourceId": "SWIFT-MT-SR2026-MT605-MRG",
+   "format": "MT",
+   "messageType": "MT605",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT606_Commodity_Debit_Advice.pdf",
+   "bytes": 111365,
+   "sha256": "e6758dc672f1cbe7286ab844afc4f26752375b065e95fe35b76e7c706703bcbb",
+   "sourceId": "SWIFT-MT-SR2026-MT606-MRG",
+   "format": "MT",
+   "messageType": "MT606",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT607_Commodity_Credit_Advice.pdf",
+   "bytes": 124789,
+   "sha256": "9d5a35e28260b6744f19e14e9c2c024c92860c06619ea5a20e59b9cb2129338f",
+   "sourceId": "SWIFT-MT-SR2026-MT607-MRG",
+   "format": "MT",
+   "messageType": "MT607",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT608_Statement_of_a_Commodity_Account.pdf",
+   "bytes": 119258,
+   "sha256": "8051760d2d61b2f4fcd46ca8bbd3c88842c7a7778f3dabf605bd5f9dd74a4925",
+   "sourceId": "SWIFT-MT-SR2026-MT608-MRG",
+   "format": "MT",
+   "messageType": "MT608",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT620_Commodity_Fixed_Loan_Deposit_Confirmation.pdf",
+   "bytes": 383546,
+   "sha256": "c85f27b875665de7b5b48b904884c72f39e0b47d6658b8652c8883512f0b131b",
+   "sourceId": "SWIFT-MT-SR2026-MT620-MRG",
+   "format": "MT",
+   "messageType": "MT620",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT670_Standing_Settlement_Instruction_Update_Notification_Request.pdf",
+   "bytes": 371036,
+   "sha256": "348d37e24e59b4c80da06306e4f574425848b99cff2966a01ede47b5b762b5c8",
+   "sourceId": "SWIFT-MT-SR2026-MT670-MRG",
+   "format": "MT",
+   "messageType": "MT670",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT671_Standing_Settlement_Instruction_Update_Notification.pdf",
+   "bytes": 305629,
+   "sha256": "d53ad660116bae824f55f47f880f816309412caa1a8e5f2bc39d20e7324e61fe",
+   "sourceId": "SWIFT-MT-SR2026-MT671-MRG",
+   "format": "MT",
+   "messageType": "MT671",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT700_Issue_of_a_Documentary_Credit.pdf",
+   "bytes": 207025,
+   "sha256": "646f3ce7f5dd398639afc6401ce8a785a244e8fdc4bd508c2393cc35457c0d11",
+   "sourceId": "SWIFT-MT-SR2026-MT700-MRG",
+   "format": "MT",
+   "messageType": "MT700",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT701_Issue_of_a_Documentary_Credit.pdf",
+   "bytes": 45747,
+   "sha256": "b5f9eafb8b51e5f853af63ed08a2bf514100192636d431ed60032fbb14f64431",
+   "sourceId": "SWIFT-MT-SR2026-MT701-MRG",
+   "format": "MT",
+   "messageType": "MT701",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT705_Pre-Advice_of_a_Documentary_Credit.pdf",
+   "bytes": 153848,
+   "sha256": "249045950b8e4f608933b94a2f40dd62ac9e4b52d0264d278116b9b8ec0dac1e",
+   "sourceId": "SWIFT-MT-SR2026-MT705-MRG",
+   "format": "MT",
+   "messageType": "MT705",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT707_Amendment_to_a_Documentary_Credit.pdf",
+   "bytes": 193324,
+   "sha256": "4ef02456584a8581f4ec8126b5347e5987d5946dfdf9383c43bc58842bb05926",
+   "sourceId": "SWIFT-MT-SR2026-MT707-MRG",
+   "format": "MT",
+   "messageType": "MT707",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT708_Amendment_to_a_Documentary_Credit.pdf",
+   "bytes": 62298,
+   "sha256": "0ffff4a5556b7887c2b064ee6e064527ecf8266a0057b3702d806f483ac9139d",
+   "sourceId": "SWIFT-MT-SR2026-MT708-MRG",
+   "format": "MT",
+   "messageType": "MT708",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT710_Advice_of_a_Third_Bank's_or_a_Non-Bank's_Documentary_Credit.pdf",
+   "bytes": 223494,
+   "sha256": "2c957cd1f5d415426227e8b4ea577465eb941d6aa1dd0a60cad9979b5c17fe03",
+   "sourceId": "SWIFT-MT-SR2026-MT710-MRG",
+   "format": "MT",
+   "messageType": "MT710",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT711_Advice_of_a_Third_Bank's_or_a_Non-Bank's_Documentary_Credit.pdf",
+   "bytes": 48435,
+   "sha256": "f8623b445f1a9db74b780897ee87ffa7239c0acea1edbe5b12c19c4c3df043f6",
+   "sourceId": "SWIFT-MT-SR2026-MT711-MRG",
+   "format": "MT",
+   "messageType": "MT711",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT720_Transfer_of_a_Documentary_Credit.pdf",
+   "bytes": 226284,
+   "sha256": "eb2b23a9ea8f83872055dab82dbaaeba11c5d87067f3a0bcdafd740845aa74d4",
+   "sourceId": "SWIFT-MT-SR2026-MT720-MRG",
+   "format": "MT",
+   "messageType": "MT720",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT721_Transfer_of_a_Documentary_Credit.pdf",
+   "bytes": 48398,
+   "sha256": "271ec065c2a48194b5bb31b8d36974a33db1e691431c3702f91bec8e09bf3425",
+   "sourceId": "SWIFT-MT-SR2026-MT721-MRG",
+   "format": "MT",
+   "messageType": "MT721",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT730_Acknowledgement.pdf",
+   "bytes": 120835,
+   "sha256": "99fd13a1db91f2002772bc9cd543254f6c3b58ddc862ef8d9e3c2180928549bb",
+   "sourceId": "SWIFT-MT-SR2026-MT730-MRG",
+   "format": "MT",
+   "messageType": "MT730",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT732_Advice_of_Discharge.pdf",
+   "bytes": 84424,
+   "sha256": "b9439334fa00ff7ff08756170df69cd36a38f1398b36ad2482e65f172905d627",
+   "sourceId": "SWIFT-MT-SR2026-MT732-MRG",
+   "format": "MT",
+   "messageType": "MT732",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT734_Advice_of_Refusal.pdf",
+   "bytes": 92606,
+   "sha256": "611a430d4c7bf98e184a71ec51d2fc58b0a93498b4e2088d3b5198116cdac546",
+   "sourceId": "SWIFT-MT-SR2026-MT734-MRG",
+   "format": "MT",
+   "messageType": "MT734",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT740_Authorisation_to_Reimburse.pdf",
+   "bytes": 136755,
+   "sha256": "a3ae07b0f5129eaed5d5fc832ea791952aab6cde63b430400afe74f908f7eea3",
+   "sourceId": "SWIFT-MT-SR2026-MT740-MRG",
+   "format": "MT",
+   "messageType": "MT740",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT742_Reimbursement_Claim.pdf",
+   "bytes": 129207,
+   "sha256": "03c0e0ddef19ec2e1bfbb2799b76d1a6230aaf66c24e79308530350ef91646d8",
+   "sourceId": "SWIFT-MT-SR2026-MT742-MRG",
+   "format": "MT",
+   "messageType": "MT742",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT744_Notice_of_Non-Conforming_Reimbursement_Claim.pdf",
+   "bytes": 116988,
+   "sha256": "c7431535c0cbac8f275952f1927f9bd06589d61c7f4c7d16d8ed53ae133ccbed",
+   "sourceId": "SWIFT-MT-SR2026-MT744-MRG",
+   "format": "MT",
+   "messageType": "MT744",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT747_Amendment_to_an_Authorisation_to_Reimburse.pdf",
+   "bytes": 97914,
+   "sha256": "4ea0a1034c36eb1650f7c84599c2495b66a890580bedfa5a29932907919b0ecc",
+   "sourceId": "SWIFT-MT-SR2026-MT747-MRG",
+   "format": "MT",
+   "messageType": "MT747",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT750_Advice_of_Discrepancy.pdf",
+   "bytes": 93043,
+   "sha256": "168706cb85ad992f8cbb243c0529186a2bd97ecd83e5fb58c3a9d949acf314f4",
+   "sourceId": "SWIFT-MT-SR2026-MT750-MRG",
+   "format": "MT",
+   "messageType": "MT750",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT752_Authorisation_to_Pay,_Accept_or_Negotiate.pdf",
+   "bytes": 120901,
+   "sha256": "f401586df886af96d624577818df15c214511923b9dfbbfcf519d9e64558a691",
+   "sourceId": "SWIFT-MT-SR2026-MT752-MRG",
+   "format": "MT",
+   "messageType": "MT752",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT754_Advice_of_Payment_Acceptance_Negotiation.pdf",
+   "bytes": 115470,
+   "sha256": "47cb3e41862f84793fa40d71b3bcdf63f8a590683803ecb78f2ca5b0c882dbca",
+   "sourceId": "SWIFT-MT-SR2026-MT754-MRG",
+   "format": "MT",
+   "messageType": "MT754",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT756_Advice_of_Reimbursement_or_Payment.pdf",
+   "bytes": 112034,
+   "sha256": "f64dadbefebae41b16de9a3330461bd056a73b3128f4cbe2e0ab1f4deb5aebae",
+   "sourceId": "SWIFT-MT-SR2026-MT756-MRG",
+   "format": "MT",
+   "messageType": "MT756",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT759_Ancillary_Trade_Structured_Message.pdf",
+   "bytes": 64521,
+   "sha256": "1e0c812b757622742be6ec54921cafcb5eca677fed028bf66a87d4c1d479bdf2",
+   "sourceId": "SWIFT-MT-SR2026-MT759-MRG",
+   "format": "MT",
+   "messageType": "MT759",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT760_Issue_of_a_Demand_Guarantee_Standby_Letter_of_Credit.pdf",
+   "bytes": 332198,
+   "sha256": "fdd0133c7bce00a70606f32323de8d239ffedc6910a76022c36d20e72398bb05",
+   "sourceId": "SWIFT-MT-SR2026-MT760-MRG",
+   "format": "MT",
+   "messageType": "MT760",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT761_Issue_of_a_Demand_Guarantee_Standby_Letter_of_Credit.pdf",
+   "bytes": 43136,
+   "sha256": "e733ca87e389294372f80a50686657618456515beadc0f94085f97ce3dd12a84",
+   "sourceId": "SWIFT-MT-SR2026-MT761-MRG",
+   "format": "MT",
+   "messageType": "MT761",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT765_Guarantee_Standby_Letter_of_Credit_Demand.pdf",
+   "bytes": 98870,
+   "sha256": "1d53f65ce37bc1bbb3d479e5ca6008796f8205366cb932bddc088d8d7d7f3772",
+   "sourceId": "SWIFT-MT-SR2026-MT765-MRG",
+   "format": "MT",
+   "messageType": "MT765",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT767_Amendment_to_a_Demand_Guarantee_Standby_Letter_of_Credit.pdf",
+   "bytes": 174153,
+   "sha256": "a82672a9716bbea85836bb3a02e33d8edff9af4d812dc34858cbeb97a946f542",
+   "sourceId": "SWIFT-MT-SR2026-MT767-MRG",
+   "format": "MT",
+   "messageType": "MT767",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT768_Acknowledgement_of_a_Guarantee_Standby_Message.pdf",
+   "bytes": 93199,
+   "sha256": "89cbd69c5fd8d3af8701b9433fdc601742f1faa0dda171c5ad73f29d8d0ff8d1",
+   "sourceId": "SWIFT-MT-SR2026-MT768-MRG",
+   "format": "MT",
+   "messageType": "MT768",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT769_Advice_of_Reduction_or_Release.pdf",
+   "bytes": 110079,
+   "sha256": "22e401b5034a5a15399d903fcd5f2c55a1700da3b4ba03e76cc54347ff523756",
+   "sourceId": "SWIFT-MT-SR2026-MT769-MRG",
+   "format": "MT",
+   "messageType": "MT769",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT775_Amendment_to_a_Demand_Guarantee_Standby_Letter_of_Credit.pdf",
+   "bytes": 47889,
+   "sha256": "302063312f2f1364b6590fb0eaabc1acdcd19d1308610b70b63c48b818edff0c",
+   "sourceId": "SWIFT-MT-SR2026-MT775-MRG",
+   "format": "MT",
+   "messageType": "MT775",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT785_Guarantee_Standby_Letter_of_Credit_Non_Extension_Notification.pdf",
+   "bytes": 79258,
+   "sha256": "d0449bc6bf2cc973965a10ded1aad2c43ac7a4f6b64d714f739f227423d2d4e9",
+   "sourceId": "SWIFT-MT-SR2026-MT785-MRG",
+   "format": "MT",
+   "messageType": "MT785",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT786_Guarantee_Standby_Letter_of_Credit_Demand_Refusal.pdf",
+   "bytes": 70248,
+   "sha256": "b7dbec5a3437dc61f611839dc76132c1bded04a2101418c67c7adea4922c59d2",
+   "sourceId": "SWIFT-MT-SR2026-MT786-MRG",
+   "format": "MT",
+   "messageType": "MT786",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT787_Guarantee_Standby_Letter_of_Credit_Amendment_Response.pdf",
+   "bytes": 58233,
+   "sha256": "bb7b47fab207cf406e7b9a4b32997ee768bd46236981c210f82eb669c0e838d6",
+   "sourceId": "SWIFT-MT-SR2026-MT787-MRG",
+   "format": "MT",
+   "messageType": "MT787",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT799_Free_Format_Message.pdf",
+   "bytes": 37593,
+   "sha256": "b6406f3825d9e11b38289094079145309ff646eb3bf72ef1f74367512c67d6d1",
+   "sourceId": "SWIFT-MT-SR2026-MT799-MRG",
+   "format": "MT",
+   "messageType": "MT799",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT801_T_C_Multiple_Sales_Advice.pdf",
+   "bytes": 62271,
+   "sha256": "2b7df1a76e6c67759f08d3cbe5cf65fd72c2614f47d0d25b21384e86485a7da5",
+   "sourceId": "SWIFT-MT-SR2026-MT801-MRG",
+   "format": "MT",
+   "messageType": "MT801",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT802_T_C_Settlement_Advice.pdf",
+   "bytes": 134038,
+   "sha256": "df801076cfa8d9c1d0f76d2b1bbf03dcdad88d87ed5b7411cab2ff70bf2ffd34",
+   "sourceId": "SWIFT-MT-SR2026-MT802-MRG",
+   "format": "MT",
+   "messageType": "MT802",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT900_Confirmation_of_Debit.pdf",
+   "bytes": 90976,
+   "sha256": "88ad57697bfdc4cd1f4fafa2bf684f1d057e4f86382a4b9742f57f55f92f0350",
+   "sourceId": "SWIFT-MT-SR2026-MT900-MRG",
+   "format": "MT",
+   "messageType": "MT900",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT910_Confirmation_of_Credit.pdf",
+   "bytes": 118490,
+   "sha256": "e3ab25ef69183f9103d88ca2ce638e7a47381a668329c8a5c5212bfc8281eb7f",
+   "sourceId": "SWIFT-MT-SR2026-MT910-MRG",
+   "format": "MT",
+   "messageType": "MT910",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT920_Request_Message.pdf",
+   "bytes": 81541,
+   "sha256": "4d2ada540720838d993c6579ba04b57754ae39a91fa93057ae3cd710643698f7",
+   "sourceId": "SWIFT-MT-SR2026-MT920-MRG",
+   "format": "MT",
+   "messageType": "MT920",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT935_Rate_Change_Advice.pdf",
+   "bytes": 82009,
+   "sha256": "6716bcf35350fa6a8bb99cc4ce95da956f2111c62265624cc961f0d9db50b906",
+   "sourceId": "SWIFT-MT-SR2026-MT935-MRG",
+   "format": "MT",
+   "messageType": "MT935",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT940_Customer_Statement_Message.pdf",
+   "bytes": 106526,
+   "sha256": "fb50ca0fa5c9bc0c4800491af6c542a57b0d6713d91641460c5ec93f7d621c0f",
+   "sourceId": "SWIFT-MT-SR2026-MT940-MRG",
+   "format": "MT",
+   "messageType": "MT940",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT941_Balance_Report.pdf",
+   "bytes": 111657,
+   "sha256": "cb9ccfbc9bd498e9c5e4b02d4697a3b20638a93f124af2c0c148db553f759c7d",
+   "sourceId": "SWIFT-MT-SR2026-MT941-MRG",
+   "format": "MT",
+   "messageType": "MT941",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT942_Interim_Transaction_Report.pdf",
+   "bytes": 124507,
+   "sha256": "bbef78955d0a4d12f197b36175569d36b128592274d2a5f55455d64d887e907a",
+   "sourceId": "SWIFT-MT-SR2026-MT942-MRG",
+   "format": "MT",
+   "messageType": "MT942",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT950_Statement_Message.pdf",
+   "bytes": 103277,
+   "sha256": "ee9c019538727d0740bae92ce2b60a1c4740698be67d7b719610ef0280f9206b",
+   "sourceId": "SWIFT-MT-SR2026-MT950-MRG",
+   "format": "MT",
+   "messageType": "MT950",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT970_Netting_Statement.pdf",
+   "bytes": 63548,
+   "sha256": "edc7888478d2c96048f5011c64332a39e9f42761f6593f6d9e84a087c979f80d",
+   "sourceId": "SWIFT-MT-SR2026-MT970-MRG",
+   "format": "MT",
+   "messageType": "MT970",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT971_Netting_Balance_Report.pdf",
+   "bytes": 37255,
+   "sha256": "d6ee96e28f994385f982f94f9048661b66639489b6d031ac28b6bf4a75bfefc4",
+   "sourceId": "SWIFT-MT-SR2026-MT971-MRG",
+   "format": "MT",
+   "messageType": "MT971",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT972_Netting_Interim_Statement.pdf",
+   "bytes": 63669,
+   "sha256": "77402021bf65d10248d7515dedffba8d31890d9eb5a6d8c475a690bea0a3761e",
+   "sourceId": "SWIFT-MT-SR2026-MT972-MRG",
+   "format": "MT",
+   "messageType": "MT972",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT973_Netting_Request_Message.pdf",
+   "bytes": 36530,
+   "sha256": "687b271678960886cfd82b48bfb74c105d9fae87e0237c271bb6661866a1ae64",
+   "sourceId": "SWIFT-MT-SR2026-MT973-MRG",
+   "format": "MT",
+   "messageType": "MT973",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT985_Status_Enquiry.pdf",
+   "bytes": 77556,
+   "sha256": "0b88b1109e9de5c175b4d1ce7996be4922c96cecf4681d3fa1d98bf21ab3e686",
+   "sourceId": "SWIFT-MT-SR2026-MT985-MRG",
+   "format": "MT",
+   "messageType": "MT985",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MT986_Status_Report.pdf",
+   "bytes": 75328,
+   "sha256": "118f6ed228a0e0f564af1cc11cbf1294abf0ec964225cd0a1f04467b7277d498",
+   "sourceId": "SWIFT-MT-SR2026-MT986-MRG",
+   "format": "MT",
+   "messageType": "MT986",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN90_Advice_of_Charges,_Interest_and_Other_Adjustments.pdf",
+   "bytes": 90508,
+   "sha256": "9d6c578f5cf74e5a3fd333f9badeb5f1c4ba2a2f76338646c5e955d35fded8a3",
+   "sourceId": "SWIFT-MT-SR2026-MTn90-MRG",
+   "format": "MT",
+   "messageType": "MTn90",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN91_Request_for_Payment_of_Charges,_Interest_and_Other_Expenses.pdf",
+   "bytes": 103924,
+   "sha256": "d6eff6d7c015a294b02e1f8cf0599497043ed77cd83ff0fea97b18343d90e8de",
+   "sourceId": "SWIFT-MT-SR2026-MTn91-MRG",
+   "format": "MT",
+   "messageType": "MTn91",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN92_Request_for_Cancellation.pdf",
+   "bytes": 83288,
+   "sha256": "6762f87901db0b37dd29a185ee9b8c00e31a77575ad2b9b8c67a13133ff01fc7",
+   "sourceId": "SWIFT-MT-SR2026-MTn92-MRG",
+   "format": "MT",
+   "messageType": "MTn92",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN95_Queries.pdf",
+   "bytes": 90540,
+   "sha256": "f598c24b947d9c206ebeda99c8331959c59a04508d3086388355ff68452a0b1b",
+   "sourceId": "SWIFT-MT-SR2026-MTn95-MRG",
+   "format": "MT",
+   "messageType": "MTn95",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN96_Answers.pdf",
+   "bytes": 98073,
+   "sha256": "cc16fe816181616025fe3991a10104ca9d1283d8fbf8222832fed5d300471596",
+   "sourceId": "SWIFT-MT-SR2026-MTn96-MRG",
+   "format": "MT",
+   "messageType": "MTn96",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN98_Proprietary_Message.pdf",
+   "bytes": 75062,
+   "sha256": "b27afec0d91d2c05a46433b32ea591303547b898138a8fb52498efc0332f95c7",
+   "sourceId": "SWIFT-MT-SR2026-MTn98-MRG",
+   "format": "MT",
+   "messageType": "MTn98",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MT/SR_2026_November_MTN99_Free_Format_Message.pdf",
+   "bytes": 41136,
+   "sha256": "5e15dc91951b15fcbae7210457aba43bb2ced092d916ee03933e8d1e247737a6",
+   "sourceId": "SWIFT-MT-SR2026-MTn99-MRG",
+   "format": "MT",
+   "messageType": "MTn99",
+   "release": "SR2026",
+   "documentType": "MRG"
+  },
+  {
+   "relativePath": "MX/pacs.002.001.16.xsd",
+   "bytes": 62059,
+   "sha256": "fa35ba75f6f22654bf82eadef689cd0c95ab620a7683bbad7602cef665e7c2f6",
+   "sourceId": "ISO20022-XSD-pacs.002.001.16",
+   "format": "MX",
+   "messageType": "pacs.002",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.003.001.12.xsd",
+   "bytes": 60113,
+   "sha256": "29d8bd67a711b0407c485715f5d396084eed51b48ac6f900928231e5ec0dd7e9",
+   "sourceId": "ISO20022-XSD-pacs.003.001.12",
+   "format": "MX",
+   "messageType": "pacs.003",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.004.001.15.xsd",
+   "bytes": 79493,
+   "sha256": "d325d76d83a95087850919f9e19d9187da6d4534766e0049a6f97285364db7a1",
+   "sourceId": "ISO20022-XSD-pacs.004.001.15",
+   "format": "MX",
+   "messageType": "pacs.004",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.007.001.14.xsd",
+   "bytes": 62936,
+   "sha256": "72906d810bbcd0d5ec5dc06c4c41ab9362f85e8d1a40f1467c68eb6c14a69354",
+   "sourceId": "ISO20022-XSD-pacs.007.001.14",
+   "format": "MX",
+   "messageType": "pacs.007",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.008.001.14.xsd",
+   "bytes": 63598,
+   "sha256": "e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306",
+   "sourceId": "ISO20022-XSD-pacs.008.001.14",
+   "format": "MX",
+   "messageType": "pacs.008",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.009.001.13.xsd",
+   "bytes": 64094,
+   "sha256": "81b1fcedad68faae63f56424db2e39a3ce873cb4537b6a284e3fafd3fab9691b",
+   "sourceId": "ISO20022-XSD-pacs.009.001.13",
+   "format": "MX",
+   "messageType": "pacs.009",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.010.001.06.xsd",
+   "bytes": 25179,
+   "sha256": "d8557fe0dcb4dd99c2461b329f18f858f44344b76cbceda904b766f35fa018b2",
+   "sourceId": "ISO20022-XSD-pacs.010.001.06",
+   "format": "MX",
+   "messageType": "pacs.010",
+   "release": null,
+   "documentType": "XSD"
+  },
+  {
+   "relativePath": "MX/pacs.028.001.07.xsd",
+   "bytes": 57300,
+   "sha256": "0618a23c104d68dd74d3e54f849c8a4d2bff6985da18c744df1c7ec74c90453f",
+   "sourceId": "ISO20022-XSD-pacs.028.001.07",
+   "format": "MX",
+   "messageType": "pacs.028",
+   "release": null,
+   "documentType": "XSD"
+  }
+ ]
+}

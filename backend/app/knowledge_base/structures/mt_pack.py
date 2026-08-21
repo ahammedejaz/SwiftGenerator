@@ -30,9 +30,14 @@ import yaml
 
 from app.config import Settings
 from app.knowledge_base import PACK_COMPILER_VERSION
+from app.knowledge_base.common_group import common_group_members, is_common_group
 from app.knowledge_base.db import KnowledgeDatabase
 from app.knowledge_base.models import Readiness, SyncProgress, release_lane
-from app.knowledge_base.structures.mrg import MRG_STRUCTURE_KIND, MrgStructureArtifact
+from app.knowledge_base.structures.mrg import (
+    MRG_STRUCTURE_KIND,
+    MrgStructureArtifact,
+    artifact_checksum,
+)
 from app.knowledge_base.structures.mt_loader import (
     MT_PACK_VERSION,
     PREVIEW_CAPABILITY_STATEMENT,
@@ -42,6 +47,7 @@ from app.knowledge_base.structures.swift_format import (
     FormatUnsupported,
     compile_format,
     input_kind_for,
+    is_single_code_token,
     is_value_less,
     synthetic_value,
 )
@@ -217,7 +223,17 @@ def compile_mt_structures(
         if prowide_filter is not None and message_type not in prowide_filter:
             continue
         targets[(message_type, PROWIDE_RELEASE)] = "PROWIDE"
-    for message_type, release in mrg_artifacts:
+    for message_type, release in list(mrg_artifacts):
+        if is_common_group(message_type):
+            # ``MT n90`` describes MT 190, MT 290 … MT 990 at once. Each member the Prowide
+            # evidence also models is compiled as its own structure from the shared guide;
+            # a member Prowide does not model is not invented.
+            checksum, artifact = mrg_artifacts.pop((message_type, release))
+            for member in common_group_members(message_type):
+                if member in prowide_messages:
+                    mrg_artifacts[(member, release)] = (checksum, artifact)
+                    targets[(member, release)] = "MRG"
+            continue
         targets[(message_type, release)] = "MRG"
 
     existing = {(row["message_type"], row["release"]): row for row in _structure_rows(database)}
@@ -229,8 +245,12 @@ def compile_mt_structures(
             for item in [prowide_checksum if prowide else "", mrg_entry[0] if mrg_entry else ""]
             if item
         )
+        # The guide's *reading* is an input too: a reader change re-reads the same bytes
+        # into a different artifact, and the pack must follow it without a version bump.
+        reading = artifact_checksum(mrg_entry[1]) if mrg_entry else ""
         identity = hashlib.sha256(
-            f"{PACK_COMPILER_VERSION}|{message_type}|{release}|{'|'.join(source_checksums)}".encode()
+            f"{PACK_COMPILER_VERSION}|{message_type}|{release}|{'|'.join(source_checksums)}"
+            f"|{reading}".encode()
         ).hexdigest()
         previous = existing.get((message_type, release))
         if (
@@ -481,6 +501,17 @@ def compile_mt_pack(
     )
 
 
+def parent_of(path: str) -> str | None:
+    """One nesting level up, by the guide's naming convention (``C1a1A1`` → ``C1a1A``,
+    ``B1_A`` → ``B1``); the same rule the guide reader applies."""
+    if "_" in path:
+        return path.rsplit("_", 1)[0] or None
+    if len(path) <= 1:
+        return None
+    stripped = path.rstrip("0123456789") if path[-1].isdigit() else path[:-1]
+    return stripped or None
+
+
 def _sequence_rank(sequences: list[PackSequence], path: str) -> int:
     for sequence in sequences:
         if sequence.path == path:
@@ -500,31 +531,49 @@ def _row_id(message_type: str, sequence_path: str, tag: str, qualifier: str | No
 
 
 def _format_for(
-    tag: str, global_fields: dict[str, Any], fallback: str | None
+    tag: str,
+    global_fields: dict[str, Any],
+    fallback: str | None,
+    *,
+    guide_notation: str | None = None,
 ) -> tuple[str, str | None, str, str, int | None, str]:
-    """``(notation, pattern, fidelity, separator, max_length, value_notation)``."""
+    """``(notation, pattern, fidelity, separator, max_length, value_notation)``.
+
+    Prowide's validator pattern is read first: its macros (``<CUR><AMOUNT>``, ``<DATE4>``,
+    ``<BIC>``) carry the component meaning that decides input kinds and sample values,
+    where a guide prints the bare ``3!a15d``. The guide's own FORMAT block is the
+    fallback: a Prowide macro with no SWIFT spelling (``<PARTYFLD-J>``, ``<VAR-SEQU-4>``)
+    is replaced by the guide's ``5*40x`` where a guide exists, never by a guess.
+    """
     evidence = global_fields.get(tag)
-    notation = (
+    prowide_notation = (
         str(evidence.validator_pattern)
         if evidence is not None and evidence.validator_pattern
-        else (fallback or "")
+        else ""
     )
-    if not notation or notation.upper() == "CUSTOM":
+    candidates = [
+        item
+        for item in (prowide_notation, guide_notation or "", fallback or "")
+        if item and item.upper() != "CUSTOM"
+    ]
+    if not candidates:
         # Prowide parses a few fields (61, 79, 86, 22C) with hand-written code and states no
         # notation for them; the pack says so instead of guessing one.
         return "", None, "UNKNOWN", "//", None, ""
-    try:
-        compiled = compile_format(notation)
-    except FormatUnsupported:
-        return notation, None, "PARTIAL", "//", None, notation
-    return (
-        notation,
-        compiled.pattern,
-        "EXACT",
-        compiled.qualifier_separator,
-        compiled.max_length,
-        compiled.value_notation,
-    )
+    for notation in candidates:
+        try:
+            compiled = compile_format(notation)
+        except FormatUnsupported:
+            continue
+        return (
+            notation,
+            compiled.pattern,
+            "EXACT",
+            compiled.qualifier_separator,
+            compiled.max_length,
+            compiled.value_notation,
+        )
+    return candidates[0], None, "PARTIAL", "//", None, candidates[0]
 
 
 def _labels(tag: str, global_fields: dict[str, Any]) -> str:
@@ -696,26 +745,61 @@ def _rows_from_mrg(
     prowide_codes = {
         seq.path: seq.code for seq in (prowide.sequences if prowide is not None else [])
     }
-    # The 16R row of each sequence names its block code in the content column.
+    # A sequence is delimited by :16R:/:16S: exactly when the table lists its 16R row; the
+    # row's content column names the block code. Prowide's field groups say the same thing
+    # for the release it models, which is the cross-check below.
     codes_from_table: dict[str, str] = {}
+    closes_from_table: set[str] = set()
     for row in mrg.rows:
         if row["tag"] == "16R" and row["content"].strip():
             codes_from_table.setdefault(row["sequencePath"], row["content"].strip().split()[0])
+        if row["tag"] == "16S":
+            closes_from_table.add(row["sequencePath"])
+    prowide_bracketed = {
+        group.sequence_path
+        for group in (prowide.field_groups if prowide is not None else [])
+        if "16R" in group.tags
+    }
+    # Rows the table lists before any sequence opens, or in a guide that has no sequences
+    # at all (MT103, MT940), form the message body: one unbracketed root sequence, as the
+    # Prowide lane already compiles them.
+    root_rows = [row for row in mrg.rows if row["sequencePath"] == "ROOT"]
     sequences: list[PackSequence] = []
     omitted_paths: set[str] = set()
+    if root_rows:
+        sequences.append(
+            PackSequence(
+                path="ROOT",
+                code="ROOT",
+                name="Message body",
+                parent_path=None,
+                order=1,
+                min_occurs=1,
+                max_occurs=1,
+                bracketed=False,
+            )
+        )
     for seq in sorted(mrg.sequences, key=lambda item: int(item["order"])):
-        bracketed = seq["path"] in codes_from_table
-        code = codes_from_table.get(seq["path"]) or prowide_codes.get(seq["path"])
-        if not code:
-            # Neither the guide's table nor Prowide states the block code. Rendering the
-            # path as a code would be an invention, so the sequence is left out and said so.
-            blockers.append(f"SEQUENCE_OMITTED_CODE_UNKNOWN:{seq['path']}")
-            omitted_paths.add(seq["path"])
+        path = seq["path"]
+        bracketed = path in codes_from_table
+        if not bracketed and (path in closes_from_table or path in prowide_bracketed):
+            # The guide closes a block it never opens, or Prowide delimits this sequence
+            # and the guide's table does not: one 16R row was not read. Rendering the
+            # sequence without its delimiters would be an invention, so it is left out.
+            blockers.append(f"SEQUENCE_DELIMITER_EVIDENCE_CONFLICT:{path}")
+            omitted_paths.add(path)
             continue
+        if bracketed:
+            code = codes_from_table[path]
+        else:
+            prowide_code = prowide_codes.get(path)
+            # An unbracketed sequence writes no block code; its path is its only name,
+            # exactly as the Prowide lane names MT101's A and B.
+            code = prowide_code if prowide_code and prowide_code != "UNKNOWN" else path
         own_rows = [
             row
             for row in mrg.rows
-            if row["sequencePath"] == seq["path"] and row["tag"] not in {"16R", "16S"}
+            if row["sequencePath"] == path and row["tag"] not in {"16R", "16S"}
         ]
         leading_rows: list[str] = []
         for row in own_rows:
@@ -726,19 +810,61 @@ def _rows_from_mrg(
             )
             if row["status"] == "M":
                 break
+        parent = seq.get("parentPath")
+        if path.startswith("_"):
+            parent = None  # a repetitive group listed before any sequence opened
+        elif "_" in path:
+            parent = path.rsplit("_", 1)[0]  # ``B_A`` is the group inside ``B``
+        declared = {item["path"] for item in mrg.sequences}
+        while parent is not None and parent not in declared:
+            # MT430 draws "Optional Sequence B1 Drawee" with no sequence B around it: the
+            # name implies a parent the table never opens, so the nearest declared
+            # ancestor — or the message body — is the parent.
+            parent = parent_of(parent)
+        if parent is None and root_rows:
+            parent = "ROOT"
         sequences.append(
             PackSequence(
-                path=seq["path"],
+                path=path,
                 code=code,
                 name=seq["name"] or code,
-                parent_path=seq.get("parentPath"),
-                order=int(seq["order"]),
+                parent_path=parent,
+                order=int(seq["order"]) + (1 if root_rows else 0),
                 min_occurs=1 if seq["presence"] == "MANDATORY" else 0,
                 max_occurs=100 if seq["repetitive"] else 1,
                 bracketed=bracketed,
                 leading_tags=[] if bracketed else leading_rows,
             )
         )
+    if len(sequences) > 1:
+        # A child sequence sits after the last row of its parent that the table lists
+        # before the child's own first row (MT935's trailing 72 follows its repeats;
+        # MT940's 61/86 group sits between 60a and 62a).
+        for sequence in sequences:
+            if sequence.parent_path is None:
+                continue
+            own_numbers = [
+                int(row["number"]) for row in mrg.rows if row["sequencePath"] == sequence.path
+            ]
+            if not own_numbers:
+                continue
+            parent_key = sequence.parent_path
+            before = [
+                row
+                for row in mrg.rows
+                if row["sequencePath"] == parent_key
+                and int(row["number"]) < min(own_numbers)
+                and row["tag"] not in {"16R", "16S"}
+            ]
+            if before:
+                last = before[-1]
+                options = list(last["options"])
+                first_option = options[0] if options else last["tag"][2:]
+                sequence.insert_after_tag = (
+                    f"{last['tag'][:2]}{first_option}"
+                    if first_option and first_option != "a"
+                    else last["tag"][:2]
+                )
     omitted_paths.update(
         seq["path"]
         for seq in mrg.sequences
@@ -749,18 +875,43 @@ def _rows_from_mrg(
     qualifier_rows: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for qrow in mrg.qualifier_rows:
         qualifier_rows[(qrow["sequencePath"], qrow["tag"][:2])].append(qrow)
+    # Field Specifications are keyed by the tag the guide writes: ``22A`` and ``22C`` are
+    # two specifications with two code lists, ``95a`` is one specification for every
+    # option. A row looks its specification up by its own tag first, then by the generic
+    # ``nna`` form — never by the bare number, which would merge 22A's codes into 22C.
     codes_by_field: dict[tuple[str, str], dict[str, list[str]]] = {}
+    formats_by_field: dict[tuple[str, str], dict[str, str]] = {}
     headings: dict[tuple[str, str], str] = {}
     for spec in mrg.field_specs:
-        key = (spec["sequencePath"], spec["tag"][:2])
-        codes_by_field.setdefault(key, {}).update(spec.get("codes", {}))
+        key = (spec["sequencePath"], spec["tag"])
+        # An open list ("may be used", "or bilaterally agreed codes") is not an allowed set:
+        # enforcing it would reject codes the guide permits, so it compiles to no list.
+        open_lists = set(spec.get("openCodeLists", []))
+        codes_by_field.setdefault(key, {}).update(
+            {
+                qualifier: codes
+                for qualifier, codes in spec.get("codes", {}).items()
+                if qualifier not in open_lists
+            }
+        )
+        formats_by_field.setdefault(key, {}).update(spec.get("formats", {}))
         headings.setdefault(key, spec["heading"])
 
+    def spec_key(sequence_path: str, row_tag: str) -> tuple[str, str]:
+        exact = (sequence_path, row_tag)
+        if exact in headings:
+            return exact
+        generic_key = (sequence_path, f"{row_tag[:2]}a")
+        if generic_key in headings:
+            return generic_key
+        return exact
+
     rows: list[PackRow] = []
-    for row in mrg.rows:
-        tag = row["tag"]
+    for raw in mrg.rows:
+        tag = raw["tag"]
         if tag in {"16R", "16S"}:
             continue
+        row = dict(raw)
         if row["sequencePath"] in omitted_paths:
             continue
         if row["sequencePath"] not in known_paths:
@@ -770,11 +921,11 @@ def _rows_from_mrg(
         row_options = list(row["options"]) or (
             [tag[2:].upper()] if len(tag) > 2 and tag[2:] != "a" else []
         )
-        key = (row["sequencePath"], number)
+        key = spec_key(row["sequencePath"], tag)
         heading = headings.get(key, "")
         field_label = heading.split(":", 1)[1].strip() if ":" in heading else heading
         if row["genericQualifier"]:
-            table = qualifier_rows.get(key, [])
+            table = qualifier_rows.get((row["sequencePath"], number), [])
             if not table:
                 # A generic field whose qualifier table the reader could not find.
                 rows.append(
@@ -790,6 +941,7 @@ def _rows_from_mrg(
                         [],
                         "MANDATORY" if row["status"] == "M" else "OPTIONAL",
                         blockers=["QUALIFIER_EVIDENCE_MISSING"],
+                        guide_formats=formats_by_field.get(key, {}),
                     )
                 )
                 continue
@@ -815,7 +967,7 @@ def _rows_from_mrg(
                         else "OPTIONAL"
                     )
                     for option in options:
-                        concrete = f"{number}{option}" if option else tag
+                        concrete = f"{number}{option}" if option or len(tag) == 2 else number
                         choice = f"{parent}/{qrow['qualifier']}-{option or 'X'}" if parent else None
                         rows.append(
                             _mrg_row(
@@ -832,6 +984,7 @@ def _rows_from_mrg(
                                 order_hint=float(row["number"]) + order / 1000.0,
                                 page=qrow.get("page"),
                                 repetitive=qrow["repetition"] == "R" or bool(row["repetitive"]),
+                                guide_formats=formats_by_field.get(key, {}),
                             )
                         )
             continue
@@ -844,7 +997,8 @@ def _rows_from_mrg(
             else None
         )
         for option in options:
-            concrete = f"{number}{option}" if option else tag
+            # ``59a`` listing ``No letter option, A, F`` is ``59``, ``59A`` and ``59F``.
+            concrete = f"{number}{option}" if option else number
             choice = f"{parent}/{option or 'X'}" if parent else None
             rows.append(
                 _mrg_row(
@@ -858,6 +1012,7 @@ def _rows_from_mrg(
                     choice,
                     codes_by_field.get(key, {}).get(qualifier or "", []),
                     "MANDATORY" if row["status"] == "M" else "OPTIONAL",
+                    guide_formats=formats_by_field.get(key, {}),
                 )
             )
     # The same (sequence, tag, qualifier) can be listed twice by a guide — once per format
@@ -890,13 +1045,22 @@ def _mrg_row(
     order_hint: float | None = None,
     page: int | None = None,
     repetitive: bool | None = None,
+    guide_formats: dict[str, str] | None = None,
 ) -> PackRow:
-    del options
+    option_letter = options[0] if options else ""
     fallback = row["content"] if not row["options"] else None
     notation, pattern, fidelity, separator, max_length, _value = _format_for(
-        tag, global_fields, fallback
+        tag,
+        global_fields,
+        fallback,
+        guide_notation=(guide_formats or {}).get(option_letter),
     )
     row_blockers = list(blockers or [])
+    if codes and not (_value and is_single_code_token(_value)):
+        # The code is one component of a composite value (MT305's ``8a/4!a2!c…``, 23G's
+        # ``4!c[/4!c]``); the runtime checks a code list against the whole value, so the
+        # list is not compiled — weaker than the guide, never a wrong rejection.
+        codes = []
     value_less = bool(notation) and is_value_less(notation)
     if value_less:
         pattern, fidelity = "", "EXACT"
@@ -1073,6 +1237,30 @@ def run_mt_gates(pack: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], list[
                 "SAMPLE", f"empty synthetic value for {row['rowId']}", "FORMAT_FIDELITY_PARTIAL"
             )
         inputs.append(FieldInput(id=row["rowId"], occurrence=1, value=value))
+    # A mandatory sequence whose rows are all optional (MT503's Agreement subsequence) still
+    # has to appear: its first value-carrying row is sampled so the sequence materialises,
+    # exactly as a tester would have to supply one field to open it.
+    addressed = {
+        row["sequencePath"] for row in pack["fields"] if row["rowId"] in {i.id for i in inputs}
+    }
+    for sequence in pack["sequences"]:
+        if int(sequence.get("minOccurs", 0)) < 1 or sequence["path"] in addressed:
+            continue
+        for row in pack["fields"]:
+            if row["sequencePath"] != sequence["path"] or row.get("valueLess"):
+                continue
+            try:
+                value = (
+                    synthetic_value(row["format"], codes=row.get("allowedCodes") or None)
+                    if row["format"]
+                    else "SYNTHETIC"
+                )
+            except FormatUnsupported:
+                continue
+            if value:
+                inputs.append(FieldInput(id=row["rowId"], occurrence=1, value=value))
+                addressed.add(sequence["path"])
+                break
     gates["SAMPLE"] = {"passed": True, "detail": f"{len(inputs)} mandatory value(s)"}
 
     profile = profiles.get("BASE_DEMO_V1")

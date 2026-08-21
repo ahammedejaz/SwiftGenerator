@@ -1,0 +1,10 @@
+# The authorised knowledge base travels with the repository through Git LFS: the PDFs,
+# XSDs and permitted ZIPs under swiftKnowledgeBase/ are pointer files in the Git history and
+# real bytes on checkout (`git lfs pull`). Everything derived from them — the SQLite index,
+# vectors, caches, compiled packs under build/ — stays out of Git altogether.
+swiftKnowledgeBase/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+swiftKnowledgeBase/**/*.PDF filter=lfs diff=lfs merge=lfs -text
+swiftKnowledgeBase/**/*.zip filter=lfs diff=lfs merge=lfs -text
+swiftKnowledgeBase/**/*.xsd filter=lfs diff=lfs merge=lfs -text
+swiftKnowledgeBase/**/*.docx filter=lfs diff=lfs merge=lfs -text
+swiftKnowledgeBase/**/*.xlsx filter=lfs diff=lfs merge=lfs -text

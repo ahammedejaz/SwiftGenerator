@@ -183,7 +183,7 @@ the AppHdr must be transported separately.
 | `backend/config/specifications/` | MT: which sequences and rows each message has |
 | `backend/config/mx/` | MX: the complete element tree, one file per message |
 | `backend/config/mx/xsd/official/` | Optional official ISO 20022 schemas |
-| `swiftKnowledgeBase/` (ignored) | Authorised PDFs, XSDs and ZIPs for the knowledge base; indexed by `make knowledge-sync`, served in the `KNOWLEDGE_PREVIEW` lane, never committed |
+| `swiftKnowledgeBase/` (committed via Git LFS) | Authorised PDFs and XSDs for the knowledge base with their `source-manifest.json`; indexed by `make knowledge-sync`, served in the `KNOWLEDGE_PREVIEW` lane. See [knowledge-repository.md](knowledge-repository.md) |
 
 These are the source of truth for the API, the UI, the Excel templates and Message
 Intelligence at once. Editing one YAML file changes all four.

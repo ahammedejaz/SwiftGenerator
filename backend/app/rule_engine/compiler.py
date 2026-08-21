@@ -19,6 +19,7 @@ from decimal import Decimal, InvalidOperation
 
 from app.rule_engine import (
     DSL_VERSION,
+    OCCURRENCE_DSL_VERSIONS,
     RULE_ENGINE_VERSION,
     SUPPORTED_DSL_VERSIONS,
     SUPPORTED_RULE_ENGINE_VERSIONS,
@@ -34,6 +35,7 @@ from app.rule_engine.dsl import (
     MAX_EXPRESSION_DEPTH,
     MEMBERSHIP_OPERATORS,
     NUMERIC_OPERATORS,
+    AllEqual,
     AtLeastOne,
     AtMostOne,
     ExactlyOne,
@@ -390,7 +392,42 @@ def _check_expression(
     for node in walk(expression):
         match node:
             case Predicate():
+                if (
+                    node.extract is not None or node.other_extract is not None
+                ) and pack_dsl_version != DSL_VERSION:
+                    log.error(
+                        RuleFindingCode.RULE_OPERATOR_INVALID,
+                        f"{location} extracts a component, which belongs to {DSL_VERSION}; "
+                        f"the pack declares {pack_dsl_version}.",
+                        "Recompile the candidate with the current DSL version.",
+                        subject=subject,
+                        location=location,
+                    )
+                    continue
+                if node.extract is not None or node.other_extract is not None:
+                    # A component is text by construction; the kind checks below concern
+                    # whole values and would refuse comparing the currency of an amount.
+                    continue
                 _check_predicate(node, bindings, log, subject, location)
+            case AllEqual():
+                if pack_dsl_version != DSL_VERSION:
+                    log.error(
+                        RuleFindingCode.RULE_OPERATOR_INVALID,
+                        f"{location} uses allEqual, which belongs to {DSL_VERSION}; "
+                        f"the pack declares {pack_dsl_version}.",
+                        "Recompile the candidate with the current DSL version.",
+                        subject=subject,
+                        location=location,
+                    )
+                seen = {member.field.canonical() for member in node.all_equal}
+                if len(seen) != len(node.all_equal):
+                    log.error(
+                        RuleFindingCode.RULE_OPERATOR_INVALID,
+                        f"{location} names the same field twice in allEqual.",
+                        "List each field once.",
+                        subject=subject,
+                        location=location,
+                    )
             case ForEachOccurrence():
                 _check_occurrence_scope(
                     node,
@@ -442,10 +479,10 @@ def _check_occurrence_scope(
 ) -> None:
     scope = node.for_each_occurrence.sequence_path
     where = f"{location}:{scope}"
-    if pack_dsl_version != DSL_VERSION:
+    if pack_dsl_version not in OCCURRENCE_DSL_VERSIONS:
         log.error(
             RuleFindingCode.RULE_OPERATOR_INVALID,
-            f"{location} uses occurrence scope, which belongs to {DSL_VERSION}; "
+            f"{location} uses occurrence scope, which arrived with {OCCURRENCE_DSL_VERSIONS[0]}; "
             f"the pack declares {pack_dsl_version}.",
             "Recompile the candidate with the current DSL version.",
             subject=subject,

@@ -491,13 +491,20 @@ class MxGenerator:
                         for item in self._registry.flat(spec.message_type)
                         if item.path.startswith(flat.path + "/") and item.element.is_leaf
                     ]
-                    leaf_hint = next(
-                        (
-                            item.path
-                            for item in descendants
-                            if item.element.presence is Presence.MANDATORY
-                        ),
-                        descendants[0].path if descendants else None,
+                    # The shallowest leaf opens the block with the least ceremony — a
+                    # party's ``Nm`` rather than a mandatory ``Id`` buried inside an
+                    # optional proprietary address type that would then need its ``Issr``.
+                    # Among leaves at the same depth, a mandatory one comes first.
+                    leaf_hint = (
+                        min(
+                            descendants,
+                            key=lambda item: (
+                                item.path.count("/"),
+                                item.element.presence is not Presence.MANDATORY,
+                            ),
+                        ).path
+                        if descendants
+                        else None
                     )
                     issues.append(
                         _issue(

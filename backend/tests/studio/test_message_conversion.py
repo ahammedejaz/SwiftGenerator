@@ -9,6 +9,14 @@ from app.studio.models import MessageFormat, SampleVariant
 from app.studio.samples import build_sample
 
 
+def _synthetic_pack():  # type: ignore[no-untyped-def]
+    return next(
+        pack
+        for pack in mapping_service._registry.packs
+        if pack.pack_id == "SYNTHETIC_MT541_TO_SESE023_V1"
+    )
+
+
 def _request(*, allow: bool = False) -> dict[str, object]:
     sample = build_sample(MessageFormat.MT, "MT541", SampleVariant.TYPICAL)
     return {
@@ -96,7 +104,7 @@ def test_wrong_target_version_has_no_fallback(client: TestClient) -> None:
 def test_mapping_structure_checksum_mismatch_is_refused(
     client: TestClient, monkeypatch: MonkeyPatch
 ) -> None:
-    pack = mapping_service._registry._packs[0]
+    pack = _synthetic_pack()
     monkeypatch.setattr(
         mapping_service._registry,
         "_packs",
@@ -112,7 +120,7 @@ def test_mapping_structure_checksum_mismatch_is_refused(
 def test_mapping_evidence_checksum_mismatch_is_refused(
     client: TestClient, monkeypatch: MonkeyPatch
 ) -> None:
-    pack = mapping_service._registry._packs[0]
+    pack = _synthetic_pack()
     provenance = pack.provenance.model_copy(update={"source_checksum": "0" * 64})
     monkeypatch.setattr(
         mapping_service._registry,
@@ -129,7 +137,7 @@ def test_mapping_evidence_checksum_mismatch_is_refused(
 def test_candidate_mapping_pack_never_executes(
     client: TestClient, monkeypatch: MonkeyPatch
 ) -> None:
-    pack = mapping_service._registry._packs[0]
+    pack = _synthetic_pack()
     provenance = pack.provenance.model_copy(
         update={"review_state": MappingReviewState.CANDIDATE}
     )

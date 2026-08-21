@@ -13,7 +13,7 @@ the ordinary review path; there is no approval switch here.
 Source: `SWIFT-MT-SR2026-MT541-MRG`
 Document digest: `sha256:b15cbfcb4e15fd056aede2d92bd522d75c28bd92b560066cc50b8c6031233a39`
 Structure digest: `sha256:6274fe38d70d50351ad947832cff2b5bb274450c41e0f8be00bc7f05c27db27b`
-Reader: `mt-mrg-reader/2` · fingerprint `sha256:3917f0a9b104e45b…`
+Reader: `mt-mrg-reader/3` · fingerprint `sha256:32d0edb99f65efb7…`
 
 No source text is reproduced below. A reviewer needs the guide open; a reader who
 does not have it learns nothing from this file that they were not licensed to.

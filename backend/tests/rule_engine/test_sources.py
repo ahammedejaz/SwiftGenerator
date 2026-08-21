@@ -287,7 +287,13 @@ def test_an_absent_manifest_is_normal_rather_than_an_error(tmp_path: Path) -> No
     assert SourceManifest(tmp_path).ids() == []
 
 
-@pytest.mark.parametrize("location", ["../escape.md", "sub/dir.md", ".", ".."])
-def test_a_source_location_is_a_file_name_not_a_path(location: str) -> None:
+@pytest.mark.parametrize("location", ["../escape.md", "/etc/passwd", "sub/../x.md", ".", ".."])
+def test_a_source_location_stays_inside_the_drop_directory(location: str) -> None:
     with pytest.raises(ValueError):
         bundle(location)
+
+
+def test_a_source_location_may_be_a_relative_sub_path() -> None:
+    """The committed knowledge base keeps guides under ``MT/``; the path is relative,
+    inside the directory, and re-checked for containment when it is resolved."""
+    assert bundle("MT/SR_2026_November_MT540_Receive_Free.pdf").source_location.startswith("MT/")

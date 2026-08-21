@@ -9,6 +9,7 @@ sync (``make knowledge-reports-write``) and committed as derived metadata.
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import PROJECT_ROOT, get_settings
@@ -17,6 +18,8 @@ DOCS = PROJECT_ROOT / "docs" / "generated"
 READINESS_DOC = DOCS / "universal-message-readiness.md"
 COVERAGE_DOC = DOCS / "knowledge-rag-coverage.md"
 SAMPLE_DOC = DOCS / "ai-sample-readiness.md"
+GENERATION_DOC = DOCS / "universal-mt-generation-coverage.md"
+BLOCKERS_DOC = DOCS / "mt-generation-blockers.md"
 
 NOT_AVAILABLE = (
     "SOURCE_NOT_AVAILABLE: no knowledge database is present on this machine. Run "
@@ -316,11 +319,295 @@ def render_sample_readiness() -> str:
     return _normalise(lines)
 
 
+# -- the universal MT generation matrix and its blockers ---------------------------------------
+
+#: Root causes a blocked structure is filed under. Derived from the first failed gate and
+#: the recorded blockers — the same classification the engagement plan uses, so the
+#: document answers "what generic fix, or what missing evidence, stands behind this?".
+ROOT_CAUSES: tuple[tuple[str, str, str], ...] = (
+    (
+        "PROWIDE_NO_BLOCK4_FIELDS",
+        "The Prowide model states no Block 4 field groups and no guide exists; there is no "
+        "structural evidence to compile.",
+        "Missing evidence — not a generic defect.",
+    ),
+    (
+        "QUALIFIER_EVIDENCE_MISSING",
+        "Generic fields (``:4!c//``) whose legal qualifiers Prowide does not record; only a "
+        "Message Reference Guide states them, and the SR2025 lane has none.",
+        "Release-bound evidence gap — the same message is generation-ready in the SR2026 "
+        "lane where its guide is read.",
+    ),
+    (
+        "FORMAT_NOTATION_NOT_IN_SOURCE",
+        "A mandatory field whose only notation is a Prowide-internal macro (``<?>``, "
+        "``{65x}n``, ``<VAR-SEQU-n>``, ``<CC>[14<DATE1>]``) with no SWIFT spelling and no "
+        "guide for the message.",
+        "Missing evidence — a guess would be an invention.",
+    ),
+    ("STRUCTURE_COMPILATION_FAILED", "The pack compiler raised.", "Generic defect."),
+    (
+        "VALIDATION_FINDING",
+        "The deterministic validator refused the synthetic sample.",
+        "Generic defect.",
+    ),
+    ("PARSER_GAP", "The parser could not read the composed message back.", "Generic defect."),
+    ("ROUND_TRIP_DIFFERENCE", "Compose(Parse(Compose(v))) differs.", "Generic defect."),
+)
+
+Gates = dict[str, dict[str, object]]
+
+
+def _first_failed(gates: Gates) -> tuple[str, str] | None:
+    for name, result in gates.items():
+        if not result.get("passed"):
+            return name, str(result.get("detail", ""))
+    return None
+
+
+def root_cause(readiness: str, blockers: tuple[str, ...], gates: Gates) -> str:
+    if readiness == "GENERATION_READY":
+        return "—"
+    failed = _first_failed(gates)
+    if failed is None or failed[0] == "LOAD":
+        no_fields = "STRUCTURE_SOURCE_MISSING" in blockers or (
+            failed is not None and "declares no sequences" in failed[1]
+        )
+        return "PROWIDE_NO_BLOCK4_FIELDS" if no_fields else "STRUCTURE_COMPILATION_FAILED"
+    name, detail = failed
+    if name == "SAMPLE":
+        if "qualifier" in detail:
+            return "QUALIFIER_EVIDENCE_MISSING"
+        return "FORMAT_NOTATION_NOT_IN_SOURCE"
+    return {
+        "VALIDATE": "VALIDATION_FINDING",
+        "PARSE": "PARSER_GAP",
+        "ROUND_TRIP": "ROUND_TRIP_DIFFERENCE",
+    }.get(name, "STRUCTURE_COMPILATION_FAILED")
+
+
+@dataclass(frozen=True)
+class MatrixRow:
+    message_type: str
+    release: str
+    lane: str
+    structure_source: str
+    readiness: str
+    generatable: bool
+    gates: Gates
+    blockers: tuple[str, ...]
+    rules: dict[str, int]
+
+    @property
+    def category(self) -> str:
+        return self.message_type[2]
+
+    def gate(self, name: str) -> str:
+        if not self.gates:
+            return "yes" if self.generatable else "—"
+        result = self.gates.get(name)
+        if result is None:
+            return "not reached"
+        return "yes" if result.get("passed") else "no"
+
+    @property
+    def rule_fidelity(self) -> str:
+        if not self.rules:
+            return "—"
+        return (
+            f"{self.rules['exact']} exact / {self.rules['partial']} partial / "
+            f"{self.rules['unsupported']} unsupported"
+        )
+
+    @property
+    def root_cause(self) -> str:
+        if self.lane == "CONFIGURED":
+            return "—"
+        return root_cause(self.readiness, self.blockers, self.gates)
+
+
+def _rule_index() -> dict[tuple[str, str], dict[str, int]]:
+    """``(message, release) -> {rules, exact, partial, unsupported}`` from the committed
+    corpus evidence index; empty when the index is absent."""
+    import json
+
+    path = PROJECT_ROOT / "backend" / "tests" / "fixtures" / "mt_mrg"
+    path = path / "sr2026-corpus-evidence.json"
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    found: dict[tuple[str, str], dict[str, int]] = {}
+    for guide in payload.get("guides", []):
+        counts = {"rules": 0, "exact": 0, "partial": 0, "unsupported": 0}
+        for rule in guide.get("networkValidatedRules", []):
+            counts["rules"] += 1
+            disposition = rule.get("disposition")
+            if disposition == "EXACT":
+                counts["exact"] += 1
+            elif disposition == "PARTIAL_WEAKER_THAN_SOURCE":
+                counts["partial"] += 1
+            else:
+                counts["unsupported"] += 1
+        found[(str(guide["messageType"]), str(guide["release"]))] = counts
+    return found
+
+
+def _mt_rows() -> list[MatrixRow]:
+    """One row per MT catalogue entry — configured first, then every preview structure."""
+    from app.knowledge_base.preview import preview_registries
+    from app.studio.catalogue import build_catalogue
+
+    rules = _rule_index()
+    rows: list[MatrixRow] = []
+    for entry in build_catalogue().messages:
+        if entry.format.value != "MT":
+            continue
+        release = entry.release or "PUBLIC_UHB_REVIEW_2026_08_05"
+        gates: Gates = {}
+        structure_source = "configured YAML"
+        if entry.lane.value == "KNOWLEDGE_PREVIEW":
+            status = preview_registries().structures.get(("MT", entry.message_type, release))
+            if status is not None:
+                gates = status.gates
+                structure_source = status.structure_source
+        common_group = f"MTn{entry.message_type[3:]}"
+        rows.append(
+            MatrixRow(
+                message_type=entry.message_type,
+                release=release,
+                lane=entry.lane.value,
+                structure_source=structure_source,
+                readiness=entry.readiness.value if entry.readiness else "CONFIGURED",
+                generatable=bool(entry.generatable),
+                gates=gates,
+                blockers=tuple(entry.blockers or ()),
+                rules=rules.get((entry.message_type, release))
+                or rules.get((common_group, release))
+                or {},
+            )
+        )
+    return rows
+
+
+def render_generation_coverage() -> str:
+    lines = [
+        "# Universal MT generation coverage",
+        "",
+        "Generated by `python -m app.knowledge_base reports`. One row per MT catalogue entry — "
+        "the 16 configured messages and every structure the knowledge base compiled, per "
+        "release. *Generation* is the six-gate verdict (load, sample, validate, compose, parse, "
+        "round trip); Excel and JSON follow from it, because every generation-ready structure "
+        "is served by the same template builder and the same `/api/v1` endpoints. The "
+        "semantic columns come from the committed corpus evidence index "
+        "(`backend/tests/fixtures/mt_mrg/sr2026-corpus-evidence.json`); every rule there is "
+        "`REVIEW_REQUIRED` and none is active.",
+        "",
+    ]
+    from app.knowledge_base.service import knowledge_service
+
+    if not knowledge_service.indexed:
+        lines.append(NOT_AVAILABLE)
+        return _normalise(lines)
+    rows = _mt_rows()
+    preview = [row for row in rows if row.lane != "CONFIGURED"]
+    by_release = Counter((row.release, row.readiness) for row in preview)
+    types = {row.message_type for row in rows}
+    ready_types = {row.message_type for row in rows if row.generatable}
+    ready = sum(1 for row in rows if row.generatable)
+    lines += [
+        "## Summary",
+        "",
+        f"- MT catalogue entries: {len(rows)} ({len(rows) - len(preview)} configured, "
+        f"{len(preview)} knowledge-preview)",
+        f"- Generation-ready entries: {ready}",
+        f"- Blocked entries: {len(rows) - ready} "
+        "(see [mt-generation-blockers.md](mt-generation-blockers.md))",
+        f"- Distinct MT message types: {len(types)}; with at least one generation-ready "
+        f"structure: {len(ready_types)}",
+        "",
+        "| Release | Readiness | Entries |",
+        "|---|---|---:|",
+    ]
+    for (release, readiness), count in sorted(by_release.items()):
+        lines.append(f"| {release} | {readiness} | {count} |")
+    lines += [
+        "",
+        "## Matrix",
+        "",
+        "| MT | Cat | Release | Structure source | Generation | Sample | Parser | Round trip | "
+        "Excel | JSON | Semantic source | Rules | Rule fidelity | Blockers |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---:|---|---|",
+    ]
+    for row in rows:
+        yes_no = "yes" if row.generatable else "no"
+        lines.append(
+            f"| {row.message_type} | {row.category} | {row.release} | {row.structure_source} | "
+            f"{row.readiness} | {row.gate('SAMPLE')} | {row.gate('PARSE')} | "
+            f"{row.gate('ROUND_TRIP')} | {yes_no} | {yes_no} | "
+            f"{'SR2026 MRG' if row.rules else '—'} | {row.rules.get('rules', 0)} | "
+            f"{row.rule_fidelity} | {', '.join(row.blockers) or '—'} |"
+        )
+    return _normalise(lines)
+
+
+def render_generation_blockers() -> str:
+    lines = [
+        "# MT generation blockers",
+        "",
+        "Generated by `python -m app.knowledge_base reports`. Every MT catalogue entry that is "
+        "not generation-ready, grouped by root cause — the generic defect or the missing "
+        "evidence behind it — with the gate that stopped it. A group marked *missing "
+        "evidence* is not a defect to fix in code: the knowledge base holds nothing that "
+        "would let the structure be compiled without inventing it.",
+        "",
+    ]
+    from app.knowledge_base.service import knowledge_service
+
+    if not knowledge_service.indexed:
+        lines.append(NOT_AVAILABLE)
+        return _normalise(lines)
+    rows = [row for row in _mt_rows() if not row.generatable]
+    groups: dict[str, list[MatrixRow]] = {}
+    for row in rows:
+        groups.setdefault(row.root_cause, []).append(row)
+    ordered = sorted(groups.items(), key=lambda item: (-len(item[1]), item[0]))
+    explanations = {code: (what, status) for code, what, status in ROOT_CAUSES}
+    lines += [
+        "## Summary",
+        "",
+        f"- Blocked entries: {len(rows)}",
+        "",
+        "| Root cause | Entries | What it is | Status |",
+        "|---|---:|---|---|",
+    ]
+    for code, members in ordered:
+        what, status = explanations.get(code, ("", ""))
+        lines.append(f"| {code} | {len(members)} | {what} | {status} |")
+    for code, members in ordered:
+        lines += [
+            "",
+            f"## {code}",
+            "",
+            "| MT | Release | Structure source | First failed gate | Detail |",
+            "|---|---|---|---|---|",
+        ]
+        for row in members:
+            failed = _first_failed(row.gates) or ("—", ", ".join(row.blockers))
+            detail = failed[1][:140].replace("|", "/")
+            lines.append(
+                f"| {row.message_type} | {row.release} | {row.structure_source} | "
+                f"{failed[0]} | {detail} |"
+            )
+    return _normalise(lines)
+
+
 def rendered() -> dict[Path, str]:
     return {
         READINESS_DOC: render_readiness(),
         COVERAGE_DOC: render_coverage(),
         SAMPLE_DOC: render_sample_readiness(),
+        GENERATION_DOC: render_generation_coverage(),
+        BLOCKERS_DOC: render_generation_blockers(),
     }
 
 

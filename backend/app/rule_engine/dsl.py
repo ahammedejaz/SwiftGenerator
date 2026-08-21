@@ -96,6 +96,37 @@ DATE_OPERATORS = frozenset(
 UNIVERSAL_OPERATORS = frozenset({Operator.NOT_EQUALS, Operator.NOT_IN})
 
 
+class Extraction(RuleModel):
+    """A component of a field's value, named by a regular-expression group.
+
+    ``rule-dsl/3``. The currency of ``:32A:260818EUR1234,56`` is the ``currency`` group of
+    ``^\\d{6}(?P<currency>[A-Z]{3})``; a translator derives the pattern from the field's
+    own format notation, so the component is never guessed from the tag. A value the
+    pattern does not match has no such component: it satisfies no existential comparison
+    and is skipped by the universal ones.
+    """
+
+    pattern: str = Field(min_length=1, max_length=MAX_PATTERN_LENGTH)
+    group: str = Field(default="value", min_length=1, max_length=40)
+
+    @model_validator(mode="after")
+    def check_pattern(self) -> Extraction:
+        try:
+            compiled = re.compile(self.pattern)
+        except re.error as error:
+            raise ValueError(f"extraction pattern does not compile: {error}") from error
+        if self.group not in compiled.groupindex:
+            raise ValueError(f"extraction pattern has no group named {self.group!r}")
+        return self
+
+    def apply(self, value: str) -> str | None:
+        match = compiled_pattern(self.pattern).match(value)
+        if match is None:
+            return None
+        found = match.group(self.group)
+        return found if found is not None else None
+
+
 class Predicate(RuleModel):
     """One operator applied to one field."""
 
@@ -105,9 +136,19 @@ class Predicate(RuleModel):
     value: str | None = Field(default=None, max_length=200)
     values: tuple[str, ...] = ()
     other_field: FieldRef | None = Field(default=None, alias="otherField")
+    #: ``rule-dsl/3``: compare a component of the value rather than the whole value.
+    extract: Extraction | None = None
+    #: The component of ``otherField``, which may have another format.
+    other_extract: Extraction | None = Field(default=None, alias="otherExtract")
 
     @model_validator(mode="after")
     def check_operands(self) -> Predicate:
+        if self.extract is not None and (
+            self.subject is not Subject.VALUE or self.operator in PRESENCE_OPERATORS
+        ):
+            raise ValueError("extract applies to a value comparison only")
+        if self.other_extract is not None and self.other_field is None:
+            raise ValueError("otherExtract needs an otherField")
         supplied = [
             name
             for name, present in (
@@ -183,7 +224,10 @@ class OccurrenceAssertion(RuleModel):
 
     @model_validator(mode="after")
     def check_scope(self) -> OccurrenceAssertion:
-        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(/[A-Za-z][A-Za-z0-9]*)*", self.sequence_path):
+        # ``_A`` and ``B1_A`` are the unbracketed repetitive groups a guide draws with arrows
+        # and Prowide models as anonymous sequences; they are scopes like any other.
+        scope_pattern = r"[A-Za-z_][A-Za-z0-9_]*(/[A-Za-z_][A-Za-z0-9_]*)*"
+        if not re.fullmatch(scope_pattern, self.sequence_path):
             raise ValueError("An occurrence scope must be a slash-separated sequence path")
         return self
 
@@ -204,6 +248,22 @@ class AtMostOne(RuleModel):
     at_most_one: tuple[FieldRef, ...] = Field(alias="atMostOne", min_length=2)
 
 
+class ComponentRef(RuleModel):
+    """A field, or one extracted component of it, as a member of ``allEqual``."""
+
+    field: FieldRef
+    extract: Extraction | None = None
+
+
+class AllEqual(RuleModel):
+    """``rule-dsl/3``: every present value (every occurrence) of every listed field — or
+    the named component of it — is the same. Vacuously true with fewer than two values.
+    "The currency code in fields 32B and 33B must be the same for all occurrences."
+    """
+
+    all_equal: tuple[ComponentRef, ...] = Field(alias="allEqual", min_length=1)
+
+
 Expression = Union[  # noqa: UP007 - pydantic resolves the annotation at rebuild time
     Predicate,
     AllOf,
@@ -214,6 +274,7 @@ Expression = Union[  # noqa: UP007 - pydantic resolves the annotation at rebuild
     ExactlyOne,
     AtLeastOne,
     AtMostOne,
+    AllEqual,
 ]
 
 for _model in (AllOf, AnyOf, Not, Implication, Implies, OccurrenceAssertion, ForEachOccurrence):
@@ -276,6 +337,8 @@ def references(node: Expression) -> list[FieldRef]:
                 found.extend(item.at_least_one)
             case AtMostOne():
                 found.extend(item.at_most_one)
+            case AllEqual():
+                found.extend(member.field for member in item.all_equal)
             case _:
                 pass
     return found
@@ -367,8 +430,21 @@ def _operand_values(
         other = bindings.get(predicate.other_field.canonical())
         if other is None:
             return None
-        return _present(bag, other.key)
+        values = _present(bag, other.key)
+        if predicate.other_extract is not None:
+            return _extracted(values, predicate.other_extract)
+        return values
     return [predicate.value] if predicate.value is not None else []
+
+
+def _extracted(values: Sequence[str], extraction: Extraction) -> list[str]:
+    """The component of each value that has one; values without it are left out."""
+    found: list[str] = []
+    for value in values:
+        component = extraction.apply(value)
+        if component is not None:
+            found.append(component)
+    return found
 
 
 def _evaluate_predicate(predicate: Predicate, bag: ValueBag, bindings: Bindings) -> bool:
@@ -406,6 +482,8 @@ def _evaluate_predicate(predicate: Predicate, bag: ValueBag, bindings: Bindings)
         return False
 
     universal = predicate.operator in UNIVERSAL_OPERATORS
+    if predicate.extract is not None:
+        present = _extracted(present, predicate.extract)
     if not present:
         return universal
 
@@ -478,7 +556,22 @@ def evaluate(node: Expression, bag: EvaluationInput, bindings: Bindings) -> bool
             return _present_count(node.at_least_one, context.bag, bindings) >= 1
         case AtMostOne():
             return _present_count(node.at_most_one, context.bag, bindings) <= 1
+        case AllEqual():
+            return len(_distinct_components(node, context.bag, bindings)) <= 1
     raise TypeError(f"Unknown expression node: {type(node).__name__}")
+
+
+def _distinct_components(node: AllEqual, bag: ValueBag, bindings: Bindings) -> set[str]:
+    distinct: set[str] = set()
+    for member in node.all_equal:
+        binding = bindings.get(member.field.canonical())
+        if binding is None:
+            continue
+        values = _present(bag, binding.key)
+        if member.extract is not None:
+            values = _extracted(values, member.extract)
+        distinct.update(values)
+    return distinct
 
 
 def failing_occurrences(

@@ -33,7 +33,9 @@ def _live_settings() -> Settings:
     """The shared test conftest pins ``AI_PROVIDER=disabled`` so that no ordinary test can
     reach a provider. A live run opts back in explicitly, from the operator's ``.env``."""
     os.environ["AI_PROVIDER"] = os.environ.get("LIVE_AI_PROVIDER", "azure_openai")
-    os.environ.setdefault("KNOWLEDGE_MODE", "local")
+    # The shared conftest pins KNOWLEDGE_MODE=disabled too; a live proof needs the local
+    # knowledge base, so the pin is overridden here, never merely defaulted.
+    os.environ["KNOWLEDGE_MODE"] = os.environ.get("LIVE_KNOWLEDGE_MODE", "local")
     get_settings.cache_clear()
     return get_settings()
 

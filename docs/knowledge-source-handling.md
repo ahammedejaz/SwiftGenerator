@@ -235,18 +235,18 @@ for such a message is listed as its own entry — MT541 SR2026 beside configured
 
 ## 10. Git hygiene
 
-Ignored by `.gitignore`: `/swiftKnowledgeBase/`, `build/knowledge/`, `build/knowledge-e2e/`,
-`build/knowledge-*/`, `build/mx-real-sources/`, `.env`, `workPrompt.txt`. Before any
-commit that touches this area:
+The authorised source tree is committed through Git LFS (see
+[knowledge-repository.md](knowledge-repository.md)); what stays out of Git is everything
+derived from it. Before committing, this must print nothing:
 
-```
-git ls-files | grep -Ei '\.(pdf|xsd|sqlite3?)$|^swiftKnowledgeBase/|^build/'
+```bash
+git ls-files | grep -Ei '\.(sqlite3?)$|^build/'
+git ls-files swiftKnowledgeBase | grep -vE '\.(pdf|xsd|zip|json)$'
 ```
 
-must print nothing except the repository's own synthetic fixtures
-(`backend/tests/fixtures/**`, `backend/config/mx/xsd/sources/*.yaml`). `make secret-scan`
-runs in CI. The generated reports are the only derived artefacts that are committed, and
-they carry no source text.
+and `make knowledge-verify` must pass on the checkout. `.env`, credentials, browser state
+and the operator's scratch files never enter Git; `make secret-scan` and the `.gitignore`
+entries enforce it.
 
 ## Where this lives
 
