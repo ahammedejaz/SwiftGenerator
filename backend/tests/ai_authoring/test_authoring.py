@@ -649,15 +649,26 @@ def test_ai_disabled_falls_back_deterministically(knowledge_client, scripted: Se
 def test_telemetry_counts_calls_tokens_and_cache_hits_without_inventing_cost(
     knowledge_client, scripted: SeededClient
 ) -> None:  # type: ignore[no-untyped-def]
-    knowledge_client.post(
+    generated = knowledge_client.post(
         "/api/v1/ai/samples",
         json={"format": "MT", "messageType": "MT547", "sampleType": "MINIMAL", "refresh": True},
-    )
+    ).json()
     knowledge_client.post(
         "/api/v1/ai/samples", json={"format": "MT", "messageType": "MT547", "sampleType": "MINIMAL"}
     )
     telemetry = knowledge_client.get("/api/v1/knowledge/telemetry").json()
     assert telemetry["llm"]["operations"] >= 2
     assert telemetry["llm"]["cacheHits"] >= 1
+    assert telemetry["overview"]["operationsToday"] >= 2
+    assert telemetry["recentOperations"]
+    recent = telemetry["recentOperations"][0]
+    assert recent["requestId"]
+    assert recent["messageType"] == "MT547"
+    assert recent["formatFilter"] == "MT"
+    assert recent["ragUsed"] is False or recent["evidenceCount"] >= 0
+    assert "requestId" in generated["aiUsage"]
+    assert "lexicalCandidates" in generated["aiUsage"]
+    forbidden = {"prompt", "rawMessage", "sourceText", "snippet", "apiKey", "endpoint"}
+    assert forbidden.isdisjoint(str(telemetry))
     assert telemetry["costAvailable"] is False
     assert "unavailable" in telemetry["costNote"]

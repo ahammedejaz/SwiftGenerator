@@ -1,8 +1,9 @@
 import hmac
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Header, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from sqlalchemy import text
 
 from app.agents.cache import AiCacheNamespace
 from app.agents.fallback import interpret_scenario
@@ -63,6 +64,7 @@ from app.knowledge.models import (
     WorkflowModuleId,
 )
 from app.persistence.ai_usage import ai_usage_repository, interaction_response
+from app.persistence.database import engine
 from app.persistence.reports import report_repository
 from app.persistence.repository import message_repository
 from app.persistence.workflow_messages import workflow_message_repository
@@ -80,6 +82,7 @@ from app.specifications.models import (
     MessageSpecification,
 )
 from app.specifications.registry import specification_registry
+from app.studio.mx.registry import mx_registry
 from app.workflows.corporate_actions import (
     CorporateActionConfirmationRequest,
     CorporateActionInstructionRequest,
@@ -133,6 +136,69 @@ def health() -> dict[str, str]:
         "application": settings.app_name,
         "environment": settings.app_env,
         "messageStandardScope": "Configured source-bounded Category 5 subset",
+    }
+
+
+@router.get("/health/live")
+def liveness() -> dict[str, str]:
+    """A process-only probe. It deliberately touches no optional dependency."""
+    return {"status": "alive"}
+
+
+@router.get("/health/ready")
+def readiness() -> dict[str, Any]:
+    """Required runtime readiness, with optional AI and knowledge states kept separate."""
+    settings = get_settings()
+    database_ready = False
+    database_error: str | None = None
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        database_ready = True
+    except Exception as error:  # pragma: no cover - exercised by deployment probes
+        database_error = type(error).__name__
+    mt_count = len(specification_registry.list())
+    mx_count = len(mx_registry.all_specs())
+    registry_ready = mt_count > 0 and mx_count > 0
+
+    from app.knowledge_base.service import knowledge_service
+
+    knowledge_state = (
+        "OPTIONAL_DISABLED"
+        if not settings.knowledge_enabled
+        else "READY"
+        if knowledge_service.indexed
+        else "OPTIONAL_NOT_INDEXED"
+    )
+    ai_configured = settings.ai_provider not in {"disabled", "mock"} and bool(
+        settings.openrouter_api_key or settings.ai_api_key
+    )
+    ready = database_ready and registry_ready
+    return {
+        "status": "ready" if ready else "not_ready",
+        "required": {
+            "database": {"ready": database_ready, "error": database_error},
+            "registries": {
+                "ready": registry_ready,
+                "configuredMt": mt_count,
+                "configuredMx": mx_count,
+            },
+        },
+        "optional": {
+            "knowledge": {"state": knowledge_state},
+            "ai": {
+                "state": "CONFIGURED" if ai_configured else "OPTIONAL_DISABLED",
+                "provider": settings.ai_provider,
+            },
+            "embeddings": {
+                "state": (
+                    "CONFIGURED"
+                    if settings.embedding_provider_effective != "disabled"
+                    else "OPTIONAL_DISABLED"
+                ),
+                "provider": settings.embedding_provider_effective,
+            },
+        },
     }
 
 

@@ -52,6 +52,20 @@ def test_catalogue_lists_both_formats(client) -> None:  # type: ignore[no-untype
     assert payload["defaultProfileId"] == "BASE_DEMO_V1"
 
 
+def test_configured_catalogue_is_small_and_conditionally_cacheable(client) -> None:  # type: ignore[no-untyped-def]
+    response = client.get("/api/v1/catalogue?includePreview=false")
+
+    assert response.status_code == 200
+    assert all(item["lane"] == "CONFIGURED" for item in response.json()["messages"])
+    assert len(response.content) < 100_000
+    etag = response.headers["etag"]
+    unchanged = client.get(
+        "/api/v1/catalogue?includePreview=false", headers={"If-None-Match": etag}
+    )
+    assert unchanged.status_code == 304
+    assert unchanged.content == b""
+
+
 def test_catalogue_declares_completeness_honestly(client) -> None:  # type: ignore[no-untyped-def]
     payload = client.get("/api/v1/catalogue").json()
 

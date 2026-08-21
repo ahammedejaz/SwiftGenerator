@@ -211,6 +211,39 @@ CREATE TABLE IF NOT EXISTS knowledge_ai_metric (
     latency_ms INTEGER NOT NULL,
     outcome TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS knowledge_operation_metric (
+    request_id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    message_type TEXT,
+    release TEXT,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    llm_calls INTEGER NOT NULL,
+    prompt_tokens INTEGER NOT NULL,
+    completion_tokens INTEGER NOT NULL,
+    cache_hit INTEGER NOT NULL,
+    calls_avoided INTEGER NOT NULL,
+    tokens_avoided INTEGER NOT NULL,
+    latency_ms INTEGER NOT NULL,
+    rag_used INTEGER NOT NULL,
+    rag_mode TEXT,
+    query_type TEXT,
+    format_filter TEXT,
+    lexical_candidates INTEGER NOT NULL DEFAULT 0,
+    semantic_candidates INTEGER NOT NULL DEFAULT 0,
+    evidence_count INTEGER NOT NULL,
+    context_chars INTEGER NOT NULL DEFAULT 0,
+    retrieval_latency_ms INTEGER NOT NULL,
+    embedding_calls INTEGER NOT NULL,
+    embedding_tokens INTEGER NOT NULL DEFAULT 0,
+    embedding_cache_hits INTEGER NOT NULL DEFAULT 0,
+    embedding_latency_ms INTEGER NOT NULL DEFAULT 0,
+    corpus_version TEXT,
+    outcome TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_knowledge_operation_at
+    ON knowledge_operation_metric(at DESC);
 """
 
 
@@ -238,8 +271,33 @@ class KnowledgeDatabase:
             connection = self._connect()
             try:
                 connection.executescript(SCHEMA)
+                columns = {
+                    str(row["name"])
+                    for row in connection.execute(
+                        "PRAGMA table_info(knowledge_operation_metric)"
+                    )
+                }
+                additions = {
+                    "format_filter": "TEXT",
+                    "lexical_candidates": "INTEGER NOT NULL DEFAULT 0",
+                    "semantic_candidates": "INTEGER NOT NULL DEFAULT 0",
+                    "context_chars": "INTEGER NOT NULL DEFAULT 0",
+                    "embedding_tokens": "INTEGER NOT NULL DEFAULT 0",
+                    "embedding_cache_hits": "INTEGER NOT NULL DEFAULT 0",
+                    "embedding_latency_ms": "INTEGER NOT NULL DEFAULT 0",
+                }
+                for name, declaration in additions.items():
+                    if name not in columns:
+                        connection.execute(
+                            f"ALTER TABLE knowledge_operation_metric "
+                            f"ADD COLUMN {name} {declaration}"
+                        )
                 connection.execute(
                     "INSERT OR IGNORE INTO knowledge_meta(key, value) VALUES ('schema_version', ?)",
+                    (str(KNOWLEDGE_SCHEMA_VERSION),),
+                )
+                connection.execute(
+                    "UPDATE knowledge_meta SET value = ? WHERE key = 'schema_version'",
                     (str(KNOWLEDGE_SCHEMA_VERSION),),
                 )
             finally:

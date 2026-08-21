@@ -25,6 +25,11 @@ os.environ["SUBMISSION_MODE"] = "uat"
 # throttle itself is still tested: tests/security/test_cors_and_throttling.py installs its
 # own limiter, which is the only place the limit is the subject rather than the scenery.
 os.environ["RATE_LIMIT_REQUESTS_PER_MINUTE"] = "1000000"
+# The suite's contract is that every pre-existing test sees the configured product with no
+# knowledge base; tests that want one opt in through tests/knowledge_fixtures.py. Pinned
+# rather than left to the default so an operator .env that enables the knowledge base
+# locally cannot change what the suite is testing.
+os.environ["KNOWLEDGE_MODE"] = "disabled"
 
 from app.main import app  # noqa: E402
 

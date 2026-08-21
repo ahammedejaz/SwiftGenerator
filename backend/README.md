@@ -48,6 +48,8 @@ backend/
 │   ├── event_profiles/     corporate-action event registry
 │   ├── external_validation/  boundary for third-party validators (stubbed)
 │   ├── knowledge/          per-tag MT metadata · code lists · presentation rules
+│   ├── knowledge_base/     local evidence index · retrieval · privacy-safe telemetry
+│   ├── mapping/            exact Mapping Packs · deterministic conversion · loss reports
 │   ├── persistence/        SQLAlchemy models · repositories · database factory
 │   ├── profiles/           client-profile loader (envelope values, currencies, ...)
 │   ├── raw/                subset MT parser used by the older validate-raw endpoint
@@ -67,6 +69,8 @@ backend/
 │   ├── specifications/     MT: sequence and row order per message
 │   ├── mx/                 MX: element tree per message · optional official XSDs
 │   ├── profiles/           client-profile definitions
+│   ├── mappings/           reviewed/synthetic Mapping Packs
+│   ├── mapping_sources/    mapping authority records and checksums
 │   └── README.md           how the configuration is organised (start here)
 ├── data/                   the running SQLite database and any generated reports
 ├── evaluation/             benchmark datasets for the AI layer

@@ -25,9 +25,15 @@ row from the table below based on why you are here.
 | Understand occurrence-scoped rule evaluation | [rule-occurrence-semantics.md](rule-occurrence-semantics.md) |
 | Index authorised PDFs/XSDs and test messages nobody configured by hand | [universal-financial-message-rag.md](universal-financial-message-rag.md) |
 | Drop a source into the knowledge base, and know what may leave the machine | [knowledge-source-handling.md](knowledge-source-handling.md) |
+| Start a clean clone or operate Docker locally | [quickstart.md](quickstart.md) |
+| Understand configured-first and dynamic runtime behavior | [universal-message-runtime.md](universal-message-runtime.md) |
+| Install an approved knowledge bundle without committing it | [knowledge-distribution.md](knowledge-distribution.md) |
+| Inspect privacy-safe AI/RAG usage | [ai-rag-observability.md](ai-rag-observability.md) |
+| Convert MT to MX through an evidence-bearing Mapping Pack | [message-conversion.md](message-conversion.md) |
 | Let a model draft a sample or interpret a business request | [ai-assisted-authoring.md](ai-assisted-authoring.md) |
 | Call the knowledge, lane and AI endpoints from automation | [automation-api.md](automation-api.md) |
 | Run Phase 6 internal UAT | [testing/phase-06-universal-rag-uat-checklist.md](testing/phase-06-universal-rag-uat-checklist.md) |
+| Run universal runtime/conversion UAT | [testing/universal-runtime-uat-checklist.md](testing/universal-runtime-uat-checklist.md) |
 | Demo the platform to a client | [CLIENT_DEMO_RUNBOOK.md](CLIENT_DEMO_RUNBOOK.md) |
 | Know what to ask a client for | [AUTHORITATIVE_ARTIFACT_CHECKLIST.md](AUTHORITATIVE_ARTIFACT_CHECKLIST.md) |
 | Know what is and is not supported | [limitations.md](limitations.md) |

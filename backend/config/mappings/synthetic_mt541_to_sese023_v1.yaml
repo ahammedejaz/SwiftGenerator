@@ -1,0 +1,159 @@
+packId: SYNTHETIC_MT541_TO_SESE023_V1
+version: "1.0.0"
+source:
+  format: MT
+  messageType: MT541
+  release: null
+  lane: CONFIGURED
+target:
+  format: MX
+  messageType: sese.023
+  release: sese.023.001.11
+  lane: CONFIGURED
+sourceStructureChecksum: de265ea7cad97ae41d3bde4448d2b1f1f8dd83e8b9236901e72e864fe66b02e7
+targetStructureChecksum: c06c40a7edea6bae2814fc154a30b80bb1270e4e23da5041392f56904a44ad39
+provenance:
+  sourceType: SYNTHETIC_FIXTURE
+  sourceReference: backend/config/mapping_sources/synthetic_mt541_to_sese023_v1.md
+  sourceChecksum: 3d157181e9e292d3dd5eb6f96e72ce6c717b3dac59b5f1cb105b0fe6117de924
+  reviewState: SYNTHETIC_TEST_ONLY
+  reviewedBy: null
+  productionEligible: false
+  limitations:
+    - This pack demonstrates software behavior only and is not an authoritative MT-to-MX mapping.
+    - It covers only the repository-configured MT541 and sese.023 subsets.
+    - No business, market-practice, network, or coexistence equivalence is claimed.
+rules:
+  - id: transaction-reference
+    kind: DIRECT
+    semantic: transaction_reference
+    sourceRefs: [MT541-A-20C-SEME]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/TxId
+
+  - id: securities-movement
+    kind: TRANSFORM
+    semantic: securities_movement
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/SctiesMvmntTp
+        transform: CONSTANT
+        constant: RECE
+
+  - id: payment-type
+    kind: TRANSFORM
+    semantic: payment_type
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/Pmt
+        transform: CONSTANT
+        constant: APMT
+
+  - id: common-reference
+    kind: CONDITIONAL
+    semantic: transaction_reference
+    sourceRefs: [MT541-A-20C-COMM]
+    condition:
+      sourceRef: MT541-A-20C-COMM
+      operator: PRESENT
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/SttlmTpAndAddtlParams/CmonId
+
+  - id: trade-date
+    kind: TRANSFORM
+    semantic: trade_date
+    sourceRefs: [MT541-B-98A-TRAD]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/TradDtls/TradDt/Dt/Dt
+        transform: MT_DATE_TO_ISO
+
+  - id: settlement-date
+    kind: TRANSFORM
+    semantic: settlement_date
+    sourceRefs: [MT541-B-98A-SETT]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/TradDtls/SttlmDt/Dt/Dt
+        transform: MT_DATE_TO_ISO
+
+  - id: instrument
+    kind: DIRECT
+    semantic: instrument_identifier
+    sourceRefs: [MT541-B-35B-NONE]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/FinInstrmId/ISIN
+
+  - id: quantity
+    kind: TRANSFORM
+    semantic: quantity
+    sourceRefs: [MT541-B-36B-SETT]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SttlmQty/Qty/Unit
+        transform: MT_UNIT_QUANTITY
+
+  - id: safekeeping-account
+    kind: DIRECT
+    semantic: safekeeping_account
+    sourceRefs: [MT541-C-97A-SAFE]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/QtyAndAcctDtls/SfkpgAcct/Id
+
+  - id: transaction-type
+    kind: DIRECT
+    semantic: transaction_type
+    sourceRefs: [MT541-E-22F-SETR]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/SttlmParams/SctiesTxTp/Cd
+
+  - id: place-of-settlement
+    kind: ONE_TO_MANY
+    semantic: place_of_settlement
+    sourceRefs: [MT541-E-95P-PSET]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/DlvrgSttlmPties/Dpstry/Id/AnyBIC
+      - targetRef: /Document/SctiesSttlmTxInstr/RcvgSttlmPties/Dpstry/Id/AnyBIC
+
+  - id: delivering-agent
+    kind: DIRECT
+    semantic: delivering_agent
+    sourceRefs: [MT541-E-95P-DEAG]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/DlvrgSttlmPties/Pty1/Id/AnyBIC
+
+  - id: receiving-agent
+    kind: CONDITIONAL
+    semantic: receiving_agent
+    sourceRefs: [MT541-E-95P-REAG]
+    condition:
+      sourceRef: MT541-E-95P-REAG
+      operator: PRESENT
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/RcvgSttlmPties/Pty1/Id/AnyBIC
+
+  - id: settlement-amount
+    kind: TRANSFORM
+    semantic: settlement_amount
+    sourceRefs: [MT541-E-19A-SETT]
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/SttlmAmt/Amt
+        transform: MT_AMOUNT_TO_ISO
+
+  - id: settlement-amount-side
+    kind: CONDITIONAL
+    semantic: settlement_amount
+    condition:
+      sourceRef: MT541-E-19A-SETT
+      operator: PRESENT
+    outputs:
+      - targetRef: /Document/SctiesSttlmTxInstr/SttlmAmt/CdtDbtInd
+        transform: CONSTANT
+        constant: DBIT
+
+  - id: previous-reference-not-represented
+    kind: NOT_REPRESENTED
+    semantic: transaction_reference
+    sourceRefs: [MT541-A-20C-PREV]
+    note: The configured synthetic target subset has no reviewed destination for this value.
+
+  - id: message-function-not-represented
+    kind: NOT_REPRESENTED
+    semantic: message_function
+    sourceRefs: [MT541-A-23G-NONE]
+    note: The configured synthetic target subset has no reviewed destination for this value.

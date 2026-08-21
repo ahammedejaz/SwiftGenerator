@@ -16,6 +16,9 @@ import type {
   AiSampleResponse,
   AiTestDataRequest,
   AiTestDataResponse,
+  ConvertRequest,
+  ConversionResponse,
+  ConversionTargetsResponse,
   ExcelGenerateResponse,
   DiffResult,
   GenerateRequest,
@@ -116,8 +119,65 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+const catalogueCache = new Map<string, StudioCatalogue>();
+const catalogueInFlight = new Map<string, Promise<StudioCatalogue>>();
+const CATALOGUE_SESSION_TTL_MS = 5 * 60 * 1000;
+
+function sessionCatalogue(key: string): StudioCatalogue | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(`studio-catalogue-v1:${key}`);
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as { storedAt: number; catalogue: StudioCatalogue };
+    if (Date.now() - entry.storedAt > CATALOGUE_SESSION_TTL_MS) {
+      window.sessionStorage.removeItem(`studio-catalogue-v1:${key}`);
+      return null;
+    }
+    return entry.catalogue;
+  } catch {
+    return null;
+  }
+}
+
+function storeSessionCatalogue(key: string, catalogue: StudioCatalogue): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      `studio-catalogue-v1:${key}`,
+      JSON.stringify({ storedAt: Date.now(), catalogue }),
+    );
+  } catch {
+    // Storage may be unavailable or full; the in-memory cache remains sufficient.
+  }
+}
+
+function catalogueRequest(options?: {
+  includePreview?: boolean;
+  force?: boolean;
+}): Promise<StudioCatalogue> {
+  const includePreview = options?.includePreview ?? true;
+  const key = includePreview ? "all" : "configured";
+  if (!options?.force) {
+    const cached = catalogueCache.get(key) ?? sessionCatalogue(key);
+    if (cached) return Promise.resolve(cached);
+  }
+  const pending = catalogueInFlight.get(key);
+  if (pending) return pending;
+  const requestPromise = request<StudioCatalogue>(
+    `/api/v1/catalogue${includePreview ? "" : "?includePreview=false"}`,
+  )
+    .then((catalogue) => {
+      catalogueCache.set(key, catalogue);
+      storeSessionCatalogue(key, catalogue);
+      return catalogue;
+    })
+    .finally(() => catalogueInFlight.delete(key));
+  catalogueInFlight.set(key, requestPromise);
+  return requestPromise;
+}
+
 export const studioApi = {
-  catalogue: () => request<StudioCatalogue>("/api/v1/catalogue"),
+  catalogue: catalogueRequest,
 
   spec: (format: MessageFormat, messageType: string, options?: LaneOptions) =>
     request<MessageSpec>(
@@ -147,6 +207,17 @@ export const studioApi = {
 
   generate: (payload: GenerateRequest) =>
     request<GenerateResult>("/api/v1/messages/generate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  conversionTargets: (source: string, sourceFormat: MessageFormat = "MT") =>
+    request<ConversionTargetsResponse>(
+      `/api/v1/messages/${encodeURIComponent(source)}/conversion-targets?sourceFormat=${sourceFormat}`,
+    ),
+
+  convert: (payload: ConvertRequest) =>
+    request<ConversionResponse>("/api/v1/messages/convert", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

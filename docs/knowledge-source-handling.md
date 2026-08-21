@@ -21,9 +21,23 @@ symlinks are never followed.
 ## 2. Where it goes
 
 `KNOWLEDGE_SOURCE_DIR` names one or more roots, comma-separated, relative to the project
-root or absolute. The default is `swiftKnowledgeBase`. The measured sync used
-`KNOWLEDGE_SOURCE_DIR=swiftKnowledgeBase,build/mx-real-sources`. Discovery is recursive,
-so sub-folders by release or by family are fine.
+root or absolute. The default is `swiftKnowledgeBase`. Discovery is recursive, so
+sub-folders by family or by release are fine — and preferable to a flat drop, because one
+root that recurses beats a list of roots that has to be edited every time a folder appears:
+
+```
+swiftKnowledgeBase/MT/    MT Message Reference Guides (PDF)
+swiftKnowledgeBase/MX/    ISO 20022 schemas (.xsd)
+```
+
+Add a folder beside those and the next sync indexes it with no configuration change. A
+source is keyed by its content hash, not its path, so **moving a file between folders
+keeps its index entry, its segments and its vectors**; only the recorded relative path
+changes, and the run reports it as unchanged.
+
+Name every root you want indexed in a single value: anything outside the roots of the
+current run is tombstoned, so narrowing the list silently drops what a previous run had
+indexed (§9).
 
 Everything derived lands under the ignored `build/knowledge/` tree:
 
@@ -156,8 +170,8 @@ structures) takes about 20–40 s; an unchanged rescan parses 0 and reuses 293 s
 
 ## 7. Adding another MT guide
 
-1. Copy the PDF into the folder: `swiftKnowledgeBase/SR_2026_MT535.pdf` (the name does not
-   matter; the cover page does).
+1. Copy the PDF into the MT folder: `swiftKnowledgeBase/MT/SR_2026_MT535.pdf` (the name
+   does not matter; the cover page does).
 2. `make knowledge-sync` (or press **Sync** on `/knowledge-base` when the backend runs in
    `local_uat`). The run reports `documentsParsed: 1` and a new source id such as
    `SWIFT-MT-SR2026-MT535-MRG`.
@@ -188,8 +202,10 @@ for such a message is listed as its own entry — MT541 SR2026 beside configured
 
 ## 8. Adding another MX schema
 
-1. Copy the schema: `swiftKnowledgeBase/camt.053.001.13.xsd` (or a ZIP of schemas).
-2. `make knowledge-sync`. The run reports the new `ISO20022-XSD-camt.053.001.13` source
+1. Copy the schema into the MX folder: `swiftKnowledgeBase/MX/camt.053.001.13.xsd` (or a
+   ZIP of schemas).
+2. `make knowledge-sync`, or press **Sync Knowledge Base** on `/knowledge-base` when the
+   backend runs in `local_uat`. The run reports the new `ISO20022-XSD-camt.053.001.13` source
    and `structuresCompiled: 1`.
 3. The structure is `GENERATION_READY` when the six gates pass — registry load, sample,
    compose, validation against the supplied XSD itself, rejection of invalid variants, round
@@ -212,6 +228,9 @@ for such a message is listed as its own entry — MT541 SR2026 beside configured
 | `loadErrors` in status | A compiled pack could not be loaded by the preview registry | `make knowledge-reindex`; the gate detail names the pack |
 | `UNIDENTIFIED-…` source | No dominant message identifier in a note | Name the message clearly in the body, or accept it as searchable-only |
 | "Knowledge Base has not been indexed yet" | No database | `make knowledge-sync`; configured messages work meanwhile |
+| Page says `Mode: disabled` / `Not indexed` right after a successful sync, and the catalogue lists only the configured messages | The **server** process has no `KNOWLEDGE_MODE`. The Make targets export `local` for themselves; `make backend`, `make dev` and `scripts/start-dev.sh` do not, so the server falls back to the `disabled` default and `_preview_entries()` returns nothing however complete the database is | Put `KNOWLEDGE_MODE=local_uat` in the project-root `.env` so the CLI and the server read the same value, then restart the backend — or start it with `make knowledge-dev` |
+| Widening the policy in §5 changes nothing; sources stay `EMBEDDING_BLOCKED` | The policy is resolved once, at parse time, and stored on the source row. An incremental sync skips an unchanged hash before it re-derives anything | `make knowledge-reindex`, not `make knowledge-sync` |
+| Sources that were indexed before are suddenly `sourcesDeleted` and their catalogue entries are gone | The run used a narrower `KNOWLEDGE_SOURCE_DIR` than the one that indexed them; anything outside the roots of the current run is tombstoned | List every root at once, e.g. `KNOWLEDGE_SOURCE_DIR=swiftKnowledgeBase,build/mx-real-sources` |
 | Structures reused after a compiler change | Reuse is keyed on `PACK_COMPILER_VERSION` | Bump the version (done for `/2`) or `make knowledge-clean-cache` then sync |
 
 ## 10. Git hygiene

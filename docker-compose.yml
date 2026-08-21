@@ -6,9 +6,9 @@ services:
       APP_ENV: development
       DATABASE_URL: sqlite:////app/data/securities_studio.db
       REPORT_DIRECTORY: /app/data/reports
-      FRONTEND_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
-      AI_PROVIDER: ${AI_PROVIDER:-openrouter}
-      AI_MODE: ${AI_MODE:-required}
+      FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT:-3000},http://127.0.0.1:${FRONTEND_PORT:-3000}
+      AI_PROVIDER: ${AI_PROVIDER:-disabled}
+      AI_MODE: ${AI_MODE:-optional}
       AI_RATE_LIMIT_REQUESTS_PER_MINUTE: ${AI_RATE_LIMIT_REQUESTS_PER_MINUTE:-30}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
@@ -70,7 +70,7 @@ services:
       AI_CHAT_DEPLOYMENT: ${AI_CHAT_DEPLOYMENT:-}
       AI_API_VERSION: ${AI_API_VERSION:-}
       EMBEDDINGS_DEPLOYMENT: ${EMBEDDINGS_DEPLOYMENT:-}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-auto}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-disabled}
       KNOWLEDGE_MODE: ${KNOWLEDGE_MODE:-disabled}
       KNOWLEDGE_SOURCE_DIR: ${KNOWLEDGE_SOURCE_DIR:-/app/knowledge-sources}
       KNOWLEDGE_DB_PATH: /app/data/knowledge/knowledge.sqlite3
@@ -79,17 +79,18 @@ services:
       KNOWLEDGE_AUTO_SYNC_ON_START: ${KNOWLEDGE_AUTO_SYNC_ON_START:-false}
       KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED: ${KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED:-false}
       KNOWLEDGE_EXTERNAL_LLM_ALLOWED: ${KNOWLEDGE_EXTERNAL_LLM_ALLOWED:-false}
-      KNOWLEDGE_AI_PROVIDER: ${KNOWLEDGE_AI_PROVIDER:-auto}
+      KNOWLEDGE_AI_PROVIDER: ${KNOWLEDGE_AI_PROVIDER:-disabled}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - studio-data:/app/data
+      - ./swiftKnowledgeBase:/app/knowledge-sources:ro
     healthcheck:
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/ready')"
       interval: 10s
       timeout: 3s
       retries: 5
@@ -102,12 +103,12 @@ services:
         # 127.0.0.1, not localhost: the browser resolves localhost to ::1 first on a
         # dual-stack machine, and an occasional request then dies with ECONNREFUSED, which
         # reaches fetch() as a bare network error. An address needs no resolving.
-        NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+        NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:${BACKEND_PORT:-8000}
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
 
 volumes:
   studio-data:

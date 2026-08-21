@@ -37,6 +37,7 @@ frontend/
 │   ├── intelligence/page.tsx     /intelligence       → Message Intelligence
 │   ├── validate/page.tsx         /validate           → Validate
 │   ├── automation/page.tsx       /automation         → API & Automation
+│   ├── convert/page.tsx          /convert            → deterministic MT-to-MX conversion
 │   ├── recent/page.tsx           /recent             → Recent Messages
 │   ├── advanced/page.tsx         /advanced           → grid of specialty screens
 │   ├── guided/page.tsx           /guided             → "describe the settlement"
@@ -46,7 +47,7 @@ frontend/
 │   ├── catalogue/page.tsx        /catalogue          → capability matrix
 │   ├── samples/page.tsx          /samples            → annotated samples
 │   ├── knowledge/page.tsx        /knowledge          → MT tag intelligence
-│   ├── ai-efficiency/page.tsx    /ai-efficiency      → live AI calls / cache / cost
+│   ├── ai-efficiency/page.tsx    /ai-efficiency      → AI, RAG, embedding and cache usage
 │   ├── lifecycle/page.tsx        /lifecycle          → MT541 → MT548 → MT545 flows
 │   ├── settlement-processing/page.tsx  /settlement-processing
 │   ├── corporate-actions/page.tsx      /corporate-actions
@@ -64,7 +65,7 @@ frontend/
 │   ├── corporate-actions/        MT564 / MT565 / MT567 / MT566 flow
 │   ├── penalties/                MT537 penalty statement builder
 │   ├── bulk/                     Excel-driven bulk generation
-│   ├── ai/                       AI efficiency dashboards
+│   ├── ai/                       AI and knowledge usage dashboards
 │   ├── messages/                 shared message view components
 │   └── reports/                  bulk-report viewer
 │
@@ -105,10 +106,11 @@ Six primary routes appear in the top nav (`components/studio/Chrome.tsx`):
 | **`/intelligence`** — Message Intelligence | Look up an MT tag or MX element in plain English |
 | **`/validate`** — Validate | Paste an existing message or JSON; validate without persisting |
 | **`/automation`** — API & Automation | Copy-paste curl, Java, Python, JavaScript examples |
-| **`/recent`** — Recent Messages | Everything generated lately; download by output mode |
+| **`/convert`** — Convert | Apply an exact, evidence-qualified Mapping Pack and inspect loss before generation |
 
-An **Advanced** menu (`/advanced`) links to specialist screens: settlement lifecycle,
-corporate actions, penalties, the maker-checker authoring stack, and dashboards.
+An **Advanced** menu (`/advanced`) links to specialist screens: recent messages,
+settlement lifecycle, corporate actions, penalties, the maker-checker authoring stack,
+and dashboards.
 
 ---
 

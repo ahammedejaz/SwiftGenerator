@@ -24,6 +24,7 @@ class MxRegistry:
         self._directory = directory or _config_directory()
         self._specs: dict[str, MxMessageSpec] = {}
         self._flat: dict[str, list[FlatElement]] = {}
+        self._by_path: dict[str, dict[str, FlatElement]] = {}
         self._load()
 
     def _load(self) -> None:
@@ -38,6 +39,7 @@ class MxRegistry:
                 raise ValueError(f"Duplicate MX specification: {spec.version}")
             self._specs[key] = spec
             self._flat[key] = _flatten(spec)
+            self._by_path[key] = {item.path: item for item in self._flat[key]}
         if not self._specs:
             raise RuntimeError(f"No MX specifications found in {self._directory}")
 
@@ -93,7 +95,11 @@ class MxRegistry:
         return self._flat[key]
 
     def by_path(self, message_type: str) -> dict[str, FlatElement]:
-        return {item.path: item for item in self.flat(message_type)}
+        key = self._resolve(message_type)
+        if key is None:
+            self.get(message_type)
+        assert key is not None
+        return self._by_path[key]
 
     def leaves(self, message_type: str) -> list[FlatElement]:
         return [item for item in self.flat(message_type) if item.element.is_leaf]

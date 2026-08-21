@@ -693,6 +693,100 @@ export interface ImportResult {
   disclaimer: string;
 }
 
+/* -------------------------------------------------------------- conversion */
+
+export interface MappingIdentity {
+  format: MessageFormat;
+  messageType: string;
+  release: string | null;
+  lane: Lane;
+}
+
+export interface MappingProvenance {
+  sourceType: string;
+  sourceReference: string;
+  sourceChecksum: string;
+  reviewState: string;
+  reviewedBy: string | null;
+  productionEligible: boolean;
+  limitations: string[];
+}
+
+export interface ConversionTarget {
+  packId: string;
+  packVersion: string;
+  target: MappingIdentity;
+  reviewState: string;
+  productionEligible: boolean;
+  previewOnly: boolean;
+  provenance: MappingProvenance;
+}
+
+export interface ConversionTargetsResponse {
+  source: MappingIdentity;
+  targets: ConversionTarget[];
+  authorityNote: string;
+}
+
+export interface ConvertRequest {
+  sourceFormat: MessageFormat;
+  sourceMessage?: string | null;
+  sourceRelease?: string | null;
+  sourceLane?: Lane;
+  rawMessage?: string | null;
+  fields?: FieldInput[];
+  targetFormat: MessageFormat;
+  targetMessage: string;
+  targetVersion: string;
+  targetLane?: Lane;
+  targetValues?: ElementInput[];
+  profileId?: string;
+  mappingPackId?: string | null;
+  allowSyntheticPreview?: boolean;
+}
+
+export interface MissingTarget {
+  fieldId: string;
+  displayName: string;
+  question: string;
+  reason: string;
+}
+
+export interface AppliedMapping {
+  ruleId: string;
+  kind: string;
+  semantic: string | null;
+  sourceRefs: string[];
+  targetRefs: string[];
+  transform: string;
+}
+
+export interface ConversionReport {
+  source: MappingIdentity;
+  target: MappingIdentity;
+  mappingPackId: string;
+  mappingPackVersion: string;
+  provenance: MappingProvenance;
+  mappedSourceFields: string[];
+  sourceFieldsNotRepresented: string[];
+  mappedTargetFields: string[];
+  derivedTargetFields: string[];
+  userSuppliedTargetFields: string[];
+  targetRequiredMissing: MissingTarget[];
+  transformationsApplied: AppliedMapping[];
+  limitations: string[];
+}
+
+export interface ConversionResponse {
+  status: "BLOCKED_BY_MAPPING_EVIDENCE" | "NEEDS_INPUT" | "READY" | "INVALID_TARGET";
+  targetValues: ElementInput[];
+  report: ConversionReport | null;
+  validation: ValidationResult | null;
+  generation: GenerateResult | null;
+  outputXml: string | null;
+  message: string;
+}
+
 /* ------------------------------------------------------------- knowledge base */
 
 /**
@@ -879,6 +973,48 @@ export interface KnowledgeTelemetry {
     semantic: number;
   };
   samples: { cached: number; cacheHits: number };
+  overview: {
+    operationsToday: number;
+    aiCallsToday: number;
+    tokensToday: number;
+    cacheHitsToday: number;
+    retentionDays: number;
+  };
+  knowledge: {
+    sources: number;
+    messages: number;
+    segments: number;
+    lastSync: KnowledgeRun | null;
+    syncState: string;
+    loadErrors: string[];
+  };
+  recentOperations: Array<{
+    requestId: string;
+    timestamp: string;
+    operation: string;
+    messageType: string | null;
+    release: string | null;
+    provider: string;
+    model: string;
+    llmCalls: number;
+    tokens: number;
+    cacheHit: boolean;
+    latencyMs: number;
+    ragUsed: boolean;
+    ragMode: string | null;
+    queryType: string | null;
+    formatFilter: string | null;
+    lexicalCandidates: number;
+    semanticCandidates: number;
+    evidenceCount: number;
+    contextChars: number;
+    retrievalLatencyMs: number;
+    embeddingCalls: number;
+    embeddingTokens: number;
+    embeddingCacheHits: number;
+    embeddingLatencyMs: number;
+    outcome: string;
+  }>;
   /** Always false unless the provider reports cost. The page never computes one. */
   costAvailable: boolean;
   costNote: string;
@@ -900,6 +1036,7 @@ export interface AiUsage {
   /** "deterministic" means no model was involved at all. */
   provider: string;
   model: string;
+  requestId: string;
   llmCalls: number;
   promptTokens: number;
   completionTokens: number;
@@ -908,6 +1045,15 @@ export interface AiUsage {
   cacheHit: boolean;
   callsAvoided: number;
   tokensAvoided: number;
+  ragUsed: boolean;
+  ragMode: string | null;
+  queryType: string | null;
+  evidenceCount: number;
+  lexicalCandidates: number;
+  semanticCandidates: number;
+  contextChars: number;
+  retrievalLatencyMs: number;
+  embeddingCalls: number;
   costAvailable: boolean;
 }
 

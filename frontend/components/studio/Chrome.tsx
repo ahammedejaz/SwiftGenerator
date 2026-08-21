@@ -15,7 +15,7 @@ const NAV: Array<{ href: string; label: string; icon: IconName }> = [
   { href: "/intelligence", label: "Message Intelligence", icon: "search" },
   { href: "/validate", label: "Validate", icon: "check-shield" },
   { href: "/automation", label: "API & Automation", icon: "terminal" },
-  { href: "/recent", label: "Recent Messages", icon: "clock" },
+  { href: "/convert", label: "Convert Message", icon: "refresh" },
 ];
 
 export function Chrome({ children }: { children: React.ReactNode }) {

@@ -263,10 +263,13 @@ def knowledge_sync(caller: AutomationCaller) -> dict[str, Any]:
         )
     from app.knowledge_base.index import KnowledgeIndexer, SyncOptions
     from app.knowledge_base.preview import reload_preview
-    from app.studio.catalogue import message_spec
+    from app.studio.catalogue import invalidate_catalogue_cache, message_spec
+    from app.studio.routes import invalidate_catalogue_response_cache
 
     indexer = KnowledgeIndexer(settings, knowledge_service.database, knowledge_service.embeddings)
     report = indexer.sync(SyncOptions())
     reload_preview(settings)
     message_spec.cache_clear()
+    invalidate_catalogue_cache()
+    invalidate_catalogue_response_cache()
     return {"run": report.as_dict(), "status": knowledge_service.status().as_dict()}

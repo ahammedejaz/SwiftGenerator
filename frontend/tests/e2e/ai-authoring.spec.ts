@@ -76,13 +76,13 @@ test.describe("Create Message — catalogue across lanes", () => {
 
     await page.getByRole("button", { name: "AI Typical sample" }).click();
     await expect(page.getByText(/required fields filled/)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("AI-generated synthetic sample")).toBeVisible();
+    await expect(page.getByText(/AI-assisted synthetic sample|AI sample — cached/)).toBeVisible();
     await expect(page.getByText(/validated by the deterministic engine/)).toBeVisible();
     await expect(page.getByText(/AI used \d+ source sections?/)).toBeVisible();
     await expect(page.getByText(/Cache: (HIT — 0|MISS — \d+) model calls?/)).toBeVisible();
 
     // The evidence list names documents, sections and pages — nothing about retrieval.
-    await page.getByRole("button", { name: "Show evidence" }).click();
+    await page.getByRole("button", { name: "Show details" }).click();
     await expect(page.getByText("MT999 SR2026 MRG").first()).toBeVisible();
     await expect(page.getByText(/page \d+/).first()).toBeVisible();
 
@@ -195,7 +195,7 @@ test.describe("Create Message — catalogue across lanes", () => {
     await page.getByRole("button", { name: "Prepare values" }).click();
 
     await expect(page.getByText(/required fields filled/)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Values prepared from your description")).toBeVisible();
+    await expect(page.getByText("AI-assisted values")).toBeVisible();
     await expect(page.getByLabel("Sender's Message Reference")).toHaveValue(/\S+/);
 
     await page.getByRole("button", { name: "Validate" }).click();
@@ -296,12 +296,13 @@ test.describe("AI Efficiency", () => {
     const problems = watchConsole(page);
     await page.goto("/ai-efficiency");
 
-    await expect(page.getByRole("heading", { name: "Knowledge & authoring" })).toBeVisible();
-    await expect(page.getByText("LLM calls", { exact: true })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Input tokens", { exact: true })).toBeVisible();
-    await expect(page.getByText("LLM calls avoided", { exact: true })).toBeVisible();
-    await expect(page.getByText("Retrieval latency", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "AI & Knowledge Usage" })).toBeVisible();
+    await expect(page.getByText("AI calls today", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Tokens today", { exact: true })).toBeVisible();
+    await expect(page.getByText("Model calls avoided", { exact: true })).toBeVisible();
+    await expect(page.getByText("Average retrieval", { exact: true })).toBeVisible();
     await expect(page.getByText("Sample cache hits", { exact: true })).toBeVisible();
+    await expect(page.getByText("Recent operations", { exact: true })).toBeVisible();
     await expect(page.getByText(/cost unavailable/)).toBeVisible();
 
     expect(problems()).toEqual([]);

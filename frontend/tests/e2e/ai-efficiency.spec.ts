@@ -9,8 +9,8 @@ test("guided view and efficiency dashboard distinguish deterministic usage", asy
   await expect(page.getByText("API calls avoided")).toBeVisible();
 
   await page.goto("/ai-efficiency");
-  await expect(page.getByRole("heading", { name: "AI Efficiency" })).toBeVisible();
-  await expect(page.getByText("Deterministic-only")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI & Knowledge Usage" })).toBeVisible();
+  await expect(page.getByText("Operations today")).toBeVisible();
   await expect(page.getByText("Tokens avoided", { exact: true })).toBeVisible();
-  await expect(page.getByText("Cache safety and current state")).toBeVisible();
+  await expect(page.getByText("Recent operations")).toBeVisible();
 });

@@ -1,8 +1,17 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write knowledge-sync knowledge-status knowledge-reindex knowledge-clean-cache knowledge-reports-write knowledge-reports-check knowledge-check knowledge-dev probe-embeddings evaluate-rag test-live-rag test-live-ai-sample xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
+.PHONY: quickstart stop reset-dev install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write knowledge-fetch knowledge-sync knowledge-status knowledge-reindex knowledge-clean-cache knowledge-reports-write knowledge-reports-check knowledge-check knowledge-dev probe-embeddings evaluate-rag test-live-rag test-live-ai-sample xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
 PYTHON ?= python3.13
+
+quickstart:
+	./scripts/quickstart.sh
+
+stop:
+	docker compose down --remove-orphans
+
+reset-dev:
+	docker compose down --volumes --remove-orphans
 
 install:
 	$(PYTHON) -m venv backend/.venv
@@ -289,6 +298,9 @@ KNOWLEDGE_ENV = KNOWLEDGE_MODE=$${KNOWLEDGE_MODE:-local} $(if $(KNOWLEDGE_SOURCE
 
 knowledge-sync:
 	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base sync
+
+knowledge-fetch:
+	PYTHON=$(PYTHON) ./scripts/knowledge-fetch.sh
 
 knowledge-status:
 	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base status

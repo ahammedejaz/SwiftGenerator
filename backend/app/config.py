@@ -178,6 +178,8 @@ class Settings(BaseSettings):
     knowledge_ai_max_batch: int = 20
     knowledge_ai_max_repair_attempts: int = 3
     knowledge_ai_reviewer_mode: bool = False
+    knowledge_telemetry_retention_days: int = Field(default=30, ge=1, le=3_650)
+    knowledge_telemetry_recent_limit: int = Field(default=50, ge=1, le=200)
     #: auto | scripted | disabled. ``scripted`` returns each operation's deterministic seed
     #: and is honoured in development and test only.
     knowledge_ai_provider: str = "auto"

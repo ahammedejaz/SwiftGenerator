@@ -176,7 +176,7 @@ test.describe("Shell", () => {
 
     await expect(page.getByRole("link", { name: /Settlement lifecycle/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Corporate actions/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /AI efficiency/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /AI & Knowledge Usage/ })).toBeVisible();
   });
 
   test("never scrolls the page sideways", async ({ page }) => {
