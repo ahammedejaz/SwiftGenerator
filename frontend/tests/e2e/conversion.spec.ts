@@ -29,14 +29,21 @@ test("conversion discloses synthetic authority, loss and validated target XML", 
   await expect(page.getByText("SYNTHETIC_TEST_ONLY")).toBeVisible();
   await expect(page.getByText(/No production-eligible mapping evidence/)).toBeVisible();
 
+  // The evidence class and the relationship behind the pack are disclosed before anything runs.
+  await expect(page.getByTestId("evidence-class")).toContainText(/synthetic/);
+  await expect(page.getByText(/synthetic fixture relates its configured MT541/)).toBeVisible();
+
   await page.locator("textarea").fill(MT541);
   await page.getByRole("button", { name: "Preview conversion" }).click();
-  await expect(page.getByText(/only exact Mapping Pack is synthetic/)).toBeVisible();
+  await expect(page.getByText(/only exact Mapping Pack is synthetic \(SYNTHETIC\)/)).toBeVisible();
 
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Preview conversion" }).click();
   await expect(page.getByText("READY", { exact: true })).toBeVisible();
   await expect(page.getByText("Not represented", { exact: true })).toBeVisible();
+  // Coverage is stated as numbers, never as "equivalent".
+  await expect(page.getByTestId("conversion-coverage")).toContainText(/mandatory target elements established/);
+  await expect(page.getByTestId("conversion-coverage")).toContainText(/0\/17 rules cite/);
   await expect(page.getByText("MT541-A-23G-NONE")).toBeVisible();
   await expect(page.getByText("Canonical target preview")).toBeVisible();
   await expect(page.locator(".proof")).toContainText("sese.023");

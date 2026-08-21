@@ -1,0 +1,73 @@
+# MT → MX relationships the knowledge base supports, and nothing else.
+#
+# Every entry cites the document(s) in swiftKnowledgeBase/ that establish it; the evidence
+# index (evidence-index.json, `python -m app.mapping evidence --scan`) is the sweep the
+# citations were taken from. The class says how far the support goes:
+#   TARGET_RELATIONSHIP_ONLY  a guide names the ISO 20022 message family as the equivalent
+#   NAME_CORRESPONDENCE       the two documents' own titles correspond; no document relates them
+#   SYNTHETIC                 a repository fixture
+# No entry here, and no field rule anywhere, comes from model memory. A relationship is not
+# a mapping: a pack with field rules is listed separately and carries its own class.
+relationships:
+  - relationshipId: MT20X-FI-CREDIT-TRANSFER-PACS009
+    source: {format: MT, messageType: MT205, release: SR2026, lane: KNOWLEDGE_PREVIEW}
+    target: {format: MX, messageType: pacs.009, release: pacs.009.001.13, lane: KNOWLEDGE_PREVIEW}
+    evidenceClass: TARGET_RELATIONSHIP_ONLY
+    alsoCovers: [MT200, MT201, MT202, MT203]
+    statement: >-
+      The MT205 Scope treats the category 2 financial-institution transfers (MT 200, 201,
+      202, 203, 205) and the ISO 20022 Financial Institution Credit Transfer as equivalents;
+      pacs.009.001.13 is the ISO 20022 Financial Institution Credit Transfer schema the
+      knowledge base holds. The guide names the message family, not a field mapping.
+    citations:
+      - sourceId: SWIFT-MT-SR2026-MT205-MRG
+        sourceChecksum: 89b76cd9c963d362f9b7dbdba033fe48bddb003de41737fa559209613eb7d2e5
+        page: 4
+        section: SCOPE
+        note: Scope paragraph naming the ISO 20022 Financial Institution Credit Transfer as an equivalent.
+      - sourceId: ISO20022-XSD-pacs.009.001.13
+        sourceChecksum: 81b1fcedad68faae63f56424db2e39a3ce873cb4537b6a284e3fafd3fab9691b
+        section: XSD
+        note: Message definition FinancialInstitutionCreditTransferV13 (root FICdtTrf).
+  - relationshipId: MT103-CUSTOMER-CREDIT-TRANSFER-PACS008
+    source: {format: MT, messageType: MT103, release: SR2026, lane: KNOWLEDGE_PREVIEW}
+    target: {format: MX, messageType: pacs.008, release: pacs.008.001.14, lane: KNOWLEDGE_PREVIEW}
+    evidenceClass: NAME_CORRESPONDENCE
+    alsoCovers: [MT102]
+    statement: >-
+      The MT103 guide states the message is converted to its ISO 20022 equivalent over
+      InterAct FINplus without naming it; the only customer credit transfer schema in the
+      knowledge base is pacs.008.001.14 (FIToFICustomerCreditTransferV14). The
+      correspondence rests on the two documents' titles.
+    citations:
+      - sourceId: SWIFT-MT-SR2026-MT103-MRG
+        sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0
+        page: 4
+        section: OTHER
+        note: Conversion-to-ISO-20022 note on the guide's introductory page; no target message named.
+      - sourceId: ISO20022-XSD-pacs.008.001.14
+        sourceChecksum: e054014aabeb99ba0a59ddaaa9d925eb717f3c75e591551f246bddebc0764306
+        section: XSD
+        note: Message definition FIToFICustomerCreditTransferV14 (root FIToFICstmrCdtTrf).
+  - relationshipId: MT104-DIRECT-DEBIT-PACS003
+    source: {format: MT, messageType: MT104, release: SR2026, lane: KNOWLEDGE_PREVIEW}
+    target: {format: MX, messageType: pacs.003, release: pacs.003.001.12, lane: KNOWLEDGE_PREVIEW}
+    evidenceClass: NAME_CORRESPONDENCE
+    alsoCovers: [MT107]
+    statement: >-
+      MT104 (Direct Debit and Request for Debit Transfer) and pacs.003.001.12
+      (FIToFICustomerDirectDebitV12) correspond by title only; no document in the knowledge
+      base relates them and no pack is built.
+    blocker: NO_DOCUMENT_RELATES_THE_TWO
+    citations:
+      - sourceId: ISO20022-XSD-pacs.003.001.12
+        section: XSD
+        note: Message definition FIToFICustomerDirectDebitV12.
+  - relationshipId: MT541-SESE023-SYNTHETIC
+    source: {format: MT, messageType: MT541, lane: CONFIGURED}
+    target: {format: MX, messageType: sese.023, release: sese.023.001.11, lane: CONFIGURED}
+    evidenceClass: SYNTHETIC
+    statement: >-
+      The repository's own synthetic fixture relates its configured MT541 and sese.023
+      subsets to demonstrate the conversion workflow; no standards document in the knowledge
+      base states the relationship.

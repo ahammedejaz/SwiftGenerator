@@ -702,6 +702,26 @@ export interface MappingIdentity {
   lane: Lane;
 }
 
+/**
+ * How much of a mapping the knowledge base supports. SOURCE_BACKED: relationship and every
+ * rule cite a document. TARGET_RELATIONSHIP_ONLY: a guide names the ISO 20022 family, the
+ * field rules are candidates. NAME_CORRESPONDENCE: the two documents' titles correspond and
+ * nothing relates them. SYNTHETIC: a repository fixture.
+ */
+export type MappingEvidenceClass =
+  | "SOURCE_BACKED"
+  | "TARGET_RELATIONSHIP_ONLY"
+  | "NAME_CORRESPONDENCE"
+  | "SYNTHETIC";
+
+export interface MappingCitation {
+  sourceId: string;
+  sourceChecksum: string | null;
+  page: number | null;
+  section: string | null;
+  note: string | null;
+}
+
 export interface MappingProvenance {
   sourceType: string;
   sourceReference: string;
@@ -709,17 +729,42 @@ export interface MappingProvenance {
   reviewState: string;
   reviewedBy: string | null;
   productionEligible: boolean;
+  evidenceClass: MappingEvidenceClass;
+  relationshipCitations: MappingCitation[];
   limitations: string[];
 }
 
+export interface MappingRelationship {
+  relationshipId: string;
+  source: MappingIdentity;
+  target: MappingIdentity;
+  evidenceClass: MappingEvidenceClass;
+  citations: MappingCitation[];
+  statement: string;
+  alsoCovers: string[];
+  blocker: string | null;
+}
+
+export interface MappingCoverage {
+  mandatoryTargetTotal: number;
+  mandatoryTargetMapped: number;
+  sourceRowsTotal: number;
+  sourceRowsRepresented: number;
+  rulesTotal: number;
+  rulesCited: number;
+}
+
 export interface ConversionTarget {
-  packId: string;
-  packVersion: string;
+  packId: string | null;
+  packVersion: string | null;
   target: MappingIdentity;
   reviewState: string;
   productionEligible: boolean;
   previewOnly: boolean;
-  provenance: MappingProvenance;
+  evidenceClass: MappingEvidenceClass;
+  convertible: boolean;
+  provenance: MappingProvenance | null;
+  relationship: MappingRelationship | null;
 }
 
 export interface ConversionTargetsResponse {
@@ -775,6 +820,9 @@ export interface ConversionReport {
   targetRequiredMissing: MissingTarget[];
   transformationsApplied: AppliedMapping[];
   limitations: string[];
+  evidenceClass: MappingEvidenceClass;
+  coverage: MappingCoverage | null;
+  relationshipCitations: MappingCitation[];
 }
 
 export interface ConversionResponse {

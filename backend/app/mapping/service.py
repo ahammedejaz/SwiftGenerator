@@ -12,6 +12,7 @@ from app.mapping.models import (
     ConversionTarget,
     ConversionTargetsResponse,
     ConvertRequest,
+    MappingCoverage,
     MappingIdentity,
     MappingKind,
     MappingOutput,
@@ -27,6 +28,12 @@ from app.studio.models import ElementInput, FieldInput, GenerateRequest, Presenc
 from app.studio.service import studio_service
 
 
+def _iso_decimal(amount: str) -> str:
+    """``1234,56`` → ``1234.56``; a trailing comma (``1000,``) → ``1000``."""
+    normalised = amount.replace(",", ".")
+    return normalised[:-1] if normalised.endswith(".") else normalised
+
+
 class MappingError(ValueError):
     pass
 
@@ -36,13 +43,38 @@ class MappingService:
         self._registry = registry or mapping_registry()
 
     def targets(self, source: MappingIdentity) -> ConversionTargetsResponse:
+        """Every Mapping Pack for the source, then every relationship the knowledge base
+        supports that has no pack — listed as not convertible, with its evidence."""
         targets = [self._target(pack) for pack in self._registry.targets(source)]
+        packed = {(item.target.message_type, item.target.release) for item in targets}
+        for relationship in self._registry.relationships_for(source):
+            key = (relationship.target.message_type, relationship.target.release)
+            if key in packed:
+                continue
+            targets.append(
+                ConversionTarget(
+                    pack_id=None,
+                    pack_version=None,
+                    target=relationship.target,
+                    review_state="NO_PACK",
+                    production_eligible=False,
+                    preview_only=True,
+                    evidence_class=relationship.evidence_class,
+                    convertible=False,
+                    relationship=relationship,
+                )
+            )
+        eligible = any(item.production_eligible for item in targets)
         return ConversionTargetsResponse(
             source=source,
             targets=targets,
             authority_note=(
-                "No production-eligible mapping evidence is configured. Synthetic preview "
-                "packs demonstrate the deterministic workflow only."
+                "A production-eligible, reviewed Mapping Pack exists for this source."
+                if eligible
+                else "No production-eligible mapping evidence is configured. Candidate and "
+                "synthetic preview packs demonstrate the deterministic workflow only; a "
+                "relationship without a pack is listed with its evidence and is not "
+                "convertible."
             ),
         )
 
@@ -72,11 +104,16 @@ class MappingService:
             )
         self._validate_pack(pack)
         if not pack.provenance.production_eligible and not request.allow_synthetic_preview:
+            kind = (
+                "a candidate preview"
+                if pack.provenance.review_state is MappingReviewState.CANDIDATE_PREVIEW
+                else "synthetic"
+            )
             return self._blocked(
                 source,
                 target,
-                "The only exact Mapping Pack is synthetic and is disabled until "
-                "allowSyntheticPreview is explicitly set.",
+                f"The only exact Mapping Pack is {kind} ({pack.provenance.evidence_class.value}) "
+                "and is disabled until allowSyntheticPreview is explicitly set.",
             )
 
         source_values = {field.id: field.value for field in fields if field.id}
@@ -90,7 +127,7 @@ class MappingService:
         for rule in pack.rules:
             if not self._condition(rule, source_values):
                 continue
-            if rule.kind is MappingKind.NOT_REPRESENTED:
+            if rule.kind in {MappingKind.NOT_REPRESENTED, MappingKind.OMIT}:
                 not_represented.update(ref for ref in rule.source_refs if ref in source_values)
                 continue
             if rule.kind is MappingKind.TARGET_REQUIRED_MISSING:
@@ -140,12 +177,34 @@ class MappingService:
             for field_id in sorted(missing_ids)
             if field_id in by_id
         ]
+        source_spec = message_spec(
+            pack.source.format, pack.source.message_type, pack.source.lane, pack.source.release
+        )
+        coverage = MappingCoverage(
+            mandatory_target_total=len(required),
+            mandatory_target_mapped=len(required & set(target_values)),
+            source_rows_total=len(source_spec.fields),
+            source_rows_represented=len(
+                {ref for rule in pack.rules for ref in rule.source_refs}
+                - {
+                    ref
+                    for rule in pack.rules
+                    if rule.kind in {MappingKind.NOT_REPRESENTED, MappingKind.OMIT}
+                    for ref in rule.source_refs
+                }
+            ),
+            rules_total=len(pack.rules),
+            rules_cited=pack.cited_rule_count,
+        )
         report = ConversionReport(
             source=source,
             target=target,
             mapping_pack_id=pack.pack_id,
             mapping_pack_version=pack.version,
             provenance=pack.provenance,
+            evidence_class=pack.provenance.evidence_class,
+            coverage=coverage,
+            relationship_citations=pack.provenance.relationship_citations,
             mapped_source_fields=sorted(mapped_source),
             source_fields_not_represented=sorted(
                 not_represented | (set(source_values) - mapped_source)
@@ -181,6 +240,41 @@ class MappingService:
             ),
             source="CONVERSION",
         )
+        # A mandatory block whose leaves are all optional (pacs.009's Debtor, a choice of
+        # identifications) is required even though no single leaf is: the deterministic
+        # validator names the block and the leaf that would open it, and the caller is asked
+        # for that leaf rather than have the platform invent a party.
+        blocks = [
+            issue
+            for issue in generated.validation.errors
+            if issue.rule_id == "MX_MANDATORY_BLOCK_MISSING" and issue.expected
+        ]
+        if blocks:
+            report.target_required_missing = [
+                MissingTarget(
+                    field_id=str(issue.expected),
+                    display_name=by_id[str(issue.expected)].display_name
+                    if str(issue.expected) in by_id
+                    else str(issue.expected),
+                    question=by_id[str(issue.expected)].business_question
+                    if str(issue.expected) in by_id
+                    else f"Which value opens {issue.field}?",
+                    reason=(
+                        f"{issue.field} is a required block of the target structure and "
+                        "nothing in the source mapping populates it."
+                    ),
+                )
+                for issue in blocks
+                if str(issue.expected) not in target_values
+            ]
+            if report.target_required_missing:
+                return ConversionResponse(
+                    status="NEEDS_INPUT",
+                    target_values=elements,
+                    report=report,
+                    validation=generated.validation,
+                    message="Required target information is missing; no value was invented.",
+                )
         status = "READY" if generated.valid else "INVALID_TARGET"
         return ConversionResponse(
             status=status,
@@ -272,14 +366,35 @@ class MappingService:
                 raise MappingError(f"Expected UNIT/quantity, got {value!r}")
             return match.group(1).replace(",", ".")
         if transform is TransformName.MT_AMOUNT_TO_ISO:
-            match = re.fullmatch(r"([A-Z]{3})([0-9]+(?:,[0-9]+)?)", value)
+            match = re.fullmatch(r"([A-Z]{3})([0-9]+(?:,[0-9]*)?)", value)
             if not match:
                 raise MappingError(f"Expected MT currency amount, got {value!r}")
-            return f"{match.group(1)} {match.group(2).replace(',', '.')}"
+            return f"{match.group(1)} {_iso_decimal(match.group(2))}"
+        if transform in {TransformName.MT_DATED_AMOUNT_DATE, TransformName.MT_DATED_AMOUNT_TO_ISO}:
+            match = re.fullmatch(r"(\d{6})([A-Z]{3})([0-9]+(?:,[0-9]*)?)", value)
+            if not match:
+                raise MappingError(f"Expected an MT dated amount (6!n3!a15d), got {value!r}")
+            if transform is TransformName.MT_DATED_AMOUNT_DATE:
+                raw = match.group(1)
+                parsed = date(2000 + int(raw[:2]), int(raw[2:4]), int(raw[4:6]))
+                return parsed.isoformat()
+            return f"{match.group(2)} {_iso_decimal(match.group(3))}"
+        if transform is TransformName.MT_PARTY_BIC:
+            bic = value.strip().splitlines()[-1].strip()
+            if not re.fullmatch(r"[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?", bic):
+                raise MappingError(f"Expected a party option A value ending in a BIC: {value!r}")
+            return bic
         raise MappingError(f"Unsupported transform: {transform}")
 
-    @staticmethod
-    def _target(pack: MappingPack) -> ConversionTarget:
+    def _target(self, pack: MappingPack) -> ConversionTarget:
+        relationship = next(
+            (
+                item
+                for item in self._registry.relationships_for(pack.source)
+                if item.target.message_type == pack.target.message_type
+            ),
+            None,
+        )
         return ConversionTarget(
             pack_id=pack.pack_id,
             pack_version=pack.version,
@@ -287,7 +402,10 @@ class MappingService:
             review_state=pack.provenance.review_state,
             production_eligible=pack.provenance.production_eligible,
             preview_only=not pack.provenance.production_eligible,
+            evidence_class=pack.provenance.evidence_class,
+            convertible=pack.provenance.review_state is not MappingReviewState.CANDIDATE,
             provenance=pack.provenance,
+            relationship=relationship,
         )
 
     @staticmethod

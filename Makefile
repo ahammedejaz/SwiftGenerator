@@ -52,7 +52,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check mt-mrg-corpus-check knowledge-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check mt-mrg-corpus-check mt-mx-mapping-check knowledge-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -279,6 +279,18 @@ mt-mrg-corpus-write:
 
 mt-mrg-corpus-check:
 	cd backend && .venv/bin/python -m app.rule_engine mrg-corpus --check
+
+# MT→MX mapping evidence: scan sweeps the local knowledge base and records every hit by
+# identity; write runs the conversion proofs locally and renders the coverage report;
+# check re-renders from the committed index and proofs and fails if the report drifted.
+mt-mx-mapping-scan:
+	cd backend && $(KNOWLEDGE_ENV) KNOWLEDGE_AI_PROVIDER=scripted .venv/bin/python -m app.mapping evidence --scan
+
+mt-mx-mapping-write:
+	cd backend && $(KNOWLEDGE_ENV) KNOWLEDGE_AI_PROVIDER=scripted .venv/bin/python -m app.mapping evidence --write
+
+mt-mx-mapping-check:
+	cd backend && .venv/bin/python -m app.mapping evidence --check
 
 mt-mrg-evaluate:
 	cd backend && .venv/bin/python -m app.rule_engine mrg-evaluate \
