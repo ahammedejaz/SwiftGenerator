@@ -94,6 +94,11 @@ const GROUPS: Array<{
         label: "AI efficiency",
         body: "Live API calls, cache hits, tokens, cost, latency and what was avoided.",
       },
+      {
+        href: "/knowledge-base",
+        label: "Knowledge Base",
+        body: "What has been indexed, which messages it yields and how ready each is, the sources behind them, and a search over the index.",
+      },
     ],
   },
 ];

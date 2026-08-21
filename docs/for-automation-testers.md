@@ -447,7 +447,9 @@ whole `/api/v1` surface returns `503` with an explanation, rather than being qui
 | `GET` | `/api/v1/sources` | Which authoritative specification artifacts are present |
 
 The complete machine-readable contract is at `/openapi.json`, and there is an interactive
-console at `/docs`.
+console at `/docs`. The Phase 6 routes — `/api/v1/knowledge/*`, `/api/v1/ai/*`, and the
+`lane`/`release` parameters on the endpoints above — are in
+[automation-api.md](automation-api.md) and [ai-assisted-authoring.md](ai-assisted-authoring.md).
 
 ---
 

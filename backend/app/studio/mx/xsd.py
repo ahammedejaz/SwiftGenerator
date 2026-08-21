@@ -238,8 +238,14 @@ _VALIDATION_LOCK = threading.Lock()
 _COMPILE_LOCK = threading.Lock()
 
 
-def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
-    """Validate a standalone ``Document`` against the best schema available."""
+def validate_document(
+    spec: MxMessageSpec, document_xml: str, *, official_path: Path | None = None
+) -> XsdOutcome:
+    """Validate a standalone ``Document`` against the best schema available.
+
+    ``official_path`` lets the knowledge-preview lane name the operator-supplied schema its
+    pack was compiled from; otherwise the configured official directory is consulted.
+    """
     try:
         from lxml import etree
     except ImportError:
@@ -251,7 +257,7 @@ def validate_document(spec: MxMessageSpec, document_xml: str) -> XsdOutcome:
             "Install lxml to enable schema validation.",
         )
 
-    official = official_schema_path(spec)
+    official = official_path if official_path is not None else official_schema_path(spec)
     if official is not None:
         schema_text = official.read_text(encoding="utf-8")
         source = SchemaSource.OFFICIAL

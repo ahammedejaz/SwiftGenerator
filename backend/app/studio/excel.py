@@ -34,6 +34,7 @@ from app.studio.models import (
     FieldInput,
     InputKind,
     IssueSeverity,
+    Lane,
     MessageFormat,
     Presence,
     SampleVariant,
@@ -41,7 +42,7 @@ from app.studio.models import (
     ValidationIssue,
     ValidationLayer,
 )
-from app.studio.samples import build_sample
+from app.studio.samples import available_variants, build_sample
 
 HEADER_FILL = PatternFill("solid", fgColor="0F3D3E")
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -125,10 +126,21 @@ def _safe_cell(value: Any) -> Any:
     return value
 
 
-def build_template(format_: MessageFormat, message_types: list[str] | None = None) -> bytes:
+def build_template(
+    format_: MessageFormat,
+    message_types: list[str] | None = None,
+    *,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> bytes:
+    """A workbook generated from the specification — the Scenarios sheet from a sample, the
+    Reference and Codes sheets from every field. No message has a hand-written template,
+    which is what lets a pack compiled from a source get one the moment it loads."""
     targets = message_types or (
         MT_TEMPLATE_MESSAGES if format_ is MessageFormat.MT else MX_TEMPLATE_MESSAGES
     )
+    if lane is Lane.KNOWLEDGE_PREVIEW and not message_types:
+        raise ValueError("name the message type(s) for a knowledge-preview template")
     workbook = Workbook()
     scenarios = workbook.active
     assert scenarios is not None
@@ -137,7 +149,9 @@ def build_template(format_: MessageFormat, message_types: list[str] | None = Non
     scenarios.append(headers)
 
     for index, message_type in enumerate(targets, start=1):
-        sample = build_sample(format_, message_type, SampleVariant.TYPICAL)
+        variants = available_variants(format_, message_type, lane, release)
+        variant = SampleVariant.TYPICAL if SampleVariant.TYPICAL in variants else variants[0]
+        sample = build_sample(format_, message_type, variant, lane, release)
         scenario_id = f"TC{index:03d}"
         if format_ is MessageFormat.MT:
             for item in sample.inputs:
@@ -167,13 +181,14 @@ def build_template(format_: MessageFormat, message_types: list[str] | None = Non
                     ]
                 )
     _style_header(scenarios)
-    _apply_code_dropdowns(scenarios, format_)
+    _apply_code_dropdowns(scenarios, format_, lane, release)
 
     # The Scenarios sheet stays a small, usable set of worked examples. The Reference
     # sheet is the field dictionary a tester actually looks things up in, so it covers
     # every configured message — otherwise a message is generatable but undiscoverable.
-    _write_reference_sheet(workbook, format_, message_types or _all_message_types(format_))
-    _write_codes_sheet(workbook, format_, message_types or _all_message_types(format_))
+    reference_targets = message_types or _all_message_types(format_)
+    _write_reference_sheet(workbook, format_, reference_targets, lane, release)
+    _write_codes_sheet(workbook, format_, reference_targets, lane, release)
     _write_readme_sheet(workbook, format_)
 
     output = BytesIO()
@@ -205,11 +220,14 @@ class ReferenceRow:
 
 
 def reference_rows(
-    format_: MessageFormat, message_types: list[str] | None = None
+    format_: MessageFormat,
+    message_types: list[str] | None = None,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
 ) -> list[ReferenceRow]:
     rows: list[ReferenceRow] = []
     for message_type in message_types or _all_message_types(format_):
-        spec = message_spec(format_, message_type)
+        spec = message_spec(format_, message_type, lane, release)
         rows.extend(
             ReferenceRow(message_type=spec.message_type, field=item)
             for item in sorted(spec.fields, key=lambda entry: entry.order)
@@ -218,7 +236,11 @@ def reference_rows(
 
 
 def _write_reference_sheet(
-    workbook: Workbook, format_: MessageFormat, targets: list[str]
+    workbook: Workbook,
+    format_: MessageFormat,
+    targets: list[str],
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
 ) -> None:
     sheet = workbook.create_sheet("Reference")
     if format_ is MessageFormat.MT:
@@ -254,7 +276,7 @@ def _write_reference_sheet(
                 "Max occurrences",
             ]
         )
-    for entry in reference_rows(format_, targets):
+    for entry in reference_rows(format_, targets, lane, release):
         item = entry.field
         example = item.examples[0].value if item.examples else ""
         codes = ", ".join(item.allowed_codes)
@@ -301,7 +323,12 @@ def _write_reference_sheet(
 EXCEL_INLINE_LIST_LIMIT = 255
 
 
-def _apply_code_dropdowns(sheet: Worksheet, format_: MessageFormat) -> None:
+def _apply_code_dropdowns(
+    sheet: Worksheet,
+    format_: MessageFormat,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> None:
     """Put a real dropdown on the Value cell of every row whose field has a code list.
 
     The Scenarios sheet is one field per row, so the list has to be attached per cell rather
@@ -319,7 +346,7 @@ def _apply_code_dropdowns(sheet: Worksheet, format_: MessageFormat) -> None:
         if not message_type or not tag:
             continue
         qualifier = str(raw_qualifier) if raw_qualifier else None
-        field = _lookup_field(str(message_type), str(tag), qualifier)
+        field = _lookup_field(str(message_type), str(tag), qualifier, lane, release)
         if field is None or not field.allowed_codes:
             continue
         if field.input_kind is not InputKind.SELECT:
@@ -341,10 +368,16 @@ def _apply_code_dropdowns(sheet: Worksheet, format_: MessageFormat) -> None:
             validation.add(cell)
 
 
-def _lookup_field(message_type: str, tag: str, qualifier: str | None) -> SpecField | None:
+def _lookup_field(
+    message_type: str,
+    tag: str,
+    qualifier: str | None,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> SpecField | None:
     try:
-        spec = message_spec(MessageFormat.MT, message_type)
-    except (KeyError, ValueError):
+        spec = message_spec(MessageFormat.MT, message_type, lane, release)
+    except (KeyError, ValueError, LookupError):
         return None
     return next(
         (
@@ -356,7 +389,13 @@ def _lookup_field(message_type: str, tag: str, qualifier: str | None) -> SpecFie
     )
 
 
-def _write_codes_sheet(workbook: Workbook, format_: MessageFormat, targets: list[str]) -> None:
+def _write_codes_sheet(
+    workbook: Workbook,
+    format_: MessageFormat,
+    targets: list[str],
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> None:
     """Every controlled code, with the words for it.
 
     The same vocabulary the browser dropdown and the JSON API's `allowedValues` use, so a
@@ -379,7 +418,7 @@ def _write_codes_sheet(workbook: Workbook, format_: MessageFormat, targets: list
         )
     else:
         sheet.append(["MessageType", "XPath", "Field", "Code", "Means", "Description"])
-    for entry in reference_rows(format_, targets):
+    for entry in reference_rows(format_, targets, lane, release):
         item = entry.field
         for value in item.allowed_values:
             if format_ is MessageFormat.MT:
@@ -589,13 +628,10 @@ def parse_workbook(
     required = MT_REQUIRED if detected is MessageFormat.MT else MX_REQUIRED
     expected = MT_HEADERS if detected is MessageFormat.MT else MX_HEADERS
     lookup = {
-        re.sub(r"[^a-z0-9]", "", header.lower()): index
-        for index, header in enumerate(headers)
+        re.sub(r"[^a-z0-9]", "", header.lower()): index for index, header in enumerate(headers)
     }
     missing = [
-        header
-        for header in required
-        if re.sub(r"[^a-z0-9]", "", header.lower()) not in lookup
+        header for header in required if re.sub(r"[^a-z0-9]", "", header.lower()) not in lookup
     ]
     if missing:
         raise ExcelFormatError(
@@ -615,9 +651,7 @@ def parse_workbook(
             continue
         count += 1
         if count > max_rows:
-            raise ExcelFormatError(
-                f"The workbook has more than {max_rows} data rows."
-            )
+            raise ExcelFormatError(f"The workbook has more than {max_rows} data rows.")
         scenario_id = _text(cell(raw, "ScenarioID"))
         message_type = _text(cell(raw, "MessageType"))
         value = _text(cell(raw, "Value"))

@@ -5,7 +5,7 @@
  * a manual tester can drive the same thing without writing a request.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/studio/Icon";
 import { ProofSheet } from "@/components/studio/ProofSheet";
 import { ValidationPanel } from "@/components/studio/ValidationPanel";
@@ -19,11 +19,13 @@ import {
 } from "@/components/studio/ui";
 import { StudioError, studioApi } from "@/lib/studio-api";
 import type {
+  CatalogueEntry,
   ExcelGenerateResponse,
   ExcelScenarioResult,
   GenerateResult,
   MessageFormat,
 } from "@/lib/studio-types";
+import { entryKey, messageRef } from "@/lib/studio-types";
 
 const TEMPLATES: Array<{
   format: MessageFormat;
@@ -53,12 +55,63 @@ export function ExcelStudio() {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Knowledge-preview lane: every generation-ready dynamic pack gets the same spreadsheet
+  // workflow, addressed explicitly by lane and release. Nothing is implicit.
+  const [previewEntries, setPreviewEntries] = useState<CatalogueEntry[]>([]);
+  const [previewKey, setPreviewKey] = useState<string>("");
+  const [previewFilter, setPreviewFilter] = useState("");
+  const [uploadLane, setUploadLane] = useState<"CONFIGURED" | "KNOWLEDGE_PREVIEW">(
+    "CONFIGURED",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    studioApi
+      .catalogue()
+      .then((catalogue) => {
+        if (cancelled) return;
+        setPreviewEntries(
+          catalogue.messages.filter(
+            (entry) => entry.lane === "KNOWLEDGE_PREVIEW" && entry.generatable,
+          ),
+        );
+      })
+      .catch(() => {
+        /* the configured templates above do not depend on the knowledge base */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredPreview = useMemo(() => {
+    const needle = previewFilter.trim().toLowerCase();
+    const list = needle
+      ? previewEntries.filter((entry) =>
+          `${entry.messageType} ${entry.name} ${entry.version ?? ""} ${entry.release ?? ""}`
+            .toLowerCase()
+            .includes(needle),
+        )
+      : previewEntries;
+    return list.slice(0, 200);
+  }, [previewEntries, previewFilter]);
+
+  const previewEntry = useMemo(
+    () => previewEntries.find((entry) => entryKey(entry) === previewKey) ?? null,
+    [previewEntries, previewKey],
+  );
+  const previewRef = previewEntry ? messageRef(previewEntry) : null;
+
   async function upload(file: File) {
     setBusy(true);
     setError(null);
     setResponse(null);
     try {
-      const result = await studioApi.generateFromExcel(file, "BASE_DEMO_V1");
+      const laneOptions =
+        uploadLane === "KNOWLEDGE_PREVIEW" && previewEntry && previewRef
+          ? { lane: previewEntry.lane, release: previewRef.release }
+          : undefined;
+      const result = await studioApi.generateFromExcel(file, "BASE_DEMO_V1", laneOptions);
       setResponse(result);
       setOpenScenario(result.results[0]?.scenarioId ?? null);
     } catch (caught) {
@@ -102,9 +155,106 @@ export function ExcelStudio() {
       </div>
 
       <Panel
+        title="Knowledge-preview template"
+        description="A workbook for one message the knowledge base compiled from its sources — future releases and messages outside the configured set. Generation in this lane is structure-backed; rules are not established."
+      >
+        {previewEntries.length === 0 ? (
+          <p className="text-sm leading-6 text-ink-2" data-testid="excel-preview-empty">
+            No generation-ready preview messages. Sync the knowledge base (
+            <code className="font-mono text-ink">make knowledge-sync</code>) to add them.
+          </p>
+        ) : (
+          <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] md:items-end">
+            <label className="flex min-w-0 flex-col gap-1 text-sm">
+              <span className="text-ink-2">Filter</span>
+              <input
+                type="search"
+                value={previewFilter}
+                onChange={(event) => setPreviewFilter(event.target.value)}
+                placeholder="MT103, pacs.008, SR2026…"
+                className="h-10 w-full min-w-0 rounded-md border border-line-2 bg-panel px-3 text-sm"
+                data-testid="excel-preview-filter"
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-sm">
+              <span className="text-ink-2">Message · release</span>
+              <select
+                value={previewKey}
+                onChange={(event) => setPreviewKey(event.target.value)}
+                className="h-10 w-full min-w-0 max-w-full truncate rounded-md border border-line-2 bg-panel px-3 text-sm"
+                data-testid="excel-preview-select"
+              >
+                <option value="">Choose a preview message…</option>
+                {filteredPreview.map((entry) => (
+                  <option key={entryKey(entry)} value={entryKey(entry)}>
+                    {entry.format} · {entry.version ?? entry.messageType} ·{" "}
+                    {entry.release ?? "—"} · {entry.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {previewEntry && previewRef ? (
+              <a
+                href={studioApi.templateUrl(previewEntry.format, previewRef.messageType, {
+                  lane: previewEntry.lane,
+                  release: previewRef.release,
+                })}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line-2 bg-panel px-4 text-sm font-medium transition-colors duration-150 hover:bg-rail"
+                data-testid="excel-preview-download"
+              >
+                <Icon name="download" className="h-4 w-4" />
+                Download template
+              </a>
+            ) : (
+              <span className="inline-flex h-10 items-center px-1 text-sm text-ink-3">
+                Pick a message to download
+              </span>
+            )}
+          </div>
+        )}
+        {previewEntry && (
+          <p className="mt-3 text-xs leading-5 text-ink-2" data-testid="excel-preview-note">
+            <Badge tone="neutral">KNOWLEDGE_PREVIEW</Badge> {previewEntry.readinessLabel} ·
+            structure source {previewEntry.structureSource ?? "—"}. Upload the filled workbook
+            below with the lane set to knowledge preview.
+          </p>
+        )}
+      </Panel>
+
+      <Panel
         title="Upload a workbook"
         description="Each ScenarioID becomes one message. A scenario that fails does not stop the others."
       >
+        <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-ink-2">Generate in lane</span>
+          <label className="inline-flex items-center gap-1.5">
+            <input
+              type="radio"
+              name="excel-lane"
+              checked={uploadLane === "CONFIGURED"}
+              onChange={() => setUploadLane("CONFIGURED")}
+            />
+            Configured
+          </label>
+          <label className="inline-flex items-center gap-1.5">
+            <input
+              type="radio"
+              name="excel-lane"
+              checked={uploadLane === "KNOWLEDGE_PREVIEW"}
+              disabled={!previewEntry}
+              onChange={() => setUploadLane("KNOWLEDGE_PREVIEW")}
+              data-testid="excel-lane-preview"
+            />
+            Knowledge preview
+            {previewEntry
+              ? ` (${previewEntry.version ?? previewEntry.messageType}${
+                  previewEntry.release && previewEntry.format === "MT"
+                    ? ` · ${previewEntry.release}`
+                    : ""
+                })`
+              : " — pick a preview message first"}
+          </label>
+        </div>
         <div
           onDragOver={(event) => {
             event.preventDefault();
@@ -238,6 +388,9 @@ function ScenarioRow({
           envelopeFields: [],
           renderedLines: [],
           checksum: scenario.checksum ?? "",
+          // The lane the API generated the scenario in, and what that rests on.
+          lane: scenario.lane ?? "CONFIGURED",
+          provenance: scenario.provenance ?? null,
           availableOutputModes: (
             ["FIN", "BLOCK4", "TXT", "XML", "APPHDR", "DOCUMENT", "CANONICAL_JSON"] as const
           ).filter((mode) => {

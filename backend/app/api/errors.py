@@ -90,14 +90,24 @@ HTTP_ERROR_CODES: dict[int, str] = {
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Return HTTPException in the platform's error envelope, never a bare detail string."""
-    detail = exc.detail if isinstance(exc.detail, str) else "The request could not be completed."
-    response = error_response(
-        request,
-        exc.status_code,
-        HTTP_ERROR_CODES.get(exc.status_code, "REQUEST_FAILED"),
-        detail,
-    )
+    """Return HTTPException in the platform's error envelope, never a bare detail string.
+
+    A handler may raise with a structured detail — ``{"code", "message", …}`` — so a
+    machine-readable code (``AI_SAMPLE_GENERATION_FAILED``) and its findings reach the caller
+    in the same envelope as every other error.
+    """
+    code = HTTP_ERROR_CODES.get(exc.status_code, "REQUEST_FAILED")
+    details: list[Any] | None = None
+    if isinstance(exc.detail, dict):
+        structured = dict(exc.detail)
+        code = str(structured.pop("code", code))
+        detail = str(structured.pop("message", "The request could not be completed."))
+        details = [structured] if structured else None
+    elif isinstance(exc.detail, str):
+        detail = exc.detail
+    else:
+        detail = "The request could not be completed."
+    response = error_response(request, exc.status_code, code, detail, details)
     for header, value in (exc.headers or {}).items():
         response.headers[header] = value
     return response

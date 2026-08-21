@@ -85,6 +85,17 @@ def choice_key(choice_group: str | None) -> str | None:
     return choice_group.rsplit("/", 1)[0]
 
 
+#: Field options whose SWIFT format carries a *mandatory* data source scheme —
+#: ``:4!c/8c/34x`` — and therefore a single slash after the qualifier. Every other qualified
+#: field writes ``:QUAL//``. A format fact (the same class of fact as the per-tag format
+#: table in the composer), recorded once so the composer and the parser agree.
+MANDATORY_DATA_SOURCE_SCHEME_TAGS = frozenset({"95R", "95S"})
+
+
+def qualifier_separator_for(tag: str) -> str:
+    return "/" if tag in MANDATORY_DATA_SOURCE_SCHEME_TAGS else "//"
+
+
 def is_direct_code_field(tag: str, allowed_codes: list[str]) -> bool:
     """Whether the whole value must be one of the configured codes."""
     return bool(allowed_codes) and tag[:2] in DIRECT_CODE_TAG_PREFIXES

@@ -30,6 +30,21 @@ RELEASE_BY_COVER: dict[tuple[str, str], str] = {
     ("November", "2026"): "SR2026",
 }
 
+
+def release_for_cover(month: str, year: str) -> str | None:
+    """``Standards MT November 2027`` is SR2027 without a commit.
+
+    SWIFT standards releases go live in November and are named for their year, so the
+    table above is a record of what has been seen, not a whitelist. Any other month is
+    still reported as RELEASE_NOT_MODELLED: an interim publication is not a release.
+    """
+    known = RELEASE_BY_COVER.get((month, year))
+    if known is not None:
+        return known
+    if month == "November" and year.isdigit() and 2020 <= int(year) <= 2099:
+        return f"SR{year}"
+    return None
+
 SECTION_HEADING = re.compile(
     r"^MT (?P<number>\d{3}) "
     r"(?P<section>Scope|Format Specifications|Network Validated Rules|Usage Rules|"
@@ -217,7 +232,7 @@ def identify(pages: tuple[MrgPage, ...]) -> tuple[MrgIdentity | None, tuple[str,
     else:
         match = COVER_RELEASE.fullmatch(release_text)
         assert match is not None  # noqa: S101 - guarded by the search above
-        release = RELEASE_BY_COVER.get((match.group("month"), match.group("year")))
+        release = release_for_cover(match.group("month"), match.group("year"))
         if release is None:
             problems.append(MrgIdentityProblem.RELEASE_NOT_MODELLED.value)
 

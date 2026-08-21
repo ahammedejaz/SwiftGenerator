@@ -6,12 +6,15 @@ the three can never disagree about validation, output or classification.
 
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import uuid4
 
+from app.config import get_settings
 from app.profiles.loader import ClientProfile, profiles
 from app.rule_engine.binding import value_bag
 from app.rule_engine.evaluator import evaluate_rules
 from app.rule_engine.registry import rule_pack_registry
+from app.specifications.models import MessageSpecification
 from app.studio.catalogue import known_message_type, message_spec
 from app.studio.models import (
     MT_OUTPUT_MODES,
@@ -19,10 +22,13 @@ from app.studio.models import (
     GenerateRequest,
     GenerateResult,
     IssueSeverity,
+    Lane,
+    LaneProvenance,
     LayerResult,
     LayerState,
     MessageFormat,
     MessageOutputs,
+    MessageSpec,
     OutputMode,
     ValidationIssue,
     ValidationLayer,
@@ -30,7 +36,8 @@ from app.studio.models import (
 )
 from app.studio.mt.fin import envelope_availability
 from app.studio.mt.generator import mt_generator
-from app.studio.mx.generator import check_well_formed, mx_generator
+from app.studio.mx.generator import MxGenerator, check_well_formed, mx_generator
+from app.studio.mx.registry import MxRegistry
 from app.studio.mx.xsd import SchemaSource, validate_document
 from app.studio.store import studio_message_store
 
@@ -47,6 +54,8 @@ class UnknownMessageType(Exception):
 
 class StudioService:
     def generate(self, request: GenerateRequest, *, source: str = "API") -> GenerateResult:
+        if request.lane is Lane.KNOWLEDGE_PREVIEW:
+            return self._generate_preview(request, source=source)
         if not known_message_type(request.format, request.message_type):
             raise UnknownMessageType(
                 f"{request.message_type} is not a supported {request.format.value} message."
@@ -64,10 +73,67 @@ class StudioService:
             )
         return result
 
+    # -- the knowledge-preview lane --------------------------------------------------------
+
+    def _generate_preview(self, request: GenerateRequest, *, source: str) -> GenerateResult:
+        """Same validator, same composer, a different registry — named by the caller.
+
+        The preview lane never applies reviewed Rule Packs: none exists for a preview pack,
+        and applying a configured message's pack to a differently-sourced structure would
+        attribute one release's rules to another. The provenance on the result says so.
+        """
+        from app.knowledge_base.preview import PreviewUnavailable, preview_registries
+
+        if not get_settings().knowledge_enabled:
+            raise UnknownMessageType(
+                "The knowledge-preview lane is disabled (KNOWLEDGE_MODE=disabled)."
+            )
+        registries = preview_registries()
+        profile = profiles.get(request.profile_id)
+        try:
+            if request.format is MessageFormat.MT:
+                specification = registries.resolve_mt(request.message_type, request.release)
+                result = self._generate_mt(request, profile, specification=specification)
+            else:
+                mx_spec = registries.resolve_mx(request.release or request.message_type)
+                assert registries.mx_registry is not None
+                result = self._generate_mx(
+                    request,
+                    profile,
+                    registry=registries.mx_registry,
+                    official_xsd=registries.mx_xsd_path(mx_spec),
+                    version=mx_spec.version,
+                )
+        except PreviewUnavailable as error:
+            raise UnknownMessageType(f"{error.code}: {error}") from error
+        if request.persist:
+            result.message_id = studio_message_store.save(
+                result,
+                inputs=request.model_dump(mode="json", by_alias=True),
+                source=source,
+            )
+        return result
+
     # -- MT ----------------------------------------------------------------------------
 
-    def _generate_mt(self, request: GenerateRequest, profile: ClientProfile) -> GenerateResult:
-        spec = message_spec(MessageFormat.MT, request.message_type)
+    def _generate_mt(
+        self,
+        request: GenerateRequest,
+        profile: ClientProfile,
+        *,
+        specification: MessageSpecification | None = None,
+    ) -> GenerateResult:
+        preview = specification is not None
+        spec = (
+            message_spec(
+                MessageFormat.MT,
+                request.message_type,
+                Lane.KNOWLEDGE_PREVIEW,
+                specification.release if specification else None,
+            )
+            if preview
+            else message_spec(MessageFormat.MT, request.message_type)
+        )
         wants = self._requested_modes(request, MT_OUTPUT_MODES)
         build = mt_generator.build(
             request.message_type,
@@ -75,15 +141,17 @@ class StudioService:
             request.fields,
             envelope=request.envelope,
             want_fin=OutputMode.FIN in wants or OutputMode.TXT in wants,
+            specification=specification,
         )
-        _apply_rule_packs(
-            MessageFormat.MT,
-            request.message_type,
-            profile,
-            [(item.row.row_id, item.value) for item in build.resolved],
-            build.errors,
-            build.warnings,
-        )
+        if not preview:
+            _apply_rule_packs(
+                MessageFormat.MT,
+                request.message_type,
+                profile,
+                [(item.row.row_id, item.value) for item in build.resolved],
+                build.errors,
+                build.warnings,
+            )
         layers = [
             _layer(ValidationLayer.CANONICAL, build.errors),
             _layer(ValidationLayer.STRUCTURE, build.errors),
@@ -171,16 +239,33 @@ class StudioService:
                 if mode is not OutputMode.FIN or build.fin is not None
             ],
             disclaimer=DISCLAIMER,
+            lane=spec.lane,
+            provenance=_provenance(spec, rules_applied=not preview),
         )
 
     # -- MX ----------------------------------------------------------------------------
 
-    def _generate_mx(self, request: GenerateRequest, profile: ClientProfile) -> GenerateResult:
-        spec = message_spec(MessageFormat.MX, request.message_type)
-        raw_spec = mx_generator.specification(request.message_type)
+    def _generate_mx(
+        self,
+        request: GenerateRequest,
+        profile: ClientProfile,
+        *,
+        registry: MxRegistry | None = None,
+        official_xsd: Path | None = None,
+        version: str | None = None,
+    ) -> GenerateResult:
+        preview = registry is not None
+        generator = MxGenerator(registry) if registry is not None else mx_generator
+        identifier = version or request.message_type
+        spec = (
+            message_spec(MessageFormat.MX, identifier, Lane.KNOWLEDGE_PREVIEW, version)
+            if preview
+            else message_spec(MessageFormat.MX, request.message_type)
+        )
+        raw_spec = generator.specification(identifier)
         wants = self._requested_modes(request, MX_OUTPUT_MODES)
-        build = mx_generator.build(
-            request.message_type,
+        build = generator.build(
+            identifier,
             profile,
             request.elements,
             envelope=request.envelope,
@@ -188,20 +273,21 @@ class StudioService:
         )
         errors = list(build.errors)
         warnings = list(build.warnings)
-        _apply_rule_packs(
-            MessageFormat.MX,
-            request.message_type,
-            profile,
-            [(item.flat.path, item.value) for item in build.resolved],
-            errors,
-            warnings,
-        )
+        if not preview:
+            _apply_rule_packs(
+                MessageFormat.MX,
+                request.message_type,
+                profile,
+                [(item.flat.path, item.value) for item in build.resolved],
+                errors,
+                warnings,
+            )
 
         well_formed_issue = check_well_formed(build.xml)
         if well_formed_issue is not None:
             errors.append(well_formed_issue)
 
-        xsd_outcome = validate_document(raw_spec, build.document)
+        xsd_outcome = validate_document(raw_spec, build.document, official_path=official_xsd)
         errors.extend(xsd_outcome.issues)
 
         layers = [
@@ -296,6 +382,12 @@ class StudioService:
             checksum=build.checksum,
             available_output_modes=available,
             disclaimer=DISCLAIMER,
+            lane=spec.lane,
+            provenance=_provenance(
+                spec,
+                rules_applied=not preview,
+                validation_level=f"XSD:{xsd_outcome.schema_source.value}",
+            ),
         )
 
     # -- helpers -----------------------------------------------------------------------
@@ -317,6 +409,33 @@ class StudioService:
         spec = mx_generator.specification(message_type)
         outcome = validate_document(spec, mx_generator.compose_document(spec, []))
         return outcome.schema_source
+
+
+def _provenance(
+    spec: MessageSpec, *, rules_applied: bool, validation_level: str | None = None
+) -> LaneProvenance:
+    preview = spec.lane is Lane.KNOWLEDGE_PREVIEW
+    release_lane_value: str | None = None
+    if spec.format is MessageFormat.MT and spec.release:
+        from app.knowledge_base.models import release_lane
+
+        release_lane_value = release_lane(spec.release).value
+    return LaneProvenance(
+        lane=spec.lane,
+        release=spec.release,
+        release_lane=release_lane_value,
+        structure_source=spec.structure_source or "CONFIGURED_REPOSITORY_SUBSET",
+        rule_status=(
+            "REVIEWED_RULE_PACKS_APPLIED" if rules_applied else "NOT_ESTABLISHED"
+        ),
+        validation_level=validation_level
+        or ("STRUCTURE_FORMAT_ONLY" if preview else "STRUCTURE_FORMAT_BUSINESS_PROFILE"),
+        capability_statement=spec.capability_statement
+        or (
+            "Configured repository subset; not reconciled against a licensed specification."
+        ),
+        source_provenance=[spec.source_reference],
+    )
 
 
 def _apply_rule_packs(

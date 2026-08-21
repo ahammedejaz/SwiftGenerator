@@ -39,6 +39,7 @@ overnight-implementation-report → what the plan actually produced
      └─ specification-engine-phase-04-report  → Prowide-derived MT structure evidence
         └─ specification-engine-phase-04b-report → all-category MT source discovery
            └─ specification-engine-phase-05c-report → occurrence-aware rule fidelity
+              └─ specification-engine-phase-06-report → knowledge base, hybrid RAG, preview lane, AI authoring
 ```
 
 ---
@@ -62,6 +63,7 @@ overnight-implementation-report → what the plan actually produced
 | [specification-engine-phase-05a-report.md](specification-engine-phase-05a-report.md) | The MT semantic-rule ingestion foundation: source metadata, privacy gating and canonical references. |
 | [specification-engine-phase-05b-report.md](specification-engine-phase-05b-report.md) | Reading real SWIFT SR2026 MT540/MT541 Message Reference Guides as evidence, and refusing to activate any of it. |
 | [specification-engine-phase-05c-report.md](specification-engine-phase-05c-report.md) | Adding generic occurrence-scoped rule evaluation and recovering the Phase 5B MT540/MT541 candidate gaps without activation. |
+| [specification-engine-phase-06-report.md](specification-engine-phase-06-report.md) | The local knowledge base over the operator's authorised sources, hybrid RAG with citations, dynamic MT/MX Structure Packs in a separate preview lane, AI-assisted authoring bounded by the deterministic validator — with every readiness count measured and every blocker named. |
 
 ---
 

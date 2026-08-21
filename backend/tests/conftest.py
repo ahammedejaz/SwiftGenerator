@@ -67,3 +67,8 @@ def valid_mt541_payload() -> dict[str, object]:
         "testConfiguration": {"mode": "VALID"},
         "syntheticData": True,
     }
+
+# Phase 6: the shared synthetic knowledge base fixtures (used by tests/knowledge_base and
+# tests/ai_authoring). A plugin module rather than a package conftest so one session-scoped
+# sync serves both packages.
+pytest_plugins = ["tests.knowledge_fixtures"]

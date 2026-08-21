@@ -169,14 +169,15 @@ class SpecificationComposer:
 
         def render(instance: ComposeSequence) -> None:
             sequence_spec = sequence_specs[instance.sequence_path]
-            lines.append(f":16R:{sequence_spec.code}")
-            mappings.append(
-                LineMapping(
-                    line_number=len(lines),
-                    sequence_path=instance.sequence_path,
-                    tag="16R",
+            if sequence_spec.bracketed:
+                lines.append(f":16R:{sequence_spec.code}")
+                mappings.append(
+                    LineMapping(
+                        line_number=len(lines),
+                        sequence_path=instance.sequence_path,
+                        tag="16R",
+                    )
                 )
-            )
             ordered_fields = sorted(
                 fields_by_sequence.get(instance.sequence_id, []),
                 key=lambda item: (item.row.row_number, item.row.row_id),
@@ -189,7 +190,7 @@ class SpecificationComposer:
             for field in ordered_fields:
                 prefix = f":{field.row.tag}:"
                 if field.row.qualifier:
-                    prefix += f":{field.row.qualifier}//"
+                    prefix += f":{field.row.qualifier}{field.row.qualifier_separator}"
                 # The one place a field's literal is written. A caller supplies the
                 # identifier alone — `XS0000000009`, never `ISIN XS0000000009` — so the
                 # canonical value stays a business value and exactly one component turns it
@@ -221,14 +222,15 @@ class SpecificationComposer:
             for child in ordered_children:
                 if child.sequence_id not in rendered_children:
                     render(child)
-            lines.append(f":16S:{sequence_spec.code}")
-            mappings.append(
-                LineMapping(
-                    line_number=len(lines),
-                    sequence_path=instance.sequence_path,
-                    tag="16S",
+            if sequence_spec.bracketed:
+                lines.append(f":16S:{sequence_spec.code}")
+                mappings.append(
+                    LineMapping(
+                        line_number=len(lines),
+                        sequence_path=instance.sequence_path,
+                        tag="16S",
+                    )
                 )
-            )
 
         for root in sorted(
             children.get(None, []),
@@ -285,8 +287,14 @@ def row_format_valid(row: FieldSpecification, value: str) -> bool:
     because the composer writes that. Checking the rendered form instead is what previously
     forced testers to type SWIFT syntax into a business field.
     """
+    if row.value_less:
+        return value == ""
     if row.literal_prefix and "ISIN" in row.identifier_types:
         return validate_isin(value).format_valid
+    if row.format_pattern:
+        # A pack compiled from a source's own format notation knows the field better than
+        # the per-tag table below, which only ever covered the configured subset.
+        return _pattern_valid(row.format_pattern, value)
     if row.tag == "95P":
         return bic_format_valid(value)
     if row.tag == "95R":
@@ -294,6 +302,15 @@ def row_format_valid(row: FieldSpecification, value: str) -> bool:
         # an option-R value at all, and the field silently accepted BIC-shaped values.
         return proprietary_party_valid(value)
     return _format_valid(row.tag, value)
+
+
+def _pattern_valid(pattern: str, value: str) -> bool:
+    if not value or "\x00" in value:
+        return False
+    try:
+        return re.fullmatch(pattern, value) is not None
+    except re.error:
+        return len(value) <= 1_000
 
 
 def _format_valid(tag: str, value: str) -> bool:

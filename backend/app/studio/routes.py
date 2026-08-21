@@ -46,6 +46,7 @@ from app.studio.models import (
     IntelligenceDetail,
     IntelligenceSearchResponse,
     IssueSeverity,
+    Lane,
     LayerResult,
     LayerState,
     MessageFormat,
@@ -98,12 +99,30 @@ def _resolve(format_: MessageFormat | None, message_type: str) -> MessageFormat:
         ) from error
 
 
-def _require_known(format_: MessageFormat, message_type: str) -> None:
-    if not known_message_type(format_, message_type):
+def _require_known(format_: MessageFormat, message_type: str, lane: Lane = Lane.CONFIGURED) -> None:
+    if lane is Lane.KNOWLEDGE_PREVIEW and not get_settings().knowledge_enabled:
         raise HTTPException(
             status_code=404,
-            detail=f"{message_type} is not a supported {format_.value} message.",
+            detail="The knowledge-preview lane is disabled (KNOWLEDGE_MODE=disabled).",
         )
+    if not known_message_type(format_, message_type, lane):
+        detail = f"{message_type} is not a supported {format_.value} message."
+        if lane is Lane.KNOWLEDGE_PREVIEW:
+            detail = (
+                f"STRUCTURE_SOURCE_MISSING: {message_type} has no generation-ready local "
+                "Structure Pack in the knowledge-preview lane."
+            )
+        raise HTTPException(status_code=404, detail=detail)
+
+
+def _spec_or_404(
+    format_: MessageFormat, message_type: str, lane: Lane, release: str | None
+) -> MessageSpec:
+    try:
+        return message_spec(format_, message_type, lane, release)
+    except LookupError as error:
+        code = getattr(error, "code", "MESSAGE_GENERATION_NOT_READY")
+        raise HTTPException(status_code=404, detail=f"{code}: {error}") from error
 
 
 # --------------------------------------------------------------------------------------
@@ -145,12 +164,18 @@ def get_message_spec(
     message_type: str,
     caller: AutomationCaller,
     format: Annotated[MessageFormat | None, Query()] = None,
+    lane: Annotated[Lane, Query()] = Lane.CONFIGURED,
+    release: Annotated[str | None, Query(max_length=32)] = None,
 ) -> MessageSpec:
-    """Every input slot for a message, with presence, format, examples and guidance."""
+    """Every input slot for a message, with presence, format, examples and guidance.
+
+    ``lane=KNOWLEDGE_PREVIEW`` reads a local Structure Pack compiled by the knowledge sync;
+    ``release`` picks one where several exist.
+    """
     del caller
-    resolved = _resolve(format, message_type)
-    _require_known(resolved, message_type)
-    return message_spec(resolved, message_type)
+    resolved = _resolve_lane(format, message_type, lane)
+    _require_known(resolved, message_type, lane)
+    return _spec_or_404(resolved, message_type, lane, release)
 
 
 @router.get("/messages/{message_type}/samples", response_model=list[SampleMessage])
@@ -158,13 +183,16 @@ def list_samples(
     message_type: str,
     caller: AutomationCaller,
     format: Annotated[MessageFormat | None, Query()] = None,
+    lane: Annotated[Lane, Query()] = Lane.CONFIGURED,
+    release: Annotated[str | None, Query(max_length=32)] = None,
 ) -> list[SampleMessage]:
     del caller
-    resolved = _resolve(format, message_type)
-    _require_known(resolved, message_type)
+    resolved = _resolve_lane(format, message_type, lane)
+    _require_known(resolved, message_type, lane)
+    _spec_or_404(resolved, message_type, lane, release)
     return [
-        build_sample(resolved, message_type, variant)
-        for variant in available_variants(resolved, message_type)
+        build_sample(resolved, message_type, variant, lane, release)
+        for variant in available_variants(resolved, message_type, lane, release)
     ]
 
 
@@ -174,16 +202,30 @@ def get_sample(
     variant: SampleVariant,
     caller: AutomationCaller,
     format: Annotated[MessageFormat | None, Query()] = None,
+    lane: Annotated[Lane, Query()] = Lane.CONFIGURED,
+    release: Annotated[str | None, Query(max_length=32)] = None,
 ) -> SampleMessage:
     del caller
-    resolved = _resolve(format, message_type)
-    _require_known(resolved, message_type)
-    if variant not in available_variants(resolved, message_type):
+    resolved = _resolve_lane(format, message_type, lane)
+    _require_known(resolved, message_type, lane)
+    _spec_or_404(resolved, message_type, lane, release)
+    if variant not in available_variants(resolved, message_type, lane, release):
         raise HTTPException(
             status_code=404,
             detail=f"{message_type} has no {variant.value} sample.",
         )
-    return build_sample(resolved, message_type, variant)
+    return build_sample(resolved, message_type, variant, lane, release)
+
+
+def _resolve_lane(format_: MessageFormat | None, message_type: str, lane: Lane) -> MessageFormat:
+    if format_ is not None:
+        return format_
+    candidate = message_type.strip().upper()
+    if candidate.startswith("MT"):
+        return MessageFormat.MT
+    if lane is Lane.KNOWLEDGE_PREVIEW:
+        return MessageFormat.MX
+    return _resolve(format_, message_type)
 
 
 # --------------------------------------------------------------------------------------
@@ -255,7 +297,12 @@ class _Existing:
     warnings: list[ValidationIssue] = dataclass_field(default_factory=list)
 
 
-def _read_existing(text: str, message_type: str | None) -> _Existing:
+def _read_existing(
+    text: str,
+    message_type: str | None,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
+) -> _Existing:
     """Read a pasted message with whichever parser its own content calls for.
 
     Shared by import and by diff so the two can never disagree about what a message says —
@@ -263,9 +310,33 @@ def _read_existing(text: str, message_type: str | None) -> _Existing:
     compare what was read with what was written.
     """
     format_ = _import_format(text)
+    preview_registry = None
+    preview_spec = None
+    if lane is Lane.KNOWLEDGE_PREVIEW:
+        from app.knowledge_base.preview import PreviewUnavailable, preview_registries
+
+        registries = preview_registries()
+        if format_ is MessageFormat.MX:
+            preview_registry = registries.mx_registry
+            if preview_registry is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="STRUCTURE_SOURCE_MISSING: no knowledge-preview MX packs are loaded.",
+                )
+        else:
+            if not message_type:
+                raise HTTPException(
+                    status_code=422,
+                    detail="KNOWLEDGE_RELEASE_REQUIRED: name the message type (and release) "
+                    "to import against the knowledge-preview lane.",
+                )
+            try:
+                preview_spec = registries.resolve_mt(message_type, release)
+            except PreviewUnavailable as error:
+                raise HTTPException(status_code=404, detail=f"{error.code}: {error}") from error
     if format_ is MessageFormat.MX:
         try:
-            mx = parse_mx(text)
+            mx = parse_mx(text, preview_registry)
         except MxImportError as error:
             raise HTTPException(status_code=422, detail=error.issue.message) from error
         return _Existing(
@@ -280,7 +351,7 @@ def _read_existing(text: str, message_type: str | None) -> _Existing:
             warnings=mx.warnings,
         )
     try:
-        mt = parse_mt(text, message_type=message_type)
+        mt = parse_mt(text, message_type=message_type, specification=preview_spec)
     except MtImportError as error:
         raise HTTPException(status_code=422, detail=error.issue.message) from error
     return _Existing(
@@ -382,11 +453,16 @@ def import_message(request: ImportRequest, caller: AutomationCaller) -> ImportRe
     be mistaken for a faithful one.
     """
     text = request.content
-    read = _read_existing(text, request.message_type)
+    read = _read_existing(text, request.message_type, request.lane, request.release)
 
+    imported_type = (
+        read.message_type
+        if read.format is MessageFormat.MT
+        else (read.version or read.message_type)
+    )
     generate = GenerateRequest(
         format=read.format,
-        message_type=read.message_type,
+        message_type=imported_type,
         profile_id=request.profile_id,
         scenario_id=request.scenario_id,
         fields=read.fields,
@@ -394,6 +470,8 @@ def import_message(request: ImportRequest, caller: AutomationCaller) -> ImportRe
         envelope=read.envelope,
         output_modes=request.output_modes,
         persist=request.persist,
+        lane=request.lane,
+        release=request.release if read.format is MessageFormat.MT else read.version,
     )
     generated = _generate(generate, persist=request.persist, source=_source(caller))
     generated = _merge_import_issues(generated, read.errors, read.warnings)
@@ -445,11 +523,14 @@ async def generate_from_excel(
     profile_id: Annotated[str, Query(alias="profileId")] = "BASE_DEMO_V1",
     output_mode: Annotated[list[OutputMode] | None, Query(alias="outputMode")] = None,
     persist: Annotated[bool, Query()] = True,
+    lane: Annotated[Lane, Query()] = Lane.CONFIGURED,
+    release: Annotated[str | None, Query(max_length=32)] = None,
 ) -> ExcelGenerateResponse:
     """Upload a tag-level (MT) or element-level (MX) workbook and get generated messages back.
 
     One ``ScenarioID`` becomes one message. A scenario that fails does not stop the others:
-    the response reports every scenario with its own validation.
+    the response reports every scenario with its own validation. ``lane`` and ``release``
+    apply to every scenario in the workbook; the preview lane is never implicit.
     """
     settings = get_settings()
     if file.content_type not in ACCEPTED_UPLOAD_TYPES:
@@ -479,7 +560,16 @@ async def generate_from_excel(
         )
 
     results = [
-        _run_scenario(scenario, parsed.format, profile_id, output_mode, persist, _source(caller))
+        _run_scenario(
+            scenario,
+            parsed.format,
+            profile_id,
+            output_mode,
+            persist,
+            _source(caller),
+            lane=lane,
+            release=release,
+        )
         for scenario in parsed.scenarios
     ]
     generated = sum(1 for item in results if item.status == "GENERATED")
@@ -501,10 +591,13 @@ def _run_scenario(
     output_mode: list[OutputMode] | None,
     persist: bool,
     source: str,
+    *,
+    lane: Lane = Lane.CONFIGURED,
+    release: str | None = None,
 ) -> ExcelScenarioResult:
     if scenario.issues:
         return _failed_scenario(scenario, format_, scenario.issues)
-    if not known_message_type(format_, scenario.message_type):
+    if not known_message_type(format_, scenario.message_type, lane):
         return _failed_scenario(
             scenario,
             format_,
@@ -513,8 +606,7 @@ def _run_scenario(
                     rule_id="EXCEL_UNSUPPORTED_MESSAGE_TYPE",
                     severity=IssueSeverity.ERROR,
                     layer=ValidationLayer.CANONICAL,
-                    message=f"{scenario.message_type} is not a supported "
-                    f"{format_.value} message.",
+                    message=f"{scenario.message_type} is not a supported {format_.value} message.",
                     suggestion="Call GET /api/v1/catalogue for the supported message types.",
                 )
             ],
@@ -530,6 +622,8 @@ def _run_scenario(
                 elements=scenario.elements,
                 output_modes=output_mode,
                 persist=persist,
+                lane=lane,
+                release=release,
             ),
             source=f"EXCEL_{source}",
         )
@@ -558,6 +652,8 @@ def _run_scenario(
         outputs=result.outputs,
         message_id=result.message_id,
         checksum=result.checksum,
+        lane=result.lane,
+        provenance=result.provenance,
     )
 
 
@@ -597,13 +693,19 @@ def download_template(
     format: MessageFormat,
     caller: AutomationCaller,
     message_type: Annotated[list[str] | None, Query(alias="messageType")] = None,
+    lane: Annotated[Lane, Query()] = Lane.CONFIGURED,
+    release: Annotated[str | None, Query(max_length=32)] = None,
 ) -> Response:
-    """A ready-to-edit workbook generated from the message specification."""
+    """A ready-to-edit workbook generated from the message specification.
+
+    With ``lane=KNOWLEDGE_PREVIEW`` the workbook is generated from the named local
+    Structure Pack(s) — no hand-written template exists for any message.
+    """
     del caller
     if message_type:
         for candidate in message_type:
-            _require_known(format, candidate)
-    content = build_template(format, message_type)
+            _require_known(format, candidate, lane)
+    content = build_template(format, message_type, lane=lane, release=release)
     name = f"financial-message-studio-{format.value.lower()}-template.xlsx"
     return Response(
         content=content,

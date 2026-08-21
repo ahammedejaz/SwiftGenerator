@@ -33,6 +33,17 @@ class BusinessArea(StrEnum):
     SETTLEMENT_COMMANDS = "SETTLEMENT_COMMANDS"
     PENALTIES = "PENALTIES"
     CORPORATE_ACTIONS = "CORPORATE_ACTIONS"
+    # MT categories, for packs compiled from source evidence. Catalogue buckets only.
+    CUSTOMER_PAYMENTS = "CUSTOMER_PAYMENTS"
+    FINANCIAL_INSTITUTION_TRANSFERS = "FINANCIAL_INSTITUTION_TRANSFERS"
+    TREASURY_MARKETS = "TREASURY_MARKETS"
+    COLLECTIONS_CASH_LETTERS = "COLLECTIONS_CASH_LETTERS"
+    SECURITIES_MARKETS = "SECURITIES_MARKETS"
+    PRECIOUS_METALS_SYNDICATIONS = "PRECIOUS_METALS_SYNDICATIONS"
+    DOCUMENTARY_CREDITS_GUARANTEES = "DOCUMENTARY_CREDITS_GUARANTEES"
+    TRAVELLERS_CHEQUES = "TRAVELLERS_CHEQUES"
+    SYSTEM_MESSAGES = "SYSTEM_MESSAGES"
+    COMMON_GROUP = "COMMON_GROUP"
     #: Compiled packs from families outside the four configured areas land here until a
     #: reviewer assigns them a real area. A catalogue bucket, never a capability claim.
     OTHER = "OTHER"
@@ -48,6 +59,16 @@ BUSINESS_AREA_LABELS: dict[BusinessArea, str] = {
     BusinessArea.SETTLEMENT_COMMANDS: "Settlement Commands",
     BusinessArea.PENALTIES: "Penalties",
     BusinessArea.CORPORATE_ACTIONS: "Corporate Actions",
+    BusinessArea.CUSTOMER_PAYMENTS: "Customer Payments & Cheques",
+    BusinessArea.FINANCIAL_INSTITUTION_TRANSFERS: "Financial Institution Transfers",
+    BusinessArea.TREASURY_MARKETS: "Treasury Markets",
+    BusinessArea.COLLECTIONS_CASH_LETTERS: "Collections & Cash Letters",
+    BusinessArea.SECURITIES_MARKETS: "Securities Markets",
+    BusinessArea.PRECIOUS_METALS_SYNDICATIONS: "Precious Metals & Syndications",
+    BusinessArea.DOCUMENTARY_CREDITS_GUARANTEES: "Documentary Credits & Guarantees",
+    BusinessArea.TRAVELLERS_CHEQUES: "Travellers Cheques",
+    BusinessArea.SYSTEM_MESSAGES: "System Messages",
+    BusinessArea.COMMON_GROUP: "Common Group",
     BusinessArea.OTHER: "Other Configured Messages",
 }
 
@@ -159,6 +180,33 @@ class SampleVariant(StrEnum):
 # --------------------------------------------------------------------------------------
 
 
+class Lane(StrEnum):
+    """Which registry a message resolves from. Never implicit for the preview lane."""
+
+    CONFIGURED = "CONFIGURED"
+    KNOWLEDGE_PREVIEW = "KNOWLEDGE_PREVIEW"
+
+
+class Readiness(StrEnum):
+    KNOWLEDGE_ONLY = "KNOWLEDGE_ONLY"
+    STRUCTURE_AVAILABLE = "STRUCTURE_AVAILABLE"
+    STRUCTURE_VERIFIED = "STRUCTURE_VERIFIED"
+    GENERATION_READY = "GENERATION_READY"
+
+
+class LaneProvenance(ApiModel):
+    """What a generated message in either lane rests on. Stated, never implied."""
+
+    lane: Lane
+    release: str | None = None
+    release_lane: str | None = None
+    structure_source: str
+    rule_status: str
+    validation_level: str
+    capability_statement: str
+    source_provenance: list[str] = Field(default_factory=list)
+
+
 class CatalogueEntry(ApiModel):
     format: MessageFormat
     message_type: str
@@ -179,6 +227,18 @@ class CatalogueEntry(ApiModel):
     #: one-sentence reading of it. Derived — see app/studio/capability.py.
     capability: CapabilityDimensions | None = None
     capability_summary: str = ""
+    # -- Phase 6: lane, release and readiness. Configured entries report their defaults.
+    lane: Lane = Lane.CONFIGURED
+    release: str | None = None
+    release_lane: str | None = None
+    readiness: Readiness = Readiness.GENERATION_READY
+    readiness_label: str = "Configured & validated"
+    blockers: list[str] = Field(default_factory=list)
+    structure_source: str | None = None
+    rules_status: str = "CONFIGURED"
+    knowledge_sources: int = 0
+    ai_sample_ready: bool = False
+    automation_ready: bool = True
 
 
 class CatalogueBusinessArea(ApiModel):
@@ -192,7 +252,10 @@ class CatalogueFormat(ApiModel):
     label: str
     description: str
     business_areas: list[CatalogueBusinessArea]
+    #: Every listed entry in this format, both lanes.
     message_count: int
+    #: Entries served by the configured lane (reviewed packs); the rest are preview.
+    configured_message_count: int = 0
 
 
 class StudioCatalogue(ApiModel):
@@ -288,6 +351,9 @@ class SpecGroup(ApiModel):
     repeatable: bool = False
     max_occurs: int = 1
     parent_id: str | None = None
+    #: 0 when the whole group may be absent; its mandatory fields are then owed only once
+    #: the group is used.
+    min_occurs: int = 1
 
 
 class MessageSpec(ApiModel):
@@ -309,6 +375,10 @@ class MessageSpec(ApiModel):
     limitations: list[str] = Field(default_factory=list)
     capability: CapabilityDimensions | None = None
     capability_summary: str = ""
+    lane: Lane = Lane.CONFIGURED
+    release: str | None = None
+    capability_statement: str | None = None
+    structure_source: str | None = None
 
 
 # --------------------------------------------------------------------------------------
@@ -384,6 +454,10 @@ class GenerateRequest(ApiModel):
     output_modes: list[OutputMode] | None = None
     envelope: EnvelopeOverride | None = None
     persist: bool = True
+    #: CONFIGURED unless the caller asks for the knowledge-preview lane by name.
+    lane: Lane = Lane.CONFIGURED
+    #: A standards release (MT) or message definition version (MX) within the lane.
+    release: str | None = Field(default=None, max_length=32)
 
 
 class ValidateRequest(GenerateRequest):
@@ -491,6 +565,8 @@ class GenerateResult(ApiModel):
     available_output_modes: list[OutputMode]
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     disclaimer: str
+    lane: Lane = Lane.CONFIGURED
+    provenance: LaneProvenance | None = None
 
 
 class ExcelScenarioResult(ApiModel):
@@ -504,6 +580,10 @@ class ExcelScenarioResult(ApiModel):
     outputs: MessageOutputs | None = None
     message_id: str | None = None
     checksum: str | None = None
+    #: The lane the scenario was generated in and what that rests on (Phase 6). A failed
+    #: scenario has no provenance because nothing was generated.
+    lane: Lane = Lane.CONFIGURED
+    provenance: LaneProvenance | None = None
 
 
 class ExcelGenerateResponse(ApiModel):
@@ -706,6 +786,9 @@ class ImportRequest(ApiModel):
     xml: str | None = Field(default=None, max_length=1_000_000)
     message_type: str | None = Field(default=None, max_length=16)
     profile_id: str = "BASE_DEMO_V1"
+    #: Read against a local Structure Pack instead of the configured registries.
+    lane: Lane = Lane.CONFIGURED
+    release: str | None = Field(default=None, max_length=32)
     scenario_id: str | None = Field(default=None, max_length=64)
     output_modes: list[OutputMode] | None = None
     #: Imports are a reading exercise by default; nothing is kept unless asked for.

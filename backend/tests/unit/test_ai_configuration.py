@@ -13,6 +13,9 @@ def settings(**overrides: object) -> Settings:
         "auth_mode": "oidc",
         "session_secure_cookies": True,
         "mock_uat_connector_enabled": False,
+        # Explicit: the knowledge fixtures export the scripted provider for the session.
+        "knowledge_ai_provider": "auto",
+        "embedding_provider": "auto",
     }
     defaults.update(overrides)
     return Settings(_env_file=None, **defaults)

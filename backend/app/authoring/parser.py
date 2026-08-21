@@ -11,7 +11,9 @@ from app.specifications.models import FieldSpecification, MessageSpecification
 
 DEMO_TYPE = re.compile(r"\{2:(MT(?:530|537|54[0-8]|56[4-8]))\}")
 FIN_TYPE = re.compile(r"\{2:I(530|537|54[0-8]|56[4-8])[A-Z0-9]*[NU]\}")
-FIELD = re.compile(r"^:(?P<tag>\d{2}[A-Z]):(?::(?P<qualifier>[A-Z0-9]{4})//)?(?P<value>.*)$")
+FIELD = re.compile(
+    r"^:(?P<tag>\d{2}[A-Z]):(?::(?P<qualifier>[A-Z0-9]{4})(?://|/))?(?P<value>.*)$"
+)
 BOUNDARY = re.compile(r"^:16(?P<boundary>[RS]):(?P<code>[A-Z0-9]+)$")
 
 

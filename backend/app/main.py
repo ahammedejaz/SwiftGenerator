@@ -10,6 +10,7 @@ from app.agents.cache import AiResultCache
 from app.agents.errors import AiServiceError
 from app.agents.providers.openrouter import OpenRouterClient
 from app.agents.service import AgentInterpretationService
+from app.ai_authoring.routes import router as ai_authoring_router
 from app.api.errors import (
     ai_service_error_handler,
     domain_validation_handler,
@@ -21,6 +22,7 @@ from app.api.errors import (
 from app.api.routes import router
 from app.authoring.routes import router as authoring_router
 from app.config import allowed_origins, get_settings
+from app.knowledge_base.routes import router as knowledge_router
 from app.persistence.ai_audit import ai_audit_repository
 from app.persistence.ai_cache import ai_cache_repository
 from app.persistence.ai_usage import ai_usage_repository
@@ -39,7 +41,13 @@ ai_rate_limiter = SlidingWindowRateLimiter(settings.ai_rate_limit_requests_per_m
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     create_schema()
-    model_client = OpenRouterClient(settings) if settings.ai_provider == "openrouter" else None
+    model_client: OpenRouterClient | None = None
+    if settings.ai_provider == "openrouter":
+        model_client = OpenRouterClient(settings)
+    elif settings.ai_provider in {"azure_openai", "openai_compatible"}:
+        from app.agents.providers.openai_compatible import OpenAiCompatibleClient
+
+        model_client = OpenAiCompatibleClient(settings)
     result_cache = AiResultCache(settings, ai_cache_repository)
     application.state.ai_service = AgentInterpretationService(
         settings,
@@ -49,9 +57,20 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         interaction_sink=ai_usage_repository,
     )
     application.state.ai_cache = result_cache
+    # Phase 6: the knowledge base loads its existing index immediately and never blocks
+    # startup on source documents. Optional development auto-sync runs in the background.
+    if settings.knowledge_enabled and settings.knowledge_auto_sync_on_start:
+        import asyncio
+
+        from app.knowledge_base.background import run_background_sync
+
+        application.state.knowledge_sync_task = asyncio.create_task(run_background_sync())
     try:
         yield
     finally:
+        task = getattr(application.state, "knowledge_sync_task", None)
+        if task is not None and not task.done():
+            task.cancel()
         await application.state.ai_service.aclose()
 
 
@@ -206,3 +225,5 @@ async def handle_ai_service_error(request: Request, exc: AiServiceError):  # typ
 app.include_router(router)
 app.include_router(authoring_router)
 app.include_router(studio_router)
+app.include_router(knowledge_router)
+app.include_router(ai_authoring_router)

@@ -8,6 +8,7 @@ from app.domain.enums import (
     PenaltyType,
 )
 from app.domain.models import RenderedField
+from app.knowledge.presentation import qualifier_separator_for
 from app.workflows.penalties import PenaltyStatement
 
 LIST_CODES = {
@@ -39,7 +40,11 @@ class PenaltyStatementComposer:
             path: str,
             meaning: str,
         ) -> None:
-            lines.append(f":{tag}::{qualifier}//{value}" if qualifier else f":{tag}:{value}")
+            lines.append(
+                f":{tag}::{qualifier}{qualifier_separator_for(tag)}{value}"
+                if qualifier
+                else f":{tag}:{value}"
+            )
             fields.append(
                 RenderedField(
                     sequence=sequence,

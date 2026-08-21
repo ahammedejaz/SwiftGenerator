@@ -61,6 +61,25 @@ services:
       EXTERNAL_VALIDATION_REQUIRED_FOR_SUBMISSION: "true"
       FIN_EXPORT_ENABLED: ${FIN_EXPORT_ENABLED:-true}
       RJE_EXPORT_ENABLED: ${RJE_EXPORT_ENABLED:-false}
+      # Phase 6: organisation AI endpoint and the local knowledge base. Names pass through
+      # from the host environment; the image carries no key and no licensed source. The
+      # knowledge base stays disabled unless KNOWLEDGE_MODE is set, and its sources must be
+      # mounted read-only at the path KNOWLEDGE_SOURCE_DIR names.
+      AI_ENDPOINT: ${AI_ENDPOINT:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_CHAT_DEPLOYMENT: ${AI_CHAT_DEPLOYMENT:-}
+      AI_API_VERSION: ${AI_API_VERSION:-}
+      EMBEDDINGS_DEPLOYMENT: ${EMBEDDINGS_DEPLOYMENT:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-auto}
+      KNOWLEDGE_MODE: ${KNOWLEDGE_MODE:-disabled}
+      KNOWLEDGE_SOURCE_DIR: ${KNOWLEDGE_SOURCE_DIR:-/app/knowledge-sources}
+      KNOWLEDGE_DB_PATH: /app/data/knowledge/knowledge.sqlite3
+      KNOWLEDGE_PACK_DIR: /app/data/knowledge/packs
+      KNOWLEDGE_SOURCE_CACHE_DIR: /app/data/knowledge/source-cache
+      KNOWLEDGE_AUTO_SYNC_ON_START: ${KNOWLEDGE_AUTO_SYNC_ON_START:-false}
+      KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED: ${KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED:-false}
+      KNOWLEDGE_EXTERNAL_LLM_ALLOWED: ${KNOWLEDGE_EXTERNAL_LLM_ALLOWED:-false}
+      KNOWLEDGE_AI_PROVIDER: ${KNOWLEDGE_AI_PROVIDER:-auto}
     ports:
       - "8000:8000"
     volumes:

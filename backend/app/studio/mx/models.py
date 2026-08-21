@@ -255,6 +255,10 @@ class MxMessageSpec(BaseModel):
     authoritative_completeness_known: bool = Field(alias="authoritativeCompletenessKnown")
     source: MxSource
     limitations: list[str] = Field(default_factory=list)
+    #: Phase 6: packs compiled from an operator-supplied schema declare their lane and a
+    #: plain capability statement; the configured subset leaves both at their defaults.
+    lane: str = "CONFIGURED"
+    capability_statement: str | None = Field(default=None, alias="capabilityStatement")
     #: Groups of sibling blocks where at least one must be present. Expressed as element
     #: names relative to the message root, e.g. [["PrcgSts", "MtchgSts", "SttlmSts"]].
     require_one_of: list[list[str]] = Field(default_factory=list, alias="requireOneOf")

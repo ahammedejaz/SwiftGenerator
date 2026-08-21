@@ -120,18 +120,43 @@ a machine that has never held one. See
 [generated/mt-sr2026-semantic-readiness.md](generated/mt-sr2026-semantic-readiness.md) and
 the reviewer packages in `docs/generated/mt54*-sr2026-rule-review.md`.
 
-**Verification status (all passing):**
+**The universal knowledge base, hybrid RAG and AI authoring exist (Phase 6 — branch
+`feat/phase-6-universal-rag-ai-authoring`, not merged).** `app/knowledge_base/` discovers
+authorised sources the operator drops into the ignored `swiftKnowledgeBase/` directory (and
+`build/mx-real-sources`), identifies each from its content, segments it into a local SQLite
+index with FTS5, embeds it only where policy allows, retrieves with lexical + semantic
+reciprocal-rank fusion, and compiles **local Structure Packs** from deterministic evidence —
+MT from the pinned Prowide fixture reconciled with SWIFT MRG Format Specifications, MX from
+operator-supplied XSDs through the existing `spec_engine` compiler. Those packs serve a
+separate, explicit **`KNOWLEDGE_PREVIEW` lane**; the configured lane is unchanged.
+`app/ai_authoring/` lets a model identify a message, prepare canonical values, draft
+MINIMAL / TYPICAL / FULL samples and test data, and phrase explanations with citations; the
+deterministic validator and composer decide everything. Measured on the operator's folder on
+2026-08-20: 23 sources, 4,663 segments, 293 message/release structures — **201 MT and 8 MX
+`GENERATION_READY`** in the preview lane, 10 `STRUCTURE_VERIFIED`, 69 `STRUCTURE_AVAILABLE`,
+5 `KNOWLEDGE_ONLY`; embeddings of every real source `BLOCKED` by policy, so retrieval on the
+real corpus is lexical. See §10a, [universal-financial-message-rag.md](universal-financial-message-rag.md),
+[knowledge-source-handling.md](knowledge-source-handling.md),
+[ai-assisted-authoring.md](ai-assisted-authoring.md), [automation-api.md](automation-api.md)
+and the generated [universal-message-readiness.md](generated/universal-message-readiness.md),
+[knowledge-rag-coverage.md](generated/knowledge-rag-coverage.md) and
+[ai-sample-readiness.md](generated/ai-sample-readiness.md).
+
+**Verification status (measured 2026-08-21 on the Phase 6 branch final head):**
 
 ```
-1446 backend tests (pytest)     ruff: clean      mypy --strict: clean (195 files)
- 80 browser tests (Playwright)  eslint: clean    tsc --noEmit: clean
+1546 backend tests passed, 22 skipped, 6 deselected (live marker)   ruff: clean   mypy --strict: clean (227 files)
+  96 browser tests (Playwright)   eslint: clean   tsc --noEmit: clean   next build: clean
+make check green (incl. knowledge-check: 11/11 synthetic retrieval cases, Recall@5 1.0, MRR 0.81)
+live proofs, never in CI: probe-embeddings PASS (3072 dims) · test-live-rag Recall@5 1.0 / MRR 0.875
+                          test-live-ai-sample 5 passed (second call: cache HIT, 0 model calls)
 CI: six jobs on every PR and every push to main    see §11
-production build: clean         migrations: up/down/up clean
-docker: both images build, compose stack serves all flows
-secret scan: clean in tree and in git history
+docker: both images build, compose config valid
+secret scan: clean; no raw source and no knowledge database is tracked
 clean clone, no .env, no keys: install -> migrate -> check -> e2e, and docker, all green
-released as v0.1.0
 ```
+
+Before Phase 6 (`main` at `b0ad6dd`): 1446 backend tests, 80 browser tests, mypy over 195 files.
 
 ---
 
@@ -174,9 +199,15 @@ Browser · JSON API · Excel upload
                     XSD (libxml2)
      └────────┬────────┘
         GenerateResult                      message · validation · checksum · origins
-              │
+              │                             + lane · provenance (Phase 6)
         studio_messages table
 ```
+
+Phase 6 changes one thing in this picture: *resolve* reads the configured registries by
+default and the `KNOWLEDGE_PREVIEW` registries only when the request names that lane (and,
+for MT, a release). Nothing else in the flow knows which lane it is serving, and no step
+in it calls a model or the knowledge base. The AI operations (`/api/v1/ai/*`) sit *before*
+this flow — they produce values that then enter it like any other caller's.
 
 ---
 
@@ -189,7 +220,8 @@ backend/app/studio/
   models.py         request/response contracts shared by every entry point
   catalogue.py      "what can I generate?" + format-neutral specification projection
   service.py        dispatch, layer assembly, output selection   ← the hub
-  routes.py         /api/v1 (18 endpoints)
+  routes.py         /api/v1 (18 endpoints; Phase 6 added lane/release to catalogue, spec,
+                    samples, validate, generate, import, Excel routes)
   security.py       X-API-Key service authentication
   samples.py        MINIMAL / TYPICAL / FULL sample generation
   excel.py          template generation + workbook parsing
@@ -208,6 +240,42 @@ backend/app/studio/
   mx/generator.py   MX composition, validation, AppHdr
   mx/parser.py      MX import — the exact inverse of the composer
   mx/xsd.py         schema derivation + libxml2 validation
+```
+
+### Backend — the knowledge base and AI authoring (Phase 6, ~10,000 LOC)
+
+```
+backend/app/knowledge_base/
+  __init__.py       KNOWLEDGE_SCHEMA_VERSION, CHUNKER_VERSION, EMBEDDING_SCHEMA_VERSION,
+                    PACK_COMPILER_VERSION — bump the last one whenever a compiler changes
+  __main__.py       CLI: sync, status, reports, evaluate-rag, probe-embeddings, clean-cache
+  discovery.py      walk the roots safely: no symlinks, ZIP limits, never writes a source
+  identify.py       identity and classification from CONTENT, never from the filename
+  chunking.py       stable segmentation with section classification and page markers
+  db.py             the SQLite schema: source, path, segment, FTS5, embedding, run, structure
+  index.py          incremental sync: checksum → parse → segment → FTS → embed → compile
+  embeddings.py     provider-neutral embedding adapter (azure_openai / openai_compatible / fake)
+  vector_store.py   NumPy cosine over float32 BLOBs; filtered by format/message/release
+  retrieval.py      BM25 + cosine → reciprocal rank fusion (k=60), section diversity, budget
+  policy.py         may this source's text leave the machine? two gates, default blocked
+  service.py        the ONE runtime door: status, search, caches, telemetry; NOT_INDEXED-safe
+  preview.py        the KNOWLEDGE_PREVIEW lane: packs loaded into separate registry instances
+  reports.py        docs/generated/{universal-message-readiness,knowledge-rag-coverage,
+                    ai-sample-readiness}.md
+  evaluation.py     the offline retrieval evaluation behind make knowledge-check
+  routes.py         /api/v1/knowledge (7 endpoints)
+  structures/
+    mt_pack.py      Prowide evidence + MRG Format Specifications → MT pack + gates + readiness
+    mt_loader.py    MT pack → MessageSpecification (the runtime type the composer reads)
+    mrg.py          Format Specification tables read from an MRG's page-marked text
+    mx_pack.py      operator XSD → MX pack via spec_engine.compile_schema + validate_pack
+    swift_format.py SWIFT field-format patterns → synthetic values for the sample gate
+backend/app/ai_authoring/
+  service.py        identify, prepare, samples, test data, presentation, ask, releases/compare
+  provider.py       structured-completion provider (organisation endpoint / OpenRouter / scripted)
+  prompts.py        prompt templates; the RAG context boundary and injection guards
+  schemas.py        closed JSON schemas every model answer must satisfy
+  routes.py         /api/v1/ai (7 endpoints)
 ```
 
 ### Backend — reused unchanged (predates the studio, already tested)
@@ -243,6 +311,8 @@ backend/config/mx/*.yaml               MX: complete nested element tree, one per
 backend/config/mx/xsd/official/        drop licensed .xsd files here; see its README
 backend/config/profiles/*.yaml         client profiles: currencies, rules, envelope values
 backend/config/rule_sources/           business-rule sources; raw licensed drops ignored
+swiftKnowledgeBase/                    operator's authorised PDFs/XSDs/ZIPs — ignored, never committed
+build/knowledge/                       knowledge.sqlite3, packs/, source-cache/ — derived, ignored
 ```
 
 Each of those four locations has a setting that redirects it — `MT_SPECIFICATION_MANIFEST`,
@@ -263,12 +333,20 @@ frontend/components/studio/
   MessageDiff.tsx      original vs regenerated, and why each line differs
   ValidationPanel.tsx  plain-English validation
   ExcelStudio.tsx  Intelligence.tsx  ValidateStudio.tsx  Automation.tsx  RecentMessages.tsx
+  KnowledgeBase.tsx    sources, readiness, search and sync for the local knowledge base
   Icon.tsx  ui.tsx     authored SVG icons + the component vocabulary
+frontend/components/ai/KnowledgeTelemetryPanel.tsx   embedding / retrieval / sample-cache telemetry
 frontend/lib/identifiers.ts    ISIN / BIC checks for live feedback; the server still decides
 frontend/lib/studio-types.ts   TypeScript mirror of the API contract
 frontend/lib/studio-api.ts     typed client — the ONLY place fetch() is called
 frontend/app/{,excel,intelligence,validate,automation,recent,advanced}/page.tsx
+frontend/app/knowledge-base/page.tsx   reached from the Advanced page, not the six-item nav
 ```
+
+Phase 6 touched `CreateMessage.tsx` (catalogue entries are keyed by format, type, lane and
+release; AI sample and business-request entry points), `Intelligence.tsx` (the "Ask" panel
+over indexed sources), `ExcelStudio.tsx` and `Automation.tsx` (lane/release on templates and
+examples) and `RecentMessages.tsx` (lane shown).
 
 ### Demonstration and release
 
@@ -277,6 +355,7 @@ demo/                                  synthetic pack, generated — never hand-
 CLIENT_DEMO_RUNBOOK.md                 the twenty-minute walkthrough
 AUTHORITATIVE_ARTIFACT_CHECKLIST.md    what a client must supply, and what it unlocks
 docs/history/                          point-in-time reports; v0-1-0-release-readiness-report.md is the v0.1.0 baseline
+docs/generated/                        measured reports; make knowledge-reports-write renders the three Phase 6 ones
 ```
 
 ### Tests
@@ -296,6 +375,14 @@ backend/tests/studio/test_message_diff.py     every difference is attributed cor
 backend/tests/studio/test_mx_lifecycle.py     the four cancellation/modification messages
 backend/tests/rule_engine/test_mt_semantics.py Phase 5A MT source/reference/runtime boundaries
 backend/tests/rule_engine/test_mt_mrg.py      Phase 5B/5C guide reading, release isolation, occurrence-aware candidate proofs
+backend/tests/knowledge_base/test_discovery.py        roots, symlinks, ZIP limits, content identity
+backend/tests/knowledge_base/test_chunking.py         stable segmentation and section classification
+backend/tests/knowledge_base/test_embeddings.py       adapter, cache key, policy gate, fake provider
+backend/tests/knowledge_base/test_retrieval_and_index.py  incremental sync, FTS, fusion, citations
+backend/tests/knowledge_base/test_structures_and_lane.py  MT/MX pack compilation, gates, preview lane isolation
+backend/tests/ai_authoring/test_authoring.py          identify/prepare/samples/test-data with the scripted provider
+backend/tests/knowledge_fixtures.py                   the synthetic corpus every knowledge test indexes
+backend/tests/live/test_ai_sample_live.py             real-provider proof; `-m live`, never in make check
 backend/tests/studio/test_excel_api.py        templates, parsing, upload guards
 backend/tests/studio/test_studio_api.py       the /api/v1 contract
 backend/tests/security/test_cors_and_throttling.py  short-circuit responses stay readable
@@ -306,6 +393,9 @@ frontend/tests/e2e/mt-authoring.spec.ts       ISIN, SETR, parties, dropdowns, mo
 frontend/tests/e2e/studio-import.spec.ts      import round trip + lifecycle in the browser
 frontend/tests/e2e/message-diff.spec.ts       the comparison a tester actually reads
 frontend/tests/e2e/studio-screens.spec.ts     other screens + responsive + a11y
+frontend/tests/e2e/knowledge-base.spec.ts     sources, readiness, search, preview-lane catalogue
+frontend/tests/e2e/ai-authoring.spec.ts       AI sample / business request with the scripted provider
+frontend/tests/e2e/global-setup.ts            indexes the synthetic corpus into build/knowledge-e2e/ first
 backend/tests/golden/expected/*.txt           byte-for-byte MT regression fixtures
 ```
 
@@ -464,14 +554,149 @@ appear in a response, log line or source.
 
 ## 10. AI boundary
 
-The model does **one** thing: turn natural language into structured intent.
+Before Phase 6 the model did one thing: turn natural language into structured intent for
+the settlement screen. Phase 6 adds `app/ai_authoring/`, and the boundary is the same shape,
+wider:
 
-It never renders, validates, parses, reads a spreadsheet, builds XML, or looks up a tag.
-Message Intelligence is deterministic dictionary lookup — a Playwright test watches network
-traffic and asserts no model call is made.
+- **The model proposes; deterministic code decides.** It may identify a message from a
+  business request, choose canonical values for fields the Structure Pack declares, draft
+  MINIMAL / TYPICAL / FULL samples and bulk test data, and phrase explanations with
+  citations. It never renders FIN or XML, never decides validity, never parses, never reads
+  a spreadsheet, never adds a field, code, sequence or element the structure lacks, and
+  never changes the message type, lane or release it was given (`prepare` keeps MT541 when
+  the request text says "use MT999"; every returned field id must exist in the structure).
+- **Every AI answer goes through the ordinary validator and composer**, with a bounded
+  repair loop (`KNOWLEDGE_AI_MAX_REPAIR_ATTEMPTS`, default 3) that feeds the validator's
+  findings back. A sample is cached only once it validated, keyed as in §10a.
+- **The deterministic endpoints make zero model calls.** `POST /api/v1/messages/generate`,
+  `validate`, `import`, `diff`, the Excel routes and every `GET` never touch a provider or
+  the knowledge base. RAG runs only on the explicit `/api/v1/ai/*` operations and
+  `POST /api/v1/knowledge/search`.
+- **Every operation computes a deterministic seed first.** That seed is what the `scripted`
+  provider returns in CI and Playwright, what the platform falls back to with no provider,
+  and the starting point a live model refines inside a closed JSON schema.
+- **Retrieved text is data, not instruction.** Prompts fence source excerpts, the answer
+  schema is closed, and a source whose `llm_policy` is `BLOCKED` is cited by identity and
+  page but never quoted to an external model.
 
-`AI_PROVIDER=disabled` is fully supported and loses only the "describe a scenario in
-English" screen. Order when enabled: **deterministic → cache → model**.
+Message Intelligence lookup is still deterministic dictionary search — the Playwright test
+still watches network traffic for it. The new "Ask" panel on that screen is an explicit AI
+operation and is labelled as one.
+
+`AI_PROVIDER=disabled` and `KNOWLEDGE_AI_PROVIDER=disabled` are fully supported: every
+deterministic path and the preview lane keep working; the AI entry points answer with
+their deterministic seed or a clear "not configured". Order when enabled:
+**deterministic → cache → model**.
+
+---
+
+## 10a. The knowledge base — what an agent must know before touching it
+
+**Roots and discovery.** `KNOWLEDGE_SOURCE_DIR` is a comma-separated list of roots relative
+to the project root (the operator uses `swiftKnowledgeBase,build/mx-real-sources`).
+`discovery.py` walks them without following symlinks, never leaves a root, extracts ZIP
+members into the ignored source cache under byte and ratio limits, and never writes to an
+original. Supported suffixes: `.pdf .txt .md .markdown .html .htm .xsd .xml .zip`.
+`identify.py` decides what a file is **from its content** — an MRG's own cover page, an
+XSD's target namespace — never from its name. Identity is
+`(format, messageType, messageVersion, release)`; the checksum is the primary key, so the
+same bytes under two paths are one source.
+
+**The database** is one SQLite file (`KNOWLEDGE_DB_PATH`, default
+`build/knowledge/knowledge.sqlite3`) with tables for sources, paths, segments, an FTS5
+index (`unicode61 remove_diacritics 2`), embeddings, index runs and compiled structures.
+Versions: `KNOWLEDGE_SCHEMA_VERSION 1`, `knowledge-chunker/1`, `embedding/1`,
+`knowledge-pack-compiler/2`, `mt-structure-pack/1`. **Runtime reads the database only;
+source files are opened by the sync command alone.**
+
+**Incremental sync** (`make knowledge-sync`): unchanged checksums are skipped, chunks are
+reused by hash, embeddings are reused by `(segment_hash, provider, deployment, dimensions,
+schema_version)`, and compiled packs are reused when their compiler version and inputs are
+unchanged. On the operator's folder a fresh compile takes ~20 s, an unchanged rescan 0.4 s,
+`--reindex` ~27 s.
+
+**Privacy policy is two gates, both default closed.** A source's text may go to an external
+embedding or chat endpoint only when `KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED` /
+`KNOWLEDGE_EXTERNAL_LLM_ALLOWED` is true **and** its classification is listed in
+`KNOWLEDGE_EXTERNAL_PROCESSING_CLASSIFICATIONS` (default: `SYNTHETIC_FIXTURE` only). The
+decision is written on the source row and read by the embedder, the prompt builder and the
+citation renderer alike. An API key is never permission. On the operator's machine all 23
+real sources are `BLOCKED`, so retrieval over the real corpus is lexical, and the status
+endpoint says so in `embeddingPolicyStatement`.
+
+**Embeddings.** `EMBEDDING_PROVIDER` is `auto | azure_openai | openai_compatible | fake |
+disabled`; `auto` picks Azure when the endpoint host is `*.openai.azure.com`, an
+OpenAI-compatible server when an endpoint and key exist, and disabled otherwise. Vectors are
+float32 BLOBs with their norm; the dimension is validated on read. `fake` exists for tests
+and CI only.
+
+**Retrieval** (`retrieval.py`): metadata narrowing by format / message / release / section
+→ BM25 over FTS5 (k=20) → cosine over the filtered vectors (k=20) → reciprocal rank fusion
+with `RRF_K = 60` → at most 4 hits per section → a context budget of
+`KNOWLEDGE_CONTEXT_CHARS` (6,000). Semantic hits below 0.25 are dropped; semantic-only hits
+need 0.35. Ties break on the segment id. Deterministic; no model ranks anything. Every hit
+carries a citation — source id, checksum, page, section, release — and an excerpt only
+where `snippets` is allowed by policy.
+
+**Structure Packs and readiness.** `structures/mt_pack.py` builds one pack per MT message
+and release from the pinned Prowide `SR2025` fixture, reconciled with the Format
+Specification tables of any MRG the sync indexed for that message (the 14 `SR2026` guides
+produce MRG+Prowide-corroborated packs; a conflict is recorded as
+`STRUCTURE_SOURCE_CONFLICT`, never resolved by guessing). `structures/mx_pack.py` runs
+every indexed XSD through `spec_engine.compile_schema` and `validate_pack` — the same six
+gates a committed pack passes. Readiness is derived from gates, never declared:
+
+| Readiness | Meaning |
+|---|---|
+| `KNOWLEDGE_ONLY` | text is indexed; no pack loads (MT035, MT043, MT048, MT049, MT096 — Prowide models with no block-4 fields) |
+| `STRUCTURE_AVAILABLE` | pack loads but a gate failed or evidence is missing (`QUALIFIER_EVIDENCE_MISSING`, `FORMAT_FIDELITY_PARTIAL`, `MESSAGE_GENERATION_NOT_READY`) |
+| `STRUCTURE_VERIFIED` | a deterministic sample validated and composed, but parse/round trip failed (`ROUND_TRIP_FAILED`) |
+| `GENERATION_READY` | load → sample → validate → compose → parse → `Compose(Parse(Compose(v)))` identical (MX: and the source XSD accepted the output) |
+
+Measured 2026-08-20: 293 structures; MT 201 `GENERATION_READY` (187 Prowide-only SR2025 +
+14 MRG-corroborated), 10 `STRUCTURE_VERIFIED`, 69 `STRUCTURE_AVAILABLE`, 5
+`KNOWLEDGE_ONLY`; MX 8 `GENERATION_READY` (every pacs XSD supplied). `GENERATION_READY`
+means structure-backed test generation. It does not mean complete semantic rules, SWIFT
+certification, conformance or User Handbook completeness — the pack's own `limitations`
+say so.
+
+**Lanes and releases — never conflate them.**
+
+- `CONFIGURED`: the committed YAML, release `PUBLIC_UHB_REVIEW_2026_08_05`. Unchanged by
+  Phase 6. It is what `GET /api/v1/catalogue` lists first and what every call means when
+  it does not name a lane.
+- `KNOWLEDGE_PREVIEW`: packs compiled by the sync, loaded by `preview.py` into **separate
+  registry instances** of the same runtime types. A caller must name `lane` (and, for MT,
+  `release`) on every request; nothing promotes a preview pack into the configured
+  registries. Responses carry `lane` and `provenance` (structure source, release, release
+  lane, gates, limitations).
+- Releases: `SR2025` is `CURRENT_LIVE` Prowide evidence; `SR2026` is `FUTURE_TEST` (live
+  14 November 2026); `RELEASE_LANES` is a recorded table, never computed from the clock. A
+  preview of a configured message in a current-live release is **shadowed** — not listed
+  beside the configured entry (16 such Prowide-only structures), recorded in the readiness
+  report and visible at `GET /api/v1/knowledge/messages/{m}/status`. A future-release
+  preview of the same message (MT541 SR2026) stays listed.
+
+**Sample cache key**: format | message type | release or version | lane | sample type |
+profile | structure checksum | sorted rule-pack ids | message-scoped corpus version |
+`ai-authoring-prompt/1` | `ai-authoring-schema/1` | provider | model. Any of those changing
+is a miss; a hit makes zero model calls and returns the same checksum.
+
+**What is committed and what is not.** Committed: code, the synthetic fixture corpus
+(`backend/tests/knowledge_fixtures.py`), the generated reports (counts, checksums, no
+source text). Never committed: anything under `swiftKnowledgeBase/`, `build/knowledge*/`
+(database, vectors, source cache, compiled packs), and no `.env` value. `make secret-scan`
+and the `.gitignore` entries enforce it.
+
+**Endpoints.** `/api/v1/knowledge`: `GET status`, `GET messages`,
+`GET messages/{message}/status`, `POST search`, `GET telemetry`, `GET sources`,
+`POST sync` (404 unless `KNOWLEDGE_MODE=local_uat`). `/api/v1/ai`: `POST messages/identify`,
+`POST messages/prepare`, `POST samples`, `POST test-data/generate`, `POST presentation`,
+`POST ask`, `POST releases/compare`. Existing routes gained `lane` / `release`: `GET
+catalogue` (plus `readiness`, `blockers`, `configuredMessageCount`), `GET
+messages/{m}/spec`, `samples`, `samples/{variant}`, `POST validate` / `generate` / `import`
+(in the body), `generate-from-excel` and `templates/{format}.xlsx` (query). Contract detail:
+[automation-api.md](automation-api.md).
 
 ---
 
@@ -482,12 +707,16 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 
 | Job | What it runs | On |
 |---|---|---|
-| **Required Checks** | `make install` → `make check` → `make secret-scan` → `git diff --check` | PR, main |
+| **Required Checks** | `make install` → `make check` → `make secret-scan` → `git diff --check`. Since Phase 6 `make check` includes `knowledge-check`: the retrieval evaluation over the synthetic fixture corpus with `EMBEDDING_PROVIDER=fake` — no PDF, no XSD, no key, no network | PR, main |
 | **Clean Clone** | `make install` → `make migrate` → `make check`, from git-tracked files only | PR, main |
 | **MT Prowide Source** | backend deps + Java 21 → `make verify-prowide-mt-source` | PR, main |
-| **Browser E2E** | `make e2e`; report, traces and screenshots uploaded **on failure only** | PR, main |
+| **Browser E2E** | `make e2e`; report, traces and screenshots uploaded **on failure only**. Its Playwright global setup first indexes the synthetic corpus into `build/knowledge-e2e/` (fake embeddings, `scripted` AI provider), so the Knowledge Base and AI authoring screens are exercised with no licensed document and no provider key | PR, main |
 | **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
 | **Security Audit** | `make audit` — `pip-audit` and `npm audit --omit=dev` | PR, main |
+
+Phase 6 added no job and renamed none; it changed two step comments and what the existing
+targets cover. The live provider proofs (`make probe-embeddings`, `make test-live-rag`,
+`make test-live-ai-sample`) are deliberately outside CI: they need a key and cost money.
 
 Branch protection is **configured** on `main`: the status check `Required Checks` is
 required, `strict` is on so a branch must be up to date with `main` before it merges, and
@@ -546,6 +775,27 @@ make mt-mrg-evaluate           # prove the SR2026 candidate rules behave
 make verify-real-mt540-mt541-source   # the committed SR2026 evidence reproduces
 docker compose up --build
 ```
+
+Phase 6 — the knowledge base. `KNOWLEDGE_MODE` defaults to `local` for the CLI targets;
+pass `KNOWLEDGE_SOURCE_DIR=swiftKnowledgeBase,build/mx-real-sources` to walk more than the
+default root.
+
+```bash
+make knowledge-sync            # discover, identify, segment, index, embed (policy), compile packs — incremental
+make knowledge-status          # counts, last run, embedding/LLM policy, load errors
+make knowledge-reindex         # sync --reindex: re-parse every source, reuse nothing
+make knowledge-clean-cache     # drop build/knowledge caches; never touches a source
+make knowledge-reports-write   # docs/generated/{universal-message-readiness,knowledge-rag-coverage,ai-sample-readiness}.md
+make knowledge-reports-check   # fail if those reports no longer match the database
+make knowledge-check           # offline retrieval evaluation, synthetic fixtures, fake embeddings — in make check
+make evaluate-rag              # the same evaluation, by its own name
+make knowledge-dev             # sync, then uvicorn in KNOWLEDGE_MODE=local_uat (enables POST /knowledge/sync)
+make probe-embeddings          # one synthetic call to the configured embedding deployment; prints dims and latency
+make test-live-rag             # evaluate-rag --live: real embeddings over the SYNTHETIC corpus only
+make test-live-ai-sample       # pytest -m live tests/live/test_ai_sample_live.py: real chat deployment
+```
+
+The last three are never part of `make check` or CI.
 
 Targeted:
 
@@ -830,6 +1080,54 @@ Defects found and fixed while building this. These are the ones likely to recur:
     without the package and an *unused-ignore error* on a laptop with it. A
     `[[tool.mypy.overrides]]` entry is the only spelling that is right on both machines.
 
+**The knowledge base (Phase 6)**
+
+49. **A compiler change without a version bump reuses stale packs.** Structure reuse is
+    keyed on `PACK_COMPILER_VERSION` plus the inputs, so a fix to `mt_pack.py` that leaves
+    the constant alone is silently never applied to an existing database. Bump
+    `knowledge-pack-compiler/N` in `app/knowledge_base/__init__.py` in the same commit, or
+    run `make knowledge-reindex` and wonder why nothing changed.
+50. **`demo/` carries `lane: CONFIGURED` now.** Every request the demo pack records names
+    its lane, so a lane added to the contract makes `make demo-pack-check` fail until
+    `make demo-pack` regenerates it. That is the gate working; regenerate and commit.
+51. **Silence is "blocked".** With the default settings every real source is
+    `EMBEDDING_BLOCKED` and retrieval is lexical-only; telemetry shows `semantic: 0`. That is
+    policy, not a failure. Allowing it takes both `KNOWLEDGE_EXTERNAL_EMBEDDING_ALLOWED=true`
+    and the classification in `KNOWLEDGE_EXTERNAL_PROCESSING_CLASSIFICATIONS`. A key alone
+    changes nothing.
+52. **Sixteen preview structures exist that the catalogue does not list.** A Prowide-only
+    `SR2025` pack for a message the configured lane already serves is *shadowed*: the
+    configured pack is the authority for that message in the current-live release. They are
+    in the readiness report and at `GET /knowledge/messages/{m}/status`; they are not
+    missing.
+53. **Option-R party fields take one slash after the qualifier.** `:95R::QUAL//...` was
+    rendered for a `:4!c/8c/34x` format; the correct form is `:95R::QUAL/<scheme>/<code>`.
+    Fixed in `qualifier_separator_for` (`app/knowledge/presentation.py`); golden fixtures
+    and one Playwright expectation changed with it. A Prowide format string is the place to
+    read the separator from, not the tag family.
+54. **`STRUCTURE_VERIFIED` is the parser's verdict, not the composer's.** The ten MT
+    structures in that state composed a valid message and then failed `ROUND_TRIP_FAILED`
+    on the way back. Promote them only by fixing the generic parser path the gate names,
+    never by relaxing the gate.
+55. **`POST /api/v1/knowledge/sync` answers `404` unless `KNOWLEDGE_MODE=local_uat`.** Not
+    403: outside UAT mode the endpoint does not exist as far as a caller can tell, so a
+    production-style process cannot be asked to read workstation files, and a sync that
+    "did nothing" is usually this. `make knowledge-dev` sets the mode for you.
+56. **Runtime never opens a source file.** `preview.py` and `service.py` read the SQLite
+    database and the YAML packs only; the compiler, the Prowide tooling, the MRG reader and
+    the PDF library are imported by the sync command alone. A change that makes a request
+    path import `structures/` or `identify.py` is wrong even if it works.
+57. **Identity comes from content, never from the filename.** A file called `MT541.pdf`
+    that is actually the MT540 guide is indexed as MT540. A renamed copy of an indexed file
+    is the same source (same checksum, two paths), not a duplicate.
+58. **`bis_skin_checked` hydration warnings are not ours.** They come from a browser
+    extension that rewrites the DOM before React hydrates. Reproduce in a clean profile
+    before chasing them.
+59. **The synthetic fixture corpus is the only thing a live embedding test may send.**
+    `make test-live-rag` embeds `tests/knowledge_fixtures.py`, never the operator's folder,
+    whatever the policy settings say — so it can be run on a machine that holds licensed
+    PDFs without sending one.
+
 ---
 
 ## 14. Known limitations
@@ -856,8 +1154,23 @@ Full list: [limitations.md](limitations.md).
   refuses and lists the candidates rather than picking one. A complete FIN message names
   itself in Block 2 and needs no help. The browser reveals a message picker only after the
   refusal, so the question is never asked of someone who does not need it.
-- **Not implemented:** payments (`pacs.*`), cash management (`camt.*`), reconciliation
-  (`semt.*`).
+- **"Any message" means: any message for which an authorised source and deterministic
+  structure evidence exist, and only as far as the gates prove.** The configured lane is
+  still 23 messages. The preview lane is as wide as the Prowide fixture plus whatever XSDs
+  and guides the operator dropped in — 209 `GENERATION_READY` structures on 2026-08-20 —
+  and a message without structural evidence (`KNOWLEDGE_ONLY`) can be searched but never
+  generated. Preview packs carry structure only; Network Validated Rules, usage rules,
+  market practice and client rules are not evaluated unless a reviewed Rule Pack is
+  installed.
+- **Retrieval over the real corpus is lexical.** Every real source is embedding-blocked by
+  policy in the default configuration; the hybrid path is proven on the synthetic corpus
+  and with a live probe, not on the licensed documents.
+- **AI output is bounded, not deterministic.** The validator and composer decide what is
+  accepted; a live model may propose different valid values on different days. The sample
+  cache pins a validated answer; `KNOWLEDGE_AI_PROVIDER=scripted` pins the seed.
+- **Not in the configured lane:** payments (`pacs.*`), cash management (`camt.*`),
+  reconciliation (`semt.*`). Eight `pacs` XSDs compile to `GENERATION_READY` preview
+  structures from the operator's XSDs; nothing `camt.*` or `semt.*` has been supplied.
 - **The `22F::SETR` domain-rule gap is closed.** It used to render `//BUY` in Sequence B
   and `//RECE` in Sequence E; neither is a settlement transaction type, and the field
   belongs in Sequence E alone. Reconciled against `config/mx/sese.023.001.11.yaml` — this
@@ -886,6 +1199,10 @@ Full list: [limitations.md](limitations.md).
 | Add an output format | `OutputMode` enum → produce in `StudioService` → extension in `routes.OUTPUT_FILE_TYPES`. |
 | Add an endpoint | `app/studio/routes.py` → `lib/studio-types.ts` → `lib/studio-api.ts`. |
 | Import a licensed spec, schema or client guideline | Drop the file in and point the matching setting at it. No code. [authoritative-sources.md](authoritative-sources.md) is the procedure; `GET /api/v1/sources` reports what is present. |
+| Make another MT message testable from its Message Reference Guide | Put the PDF under `swiftKnowledgeBase/`, run `make knowledge-sync`, read its row in `GET /api/v1/knowledge/messages/{m}/status` or the readiness report. No code: identity comes from the PDF, structure from Prowide evidence reconciled with the guide, the lane is `KNOWLEDGE_PREVIEW`. If the row is not `GENERATION_READY` the blocker names the generic gate to fix. [knowledge-source-handling.md](knowledge-source-handling.md). |
+| Make another MX message testable from its XSD | Put the `.xsd` (or a ZIP of them) under `swiftKnowledgeBase/`, run `make knowledge-sync`. The existing compiler and its six gates run; the pack lands in the preview lane. No code — the eight `pacs` messages were added this way. |
+| Promote a preview structure into the configured lane | Not automatic, by design. Review the pack, commit it as ordinary `config/` YAML with its provenance, add the manifest entry; then the configured gates and golden files apply. |
+| Add an AI operation | `app/ai_authoring/service.py` (compute the seed first) → a closed schema in `schemas.py` → the route → `lib/studio-types.ts` → `lib/studio-api.ts`. It must survive `KNOWLEDGE_AI_PROVIDER=scripted` and `disabled`. |
 
 **Golden files** (`backend/tests/golden/expected/*.txt`) fail on any byte change to MT
 output. That friction is deliberate: update the fixture in the same commit and say why.
@@ -896,22 +1213,26 @@ output. That friction is deliberate: update the fixture in the same commit and s
 
 In value order on the current architecture:
 
-1. **Phase 2 of the specification engine** ([plan](specification-engine-plan.md)):
-   evidence-backed rule extraction and the market-practice overlay model. The provenance
-   fields and the `businessRules` dimension are the waiting seams.
-2. **Reconcile the four lifecycle specifications** against an authoritative ISO 20022
+1. **Close the ten `ROUND_TRIP_FAILED` MT structures** by fixing the generic parser path
+   each gate names, and reduce the 69 `STRUCTURE_AVAILABLE` blockers
+   (`QUALIFIER_EVIDENCE_MISSING` needs a guide for the message; `FORMAT_FIDELITY_PARTIAL`
+   needs another pattern in `swift_format.py`). Every fix is generic and moves many rows.
+2. **Phase 7 of the specification engine** ([plan](specification-engine-plan.md)): client
+   MyStandards usage-guideline ingestion on top of the knowledge base, and the remaining
+   MT542–MT548 guides already in the operator's drop directory as semantic-rule sources.
+3. **Reconcile the four lifecycle specifications** against an authoritative ISO 20022
    message-definition report. They are shipped, generating and round-tripping, but flagged
    `UNVERIFIED`; this is the cheapest way to remove a caveat that applies to four of seven
    MX messages. The procedure and what to re-run are in
    [authoritative-sources.md](authoritative-sources.md).
-3. **Import a licensed MT specification.** Still the only thing that changes what the
+4. **Import a licensed MT specification.** Still the only thing that changes what the
    platform may *claim*. The drop point and the setting exist; the YAML structure already
    fits.
-4. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
+5. **Drop official ISO 20022 XSDs into `backend/config/mx/xsd/official/`.** One folder, no
    code, MX validation becomes authoritative.
-5. **Shared state for rate limiter and circuit breaker** before running more than one
+6. **Shared state for rate limiter and circuit breaker** before running more than one
    instance. Needs Redis or equivalent.
-6. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
+7. **Production OIDC/SAML adapter.** The boundary exists; the adapter does not.
 
 ## 17. Writing style expected in this repo
 

@@ -12,6 +12,9 @@ class WorkflowModuleId(StrEnum):
     SETTLEMENT_COMMAND = "SETTLEMENT_COMMAND"
     PENALTIES = "PENALTIES"
     CORPORATE_ACTIONS = "CORPORATE_ACTIONS"
+    #: A local Structure Pack compiled from source evidence (Phase 6). Not a workflow the
+    #: legacy scenario screens know; the studio resolves its business area from the pack.
+    KNOWLEDGE_PREVIEW = "KNOWLEDGE_PREVIEW"
 
 
 class PresenceRule(StrEnum):
@@ -54,6 +57,10 @@ class SourceType(StrEnum):
     AUTHORISED_SWIFT = "AUTHORISED_SWIFT"
     APPROVED_CLIENT_GUIDE = "APPROVED_CLIENT_GUIDE"
     APPROVED_INTERNAL_RULE_PACK = "APPROVED_INTERNAL_RULE_PACK"
+    #: Phase 6 local Structure Packs: structural evidence, never a conformance claim.
+    PROWIDE_DERIVED_STRUCTURAL_EVIDENCE = "PROWIDE_DERIVED_STRUCTURAL_EVIDENCE"
+    SWIFT_MRG_FORMAT_SPECIFICATION = "SWIFT_MRG_FORMAT_SPECIFICATION"
+    OPERATOR_SUPPLIED_XSD = "OPERATOR_SUPPLIED_XSD"
 
 
 class ReviewStatus(StrEnum):

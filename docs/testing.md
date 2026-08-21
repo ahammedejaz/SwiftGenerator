@@ -186,3 +186,8 @@ make test-live-ai      # needs a real OPENROUTER_API_KEY and spends money
 ```
 
 `make test` never calls a provider.
+
+Phase 6 live proofs (`make test-live-rag`, `make test-live-ai-sample`) and the manual
+walkthrough are in
+[testing/phase-06-universal-rag-uat-checklist.md](testing/phase-06-universal-rag-uat-checklist.md);
+the mechanism under test is in [ai-assisted-authoring.md](ai-assisted-authoring.md).

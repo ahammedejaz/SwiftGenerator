@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/studio/Icon";
 import {
   Badge,
+  Button,
   EmptyState,
   ErrorNotice,
   FormatBadge,
@@ -23,6 +24,7 @@ import {
 } from "@/components/studio/ui";
 import { StudioError, studioApi } from "@/lib/studio-api";
 import type {
+  AiAskResponse,
   IntelligenceDetail,
   IntelligenceHit,
   MessageFormat,
@@ -420,6 +422,8 @@ function FieldDetail({ detail }: { detail: IntelligenceDetail }) {
         </div>
       )}
 
+      <AskPanel detail={detail} />
+
       <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line bg-rail px-6 py-3 text-xs text-ink-3">
         <span>
           Source <span className="font-mono text-ink-2">{detail.sourceReference}</span>
@@ -429,6 +433,153 @@ function FieldDetail({ detail }: { detail: IntelligenceDetail }) {
         </span>
       </footer>
     </article>
+  );
+}
+
+/**
+ * Ask the indexed source material about this field or this message.
+ *
+ * Deliberately below the deterministic answer, and only on request: everything above it
+ * came from the platform's own configuration with no model involved. An answer here is
+ * cited to the sections it rests on, or says plainly that the indexed source does not
+ * establish it — the one thing it never does is fill the gap with something plausible.
+ */
+function AskPanel({ detail }: { detail: IntelligenceDetail }) {
+  const [response, setResponse] = useState<AiAskResponse | null>(null);
+  const [asked, setAsked] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"FIELD" | "MESSAGE" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const messageType = detail.messageTypes[0];
+
+  async function ask(kind: "FIELD" | "MESSAGE") {
+    const question =
+      kind === "FIELD"
+        ? `What does ${detail.label} (${detail.address}) mean${messageType ? ` in ${messageType}` : ""}, and how is it used?`
+        : `What is ${messageType ?? detail.format} used for, and what must it contain?`;
+    setBusy(kind);
+    setError(null);
+    try {
+      // The deterministic index covers the configured lane, whose catalogue entries carry
+      // no release, so none is passed; the answer may cite any indexed release and says so.
+      const answer = await studioApi.aiAsk({
+        question,
+        format: detail.format,
+        ...(messageType ? { messageType } : {}),
+        queryType: kind === "FIELD" ? "FIELD_EXPLANATION" : "FREE_TEXT",
+      });
+      setResponse(answer);
+      setAsked(question);
+    } catch (caught) {
+      setResponse(null);
+      setError(
+        caught instanceof StudioError
+          ? `The assistant could not answer. ${caught.message}`
+          : "The assistant could not answer.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // The answer names segment ids; the evidence list carries their titles and pages.
+  const cited = response
+    ? response.citations
+        .map((id) => response.retrievalEvidence.citations.find((item) => item.segmentId === id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    : [];
+  const tone =
+    response?.supported === "SUPPORTED"
+      ? "ok"
+      : response?.supported === "PARTIAL"
+        ? "warn"
+        : "neutral";
+  const supportLabel =
+    response?.supported === "SUPPORTED"
+      ? "Supported by the indexed source"
+      : response?.supported === "PARTIAL"
+        ? "Partly supported by the indexed source"
+        : "Not established by the indexed source";
+
+  return (
+    <div className="border-t border-line px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            Ask the indexed source material
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-ink-3">
+            Everything above comes from the platform&rsquo;s own configuration, with no model
+            involved. This asks the assistant, which answers only from indexed documents and
+            cites them.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="spark"
+            loading={busy === "FIELD"}
+            disabled={busy !== null}
+            onClick={() => void ask("FIELD")}
+          >
+            Ask about this field
+          </Button>
+          <Button
+            size="sm"
+            variant="quiet"
+            loading={busy === "MESSAGE"}
+            disabled={busy !== null || !messageType}
+            onClick={() => void ask("MESSAGE")}
+          >
+            Ask about this message
+          </Button>
+        </div>
+      </div>
+
+      {error && <div className="mt-3"><ErrorNotice title="Assistant unavailable" message={error} /></div>}
+
+      {response && (
+        <div className="mt-4 rounded-md border border-line bg-sunken/60 px-4 py-3" role="status">
+          {asked && <p className="text-xs text-ink-3">{asked}</p>}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <Badge tone={tone}>{supportLabel}</Badge>
+            <span className="text-xs text-ink-3">
+              {response.aiUsage.provider === "deterministic"
+                ? "No model call"
+                : `${response.aiUsage.llmCalls} model call${response.aiUsage.llmCalls === 1 ? "" : "s"}`}
+              {" · "}
+              {response.retrievalEvidence.segmentsUsed} source section
+              {response.retrievalEvidence.segmentsUsed === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-ink" data-testid="ask-answer">
+            {response.answer}
+          </p>
+          {response.caveats.length > 0 && (
+            <ul className="mt-2 list-inside list-disc text-xs leading-5 text-ink-2">
+              {response.caveats.map((caveat) => (
+                <li key={caveat}>{caveat}</li>
+              ))}
+            </ul>
+          )}
+          {cited.length > 0 && (
+            <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
+              {cited.map((citation) => (
+                <li key={citation.segmentId} className="text-[0.8125rem] leading-5" data-testid="ask-citation">
+                  <span className="font-medium text-ink">{citation.documentTitle}</span>
+                  <span className="text-ink-2">
+                    {" "}
+                    · {citation.section.toLowerCase().replace(/_/g, " ")}
+                    {citation.page !== null ? ` · page ${citation.page}` : ""}
+                    {citation.heading ? ` · ${citation.heading}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
+.PHONY: install migrate backend frontend dev test lint typecheck build e2e check audit coverage coverage-write knowledge-sync knowledge-status knowledge-reindex knowledge-clean-cache knowledge-reports-write knowledge-reports-check knowledge-check knowledge-dev probe-embeddings evaluate-rag test-live-rag test-live-ai-sample xsd-compatibility xsd-compatibility-write demo-pack demo-pack-check mt-prowide-extract mt-prowide-reports-write mt-prowide-check verify-prowide-mt-source benchmark reset-demo evaluate-ai evaluate-platform probe-live-ai test-live-ai secret-scan mx-source-discover mx-source-fetch mx-source-acquire mx-source-inspect mx-message-set-discover mx-message-set-fetch mx-message-set-inspect verify-real-iso-sources mx-scaleout rule-source-ingest rule-extract rule-review rule-validate rule-inspect rule-diff evaluate-rule-extraction test-live-rule-extraction mt-rule-source-ingest mt-rule-extract mt-rule-readiness-write mt-rule-check evaluate-mt-rule-extraction test-live-mt-rule-extraction mt-mrg-inspect mt-mrg-extract mt-mrg-reports-write mt-mrg-check mt-mrg-evaluate verify-real-mt540-mt541-source
 
 # The interpreter used to build the virtualenv. Overridable so a runner or a machine that
 # spells it differently needs no change to the recipe: `make install PYTHON=python3`.
@@ -43,7 +43,7 @@ e2e:
 	cd frontend && npm run test:e2e
 
 # Everything that must pass before pushing.
-check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check
+check: lint typecheck test coverage xsd-compatibility demo-pack-check mt-prowide-check mt-rule-check mt-mrg-check knowledge-check
 
 secret-scan:
 	@git ls-files -z | xargs -0 grep -nIE \
@@ -267,6 +267,62 @@ verify-real-mt540-mt541-source:
 	cd backend && .venv/bin/python -m app.rule_engine mrg-verify \
 		$(if $(MT_MRG_SOURCE_DIRECTORY),--directory $(abspath $(MT_MRG_SOURCE_DIRECTORY)),) \
 		--out $(abspath $(MT_MRG_FRESH))
+
+# Phase 6: the local knowledge base. Sources stay in the operator's folder (default
+# swiftKnowledgeBase; KNOWLEDGE_SOURCE_DIR accepts a comma-separated list); everything derived
+# lands under ignored build/knowledge/. Incremental: unchanged bytes are never re-read,
+# unchanged chunks never re-embedded, unchanged structures never recompiled.
+#
+#   make knowledge-sync                        discover → identify → index → embed → compile
+#   KNOWLEDGE_SOURCE_DIR=swiftKnowledgeBase,build/mx-real-sources make knowledge-sync
+#   make knowledge-status
+#   make knowledge-reindex                     re-parse every source
+#   make knowledge-clean-cache                 drop build/knowledge caches (never a source)
+#   make knowledge-reports-write               docs/generated/{universal-message-readiness,
+#                                              knowledge-rag-coverage,ai-sample-readiness}.md
+#   make knowledge-check                       synthetic-fixture retrieval evaluation (offline)
+#   make knowledge-dev                         sync, then start the backend in local UAT mode
+#   make probe-embeddings                      one synthetic call to the configured deployment
+#   make test-live-rag / test-live-ai-sample   live provider proofs; never part of `make check`
+KNOWLEDGE_SOURCE_DIR ?=
+KNOWLEDGE_ENV = KNOWLEDGE_MODE=$${KNOWLEDGE_MODE:-local} $(if $(KNOWLEDGE_SOURCE_DIR),KNOWLEDGE_SOURCE_DIR=$(KNOWLEDGE_SOURCE_DIR),)
+
+knowledge-sync:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base sync
+
+knowledge-status:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base status
+
+knowledge-reindex:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base sync --reindex
+
+knowledge-clean-cache:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base clean-cache
+
+knowledge-reports-write:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base reports
+
+knowledge-reports-check:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/python -m app.knowledge_base reports --check
+
+knowledge-check:
+	cd backend && EMBEDDING_PROVIDER=fake .venv/bin/python -m app.knowledge_base evaluate-rag
+
+knowledge-dev:
+	cd backend && KNOWLEDGE_MODE=local_uat $(if $(KNOWLEDGE_SOURCE_DIR),KNOWLEDGE_SOURCE_DIR=$(KNOWLEDGE_SOURCE_DIR),) .venv/bin/python -m app.knowledge_base sync --quiet
+	cd backend && KNOWLEDGE_MODE=local_uat $(if $(KNOWLEDGE_SOURCE_DIR),KNOWLEDGE_SOURCE_DIR=$(KNOWLEDGE_SOURCE_DIR),) .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+probe-embeddings:
+	cd backend && .venv/bin/python -m app.knowledge_base probe-embeddings
+
+evaluate-rag:
+	cd backend && EMBEDDING_PROVIDER=fake .venv/bin/python -m app.knowledge_base evaluate-rag
+
+test-live-rag:
+	cd backend && .venv/bin/python -m app.knowledge_base evaluate-rag --live
+
+test-live-ai-sample:
+	cd backend && $(KNOWLEDGE_ENV) .venv/bin/pytest -q -o addopts="" -m live tests/live/test_ai_sample_live.py
 
 benchmark:
 	cd backend && .venv/bin/python -m app.authoring.benchmark

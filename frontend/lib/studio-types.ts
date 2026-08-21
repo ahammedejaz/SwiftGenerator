@@ -50,7 +50,33 @@ export type BusinessArea =
   | "SETTLEMENT_COMMANDS"
   | "PENALTIES"
   | "CORPORATE_ACTIONS"
+  // Catalogue buckets for messages compiled from source evidence. Never a capability claim.
+  | "CUSTOMER_PAYMENTS"
+  | "FINANCIAL_INSTITUTION_TRANSFERS"
+  | "TREASURY_MARKETS"
+  | "COLLECTIONS_CASH_LETTERS"
+  | "SECURITIES_MARKETS"
+  | "PRECIOUS_METALS_SYNDICATIONS"
+  | "DOCUMENTARY_CREDITS_GUARANTEES"
+  | "TRAVELLERS_CHEQUES"
+  | "SYSTEM_MESSAGES"
+  | "COMMON_GROUP"
   | "OTHER";
+
+/**
+ * Which registry a message resolves from. The configured lane is the reviewed repository
+ * subset; the knowledge-preview lane is compiled from indexed source evidence and is never
+ * implicit — every call that touches a preview message names the lane and the release.
+ */
+export type Lane = "CONFIGURED" | "KNOWLEDGE_PREVIEW";
+
+export type ReleaseLane = "CURRENT_LIVE" | "FUTURE_TEST" | "UNKNOWN";
+
+export type Readiness =
+  | "KNOWLEDGE_ONLY"
+  | "STRUCTURE_AVAILABLE"
+  | "STRUCTURE_VERIFIED"
+  | "GENERATION_READY";
 
 export interface CapabilityDimensions {
   structure: "CONFIGURED_SUBSET" | "COMPILED_FROM_SCHEMA" | "UNVERIFIED";
@@ -78,6 +104,61 @@ export interface CatalogueEntry {
   limitations: string[];
   capability: CapabilityDimensions | null;
   capabilitySummary: string;
+  /** The same messageType can appear once per lane and release. */
+  lane: Lane;
+  /** MT: "SR2025" / "SR2026". MX: the full version, such as "pacs.008.001.14". */
+  release: string | null;
+  releaseLane: ReleaseLane | null;
+  readiness: Readiness;
+  /** Plain language — "Configured & validated", "Knowledge available; structure not yet compilable". */
+  readinessLabel: string;
+  /** Why a non-generatable entry is not generatable. Empty when it is. */
+  blockers: string[];
+  structureSource: string | null;
+  rulesStatus: string;
+  knowledgeSources: number;
+  /** A validated AI sample is already cached for this entry. */
+  aiSampleReady: boolean;
+  automationReady: boolean;
+}
+
+/** What tells two catalogue entries apart. A messageType alone no longer does. */
+export function entryKey(entry: {
+  format: MessageFormat;
+  messageType: string;
+  lane: Lane;
+  release: string | null;
+}): string {
+  return `${entry.format}|${entry.messageType}|${entry.lane}|${entry.release ?? ""}`;
+}
+
+/**
+ * The identity the API wants in a request. MX preview entries are addressed by their full
+ * version and carry no release; MT preview entries by type plus release.
+ */
+export interface MessageRef {
+  format: MessageFormat;
+  messageType: string;
+  lane: Lane;
+  release: string | null;
+}
+
+export function messageRef(entry: CatalogueEntry): MessageRef {
+  const preview = entry.lane === "KNOWLEDGE_PREVIEW";
+  if (preview && entry.format === "MX") {
+    return {
+      format: entry.format,
+      messageType: entry.version ?? entry.messageType,
+      lane: entry.lane,
+      release: null,
+    };
+  }
+  return {
+    format: entry.format,
+    messageType: entry.messageType,
+    lane: entry.lane,
+    release: preview ? entry.release : null,
+  };
 }
 
 export interface CatalogueBusinessArea {
@@ -91,7 +172,10 @@ export interface CatalogueFormat {
   label: string;
   description: string;
   businessAreas: CatalogueBusinessArea[];
+  /** Every entry in this format, previews included. */
   messageCount: number;
+  /** The reviewed configured entries alone. */
+  configuredMessageCount: number;
 }
 
 export interface StudioCatalogue {
@@ -183,6 +267,7 @@ export interface SpecGroup {
   description: string;
   order: number;
   repeatable: boolean;
+  minOccurs: number;
   maxOccurs: number;
   parentId: string | null;
 }
@@ -205,6 +290,11 @@ export interface MessageSpec {
   limitations: string[];
   capability: CapabilityDimensions | null;
   capabilitySummary: string;
+  lane: Lane;
+  release: string | null;
+  /** What generation in this lane rests on, in one sentence. Null for the configured lane. */
+  capabilityStatement: string | null;
+  structureSource: string | null;
 }
 
 export interface FieldInput {
@@ -244,6 +334,9 @@ export interface GenerateRequest {
   outputModes?: OutputMode[] | null;
   envelope?: EnvelopeOverride | null;
   persist?: boolean;
+  /** Defaults to the configured lane. The preview lane is never implicit. */
+  lane?: Lane;
+  release?: string | null;
 }
 
 export interface ValidationOccurrence {
@@ -333,6 +426,20 @@ export interface GenerateResult {
   availableOutputModes: OutputMode[];
   generatedAt: string;
   disclaimer: string;
+  lane: Lane;
+  provenance: LaneProvenance | null;
+}
+
+/** What a generated message in either lane rests on. Stated, never implied. */
+export interface LaneProvenance {
+  lane: Lane;
+  release: string | null;
+  releaseLane: ReleaseLane | null;
+  structureSource: string;
+  ruleStatus: string;
+  validationLevel: string;
+  capabilityStatement: string | null;
+  sourceProvenance: string[];
 }
 
 export interface SampleMessage {
@@ -358,6 +465,9 @@ export interface ExcelScenarioResult {
   outputs: MessageOutputs | null;
   messageId: string | null;
   checksum: string | null;
+  /** The lane the scenario was generated in; a failed scenario carries no provenance. */
+  lane?: Lane;
+  provenance?: LaneProvenance | null;
 }
 
 export interface ExcelGenerateResponse {
@@ -554,6 +664,9 @@ export interface ImportRequest {
   scenarioId?: string | null;
   outputModes?: OutputMode[] | null;
   persist?: boolean;
+  /** A preview-lane MT import needs the message type and the release as well. */
+  lane?: Lane;
+  release?: string | null;
 }
 
 export interface ImportResult {
@@ -578,4 +691,480 @@ export interface ImportResult {
   /** The imported message compared with the one just regenerated from it. */
   diff: MessageDiff;
   disclaimer: string;
+}
+
+/* ------------------------------------------------------------- knowledge base */
+
+/**
+ * `/api/v1/knowledge`. Everything here is safe to show: ids, titles, counts and policies.
+ * The API never returns a credential, an absolute path or a full licensed document, so
+ * nothing below can either.
+ */
+
+export interface KnowledgeCounts {
+  sources: number;
+  sourcesDeleted: number;
+  segments: number;
+  embeddings: number;
+  messages: number;
+  structures: number;
+  samplesCached: number;
+}
+
+export interface KnowledgeRun {
+  runId: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  state: string;
+  stats: Record<string, number | string | unknown[]>;
+}
+
+export interface KnowledgeStatus {
+  mode: string;
+  enabled: boolean;
+  indexed: boolean;
+  adminEnabled: boolean;
+  databasePresent: boolean;
+  roots: string[];
+  rootsMissing: string[];
+  counts: KnowledgeCounts;
+  lastRun: KnowledgeRun | null;
+  corpusVersion: string | null;
+  embeddingProvider: string;
+  /** Whether a deployment is configured — never which one. */
+  embeddingDeploymentConfigured: boolean;
+  embeddingDimensions: number | null;
+  embeddingPolicyStatement: string | null;
+  llmProvider: string;
+  sourcesEmbeddingBlocked: number;
+  sourcesEmbeddingAllowed: number;
+  loadErrors: string[];
+  /** Set when the base is not indexed; says how to index it. */
+  message: string | null;
+}
+
+export interface KnowledgeSourceRef {
+  sourceId: string;
+  documentType: string;
+  pages: number | null;
+  state: string;
+  checksum: string;
+}
+
+export interface KnowledgeMessageEntry {
+  format: MessageFormat;
+  messageType: string;
+  messageVersion: string | null;
+  release: string | null;
+  title: string | null;
+  sources: KnowledgeSourceRef[];
+  segments: number;
+  embedded: number;
+  embeddingPolicy: string | null;
+  llmPolicy: string | null;
+  readiness: Readiness;
+  blockers: string[];
+  structureSource: string | null;
+  gates?: Record<string, { passed: boolean; detail: string }>;
+}
+
+export interface KnowledgeMessagesResponse {
+  indexed: boolean;
+  messages: KnowledgeMessageEntry[];
+  message: string | null;
+}
+
+export interface KnowledgeSource {
+  sourceId: string;
+  checksum: string;
+  relativePaths: string[];
+  sourceType: string;
+  format: string;
+  documentType: string;
+  classification: string;
+  messageType: string | null;
+  messageVersion: string | null;
+  release: string | null;
+  title: string | null;
+  pageCount: number | null;
+  embeddingPolicy: string;
+  llmPolicy: string;
+  state: string;
+  segments: number;
+  embedded: number;
+  failureCode: string | null;
+  failureDetail: string | null;
+  deleted: boolean;
+}
+
+export interface KnowledgeSourcesResponse {
+  indexed: boolean;
+  sources: KnowledgeSource[];
+  message: string | null;
+}
+
+export interface KnowledgeSearchRequest {
+  query: string;
+  format?: MessageFormat;
+  messageType?: string;
+  release?: string;
+  sections?: string[];
+  limit?: number;
+  lexicalOnly?: boolean;
+}
+
+/** One cited section of one indexed source. A snippet is present only where policy allows. */
+export interface KnowledgeCitation {
+  sourceId: string;
+  documentTitle: string;
+  format?: string;
+  messageType: string | null;
+  messageVersion: string | null;
+  release: string | null;
+  documentType?: string;
+  section: string;
+  page: number | null;
+  heading: string | null;
+  segmentId: string;
+  segmentHash: string;
+  score: number;
+  method: string;
+  snippet: string | null;
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  queryType: string;
+  indexed: boolean;
+  results: KnowledgeCitation[];
+  lexicalCandidates: number;
+  semanticCandidates: number;
+  semanticAvailable: boolean;
+  semanticReason: string | null;
+  latencyMs: number;
+  contextChars: number;
+  corpusVersion: string | null;
+  policyStatement: string | null;
+  message: string | null;
+}
+
+export interface KnowledgeTelemetry {
+  indexed: boolean;
+  llm: {
+    operations: number;
+    calls: number;
+    promptTokens: number;
+    completionTokens: number;
+    cacheHits: number;
+    callsAvoided: number;
+    tokensAvoided: number;
+    averageLatencyMs: number;
+  };
+  embeddings: {
+    vectorsStored: number;
+    segmentsEmbedded: number;
+    lastRunRequests: number;
+    lastRunCacheHits: number;
+    lastRunRequestsAvoided: number;
+    lastRunTokens: number;
+    lastRunBlockedSegments: number;
+    provider: string;
+  };
+  retrieval: {
+    queries: number;
+    averageLatencyMs: number;
+    averageSegments: number;
+    hybrid: number;
+    lexical: number;
+    semantic: number;
+  };
+  samples: { cached: number; cacheHits: number };
+  /** Always false unless the provider reports cost. The page never computes one. */
+  costAvailable: boolean;
+  costNote: string;
+}
+
+export interface KnowledgeSyncResponse {
+  run: Record<string, unknown>;
+  status: KnowledgeStatus;
+}
+
+/* ---------------------------------------------------------------- AI authoring */
+
+/**
+ * `/api/v1/ai`. The model prepares values and answers questions; every message that comes
+ * back was composed and validated by the deterministic engine from values it accepted.
+ */
+
+export interface AiUsage {
+  /** "deterministic" means no model was involved at all. */
+  provider: string;
+  model: string;
+  llmCalls: number;
+  promptTokens: number;
+  completionTokens: number;
+  latencyMs: number;
+  attempts: number;
+  cacheHit: boolean;
+  callsAvoided: number;
+  tokensAvoided: number;
+  costAvailable: boolean;
+}
+
+export interface RetrievalEvidence {
+  segmentsUsed: number;
+  semanticAvailable: boolean;
+  semanticReason: string | null;
+  textSentToModel: boolean;
+  latencyMs: number;
+  contextChars: number;
+  corpusVersion: string | null;
+  citations: KnowledgeCitation[];
+}
+
+export interface AiCapability {
+  readiness: Readiness;
+  lane: Lane;
+  capabilityStatement: string | null;
+  structureSource: string | null;
+}
+
+export interface AiCacheInfo {
+  status: "HIT" | "MISS";
+  llmCallsAvoided: number;
+  tokensAvoided: number;
+}
+
+export interface CanonicalValue {
+  fieldId: string;
+  occurrence: number;
+  value: string;
+}
+
+export interface RejectedValue {
+  fieldId: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+export interface AiIdentifyRequest {
+  request: string;
+  format?: MessageFormat;
+  limit?: number;
+}
+
+export interface AiCandidate {
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  release: string | null;
+  lane: Lane;
+  name: string;
+  readiness: Readiness;
+  readinessLabel: string;
+  generatable: boolean;
+  confidence: number;
+  reason: string;
+}
+
+export interface AiIdentifyResponse {
+  request: string;
+  candidates: AiCandidate[];
+  explanation: string;
+  missingInformation: string[];
+  confidence: number;
+  retrievalEvidence: RetrievalEvidence;
+  aiUsage: AiUsage;
+  deterministicCandidates: unknown[];
+}
+
+export interface AiPrepareRequest {
+  scenario: string;
+  format?: MessageFormat;
+  messageType?: string;
+  release?: string | null;
+  lane?: Lane;
+  knownValues?: CanonicalValue[];
+  profileId?: string;
+}
+
+export interface AiPrepareResponse {
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  release: string | null;
+  lane: Lane;
+  scenario: string;
+  /** Keyed by `SpecField.id` — MT row ids, MX element paths — so they drop onto the form. */
+  canonicalValues: CanonicalValue[];
+  rejectedValues: RejectedValue[];
+  missingFields: string[];
+  questions: string[];
+  notes: string[];
+  validation: ValidationResult;
+  valid: boolean;
+  capability: AiCapability;
+  identification: AiIdentifyResponse | null;
+  retrievalEvidence: RetrievalEvidence;
+  aiUsage: AiUsage;
+}
+
+export interface AiSampleRequest {
+  format: MessageFormat;
+  messageType: string;
+  release?: string | null;
+  lane?: Lane;
+  sampleType: SampleVariant;
+  profileId?: string;
+  scenario?: string;
+  /** Bypass the validated-sample cache — the only way a repeat call reaches the model. */
+  refresh?: boolean;
+}
+
+export interface AiSampleResponse {
+  sampleId: string;
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  release: string | null;
+  lane: Lane;
+  sampleType: SampleVariant;
+  title: string;
+  description: string;
+  canonicalValues: CanonicalValue[];
+  inputs: FieldInput[];
+  elements: ElementInput[];
+  validation: ValidationResult;
+  valid: boolean;
+  outputs: MessageOutputs;
+  checksum: string;
+  provenance: LaneProvenance | null;
+  capability: AiCapability;
+  cache: AiCacheInfo;
+  aiUsage: AiUsage;
+  retrievalEvidence: RetrievalEvidence;
+  repair: { attempts: number; log: unknown[]; outcome: string };
+  roundTrip: Record<string, unknown> | null;
+  synthetic: true;
+}
+
+export interface AiTestDataRequest {
+  format: MessageFormat;
+  messageType: string;
+  release?: string | null;
+  lane?: Lane;
+  scenario: string;
+  count: number;
+  sampleType?: SampleVariant;
+  testIntent?: "POSITIVE" | "NEGATIVE";
+  profileId?: string;
+  reviewerMode?: boolean;
+  outputModes?: OutputMode[];
+}
+
+export interface AiTestScenario {
+  scenarioId: string;
+  title: string;
+  canonicalValues: CanonicalValue[];
+  rejectedValues: RejectedValue[];
+  validation: ValidationResult;
+  valid: boolean;
+  outputs: MessageOutputs;
+  checksum: string;
+  expectedRuleId?: string | null;
+  actualFindings?: string[];
+  proven?: boolean;
+  status?: string;
+}
+
+export interface AiTestDataResponse {
+  requestId: string;
+  format: MessageFormat;
+  messageType: string;
+  version: string | null;
+  release: string | null;
+  lane: Lane;
+  testIntent: string;
+  capability: AiCapability;
+  scenarios: AiTestScenario[];
+  generated: number;
+  total: number;
+  retrievalEvidence: RetrievalEvidence;
+  aiUsage: AiUsage;
+  cache: AiCacheInfo;
+  note: string | null;
+  synthetic: true;
+}
+
+export interface AiAskRequest {
+  question: string;
+  format?: MessageFormat;
+  messageType?: string;
+  release?: string | null;
+  queryType?: string;
+}
+
+export type AiSupport = "SUPPORTED" | "PARTIAL" | "UNSUPPORTED_BY_EVIDENCE";
+
+export interface AiAskResponse {
+  question: string;
+  answer: string;
+  supported: AiSupport;
+  /** Segment ids; the matching `retrievalEvidence.citations` carry title, section, page. */
+  citations: string[];
+  caveats: string[];
+  retrievalEvidence: RetrievalEvidence;
+  aiUsage: AiUsage;
+}
+
+export interface AiPresentationRequest {
+  format: MessageFormat;
+  messageType: string;
+  release?: string | null;
+  lane?: Lane;
+  fieldId: string;
+}
+
+export interface AiPresentationResponse {
+  fieldId: string;
+  presentation: {
+    displayLabel: string;
+    businessMeaning: string;
+    businessQuestion: string;
+    example: string;
+    whyNeeded: string;
+    commonMistake: string;
+    citations: string[];
+  };
+  cache: AiCacheInfo;
+  /** Always "NONE": presentation text never decides validity. */
+  authority: "NONE";
+  source: string;
+}
+
+export interface AiCompareRequest {
+  format: MessageFormat;
+  messageType: string;
+  releaseA: string;
+  releaseB: string;
+  focus?: string;
+}
+
+export interface AiCompareResponse {
+  format: MessageFormat;
+  messageType: string;
+  releaseA: string;
+  releaseB: string;
+  structural: {
+    comparable: boolean;
+    added: string[];
+    removed: string[];
+    changed: string[];
+    differences: Array<{ area: string; change: string }>;
+  };
+  summary: string;
+  differences: Array<{ area: string; change: string; citations: string[] }>;
+  citations: string[];
+  retrievalEvidence: RetrievalEvidence;
+  aiUsage: AiUsage;
 }

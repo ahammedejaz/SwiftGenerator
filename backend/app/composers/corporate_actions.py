@@ -8,6 +8,7 @@ from app.domain.enums import (
     CorporateActionOptionCode,
 )
 from app.domain.models import RenderedField
+from app.knowledge.presentation import qualifier_separator_for
 from app.workflows.corporate_actions import (
     CorporateActionConfirmationRequest,
     CorporateActionInstructionRequest,
@@ -51,7 +52,11 @@ class _Builder:
         path: str,
         meaning: str,
     ) -> None:
-        self.lines.append(f":{tag}::{qualifier}//{value}" if qualifier else f":{tag}:{value}")
+        self.lines.append(
+            f":{tag}::{qualifier}{qualifier_separator_for(tag)}{value}"
+            if qualifier
+            else f":{tag}:{value}"
+        )
         self.fields.append(
             RenderedField(
                 sequence=sequence,
