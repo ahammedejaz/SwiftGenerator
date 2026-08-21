@@ -160,13 +160,16 @@ release gates complete.
 
 ## Release record
 
-- Final feature SHA: `PENDING`
-- Pull request: `PENDING`
-- Exact feature-head CI: `PENDING`
-- Squash merge SHA: `PENDING`
-- Post-merge main CI: `PENDING`
+- Final feature head: `a0ce0579437dafcc1eaf22cb05a7031215bab83b`
+- Pull request: [#19](https://github.com/ahammedejaz/SwiftGenerator/pull/19), normally
+  squash-merged with no admin bypass
+- Exact feature-head CI: [run 32474836723](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/32474836723),
+  all six jobs successful
+- Squash merge SHA: `a371c7f87e58ee7b023ca3d1ff61341961c84fd1`
+- Post-merge main CI: [run 32475322252](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/32475322252),
+  all six jobs successful on the squash SHA
 - Clean-clone runtime: `PASS` from the committed feature checkout on isolated ports 8031/3031
   with a generated `.env`, empty data/knowledge volumes, all migrations, 23 configured entries,
   readiness and the Create/Convert/AI usage routes. Both local builders' clean image pulls were
-  separately blocked before project layers by Docker Hub metadata timeouts; the exact-head hosted
-  Clean Clone check remains the authoritative fresh-network build gate.
+  separately blocked before project layers by Docker Hub metadata timeouts. The exact-head hosted
+  Clean Clone job then passed from a fresh checkout, as did the post-merge Clean Clone job.
