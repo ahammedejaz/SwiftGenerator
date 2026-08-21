@@ -12,7 +12,8 @@ make quickstart
 
 The command creates `.env` from safe deterministic defaults when absent, generates local
 session/cache/encryption secrets, builds images, runs migrations, starts both services and
-waits for readiness. Open <http://localhost:3000>. No AI key and no knowledge bundle are
+waits for readiness. Open <http://localhost:3000> or <http://127.0.0.1:3000>; the
+development server accepts both. No AI key and no knowledge bundle are
 required for the 23 configured messages.
 
 ```bash
@@ -37,7 +38,10 @@ make migrate
 make dev
 ```
 
-`make dev` runs the API on `127.0.0.1:8000` and Next.js on `localhost:3000`. Copy
+`make dev` runs the API on `127.0.0.1:8000` and Next.js on port 3000, reachable as
+`localhost` or `127.0.0.1` — `next.config.ts` lists both as allowed development origins,
+because `next dev` otherwise blocks its own resources for the spelling it was not started
+on and the page never finishes loading. Copy
 `.env.example` to `.env` only when changing defaults. The example defaults to deterministic
 operation.
 
