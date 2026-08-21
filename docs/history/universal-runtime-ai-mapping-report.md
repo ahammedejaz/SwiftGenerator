@@ -135,7 +135,7 @@ the tracked-file secret scan found no secret-shaped values.
 
 ## Verification and UAT
 
-- `make check`: 1,560 passed, 22 skipped, six live-provider tests deselected; ruff, mypy strict
+- `make check`: 1,563 passed, 22 skipped, six live-provider tests deselected; ruff, mypy strict
   (231 files), ESLint, TypeScript, coverage, XSD, demo, Prowide, rule/MRG and RAG gates green.
 - Playwright: 98/98 green against isolated fresh backend/frontend processes on 8011/3011.
 - Build: Next production build green with 25 routes, including `/convert` and `/ai-efficiency`.
@@ -146,8 +146,8 @@ the tracked-file secret scan found no secret-shaped values.
   usage/knowledge/intelligence/conversion/Excel/API/import/download passed; desktop and phone
   widths had no horizontal overflow or console failures.
 
-The clean-clone quickstart, exact feature-head CI, normal merge and post-merge CI evidence are
-recorded below once those release gates complete.
+The exact feature-head CI, normal merge and post-merge CI evidence are recorded below once those
+release gates complete.
 
 ## Known blockers
 
@@ -165,4 +165,8 @@ recorded below once those release gates complete.
 - Exact feature-head CI: `PENDING`
 - Squash merge SHA: `PENDING`
 - Post-merge main CI: `PENDING`
-- Clean-clone quickstart: `PENDING`
+- Clean-clone runtime: `PASS` from the committed feature checkout on isolated ports 8031/3031
+  with a generated `.env`, empty data/knowledge volumes, all migrations, 23 configured entries,
+  readiness and the Create/Convert/AI usage routes. Both local builders' clean image pulls were
+  separately blocked before project layers by Docker Hub metadata timeouts; the exact-head hosted
+  Clean Clone check remains the authoritative fresh-network build gate.
