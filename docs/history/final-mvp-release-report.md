@@ -353,9 +353,32 @@ Tester checklist: `docs/testing/final-mvp-uat-checklist.md`.
 
 ## 46–50. Release facts
 
-- **Feature SHA:** recorded in §51 below once CI completed on the exact head.
-- **PR:** <https://github.com/ahammedejaz/SwiftGenerator/pull/22>
-- **CI:** six jobs on the exact feature head — Required Checks, Clean Clone, MT Prowide
-  Source, Browser E2E, Docker, Security Audit.
-- **Merge, final main SHA and post-merge CI:** recorded in the engagement's closing
-  response.
+- **Base main:** `e8a77f8a5d90be8d5690b54711cdc4174d515df6`
+- **Branch:** `feat/final-mvp-release-hardening`
+- **Feature SHAs:** `d19835a` (the fixes) and `36e3d70` (the release documents).
+- **PR:** <https://github.com/ahammedejaz/SwiftGenerator/pull/22> — open, non-draft, base
+  `main`, `MERGEABLE` / `CLEAN`, merge base equal to the recorded base main SHA.
+- **CI on the exact head `36e3d70`:** all six jobs pass — Required Checks 2m30s, Clean
+  Clone 2m39s, MT Prowide Source 32s, Browser E2E 7m15s, Docker 1m8s, Security Audit 1m6s
+  (run `32522040683`).
+- **Branch protection** verified before attempting the merge: `Required Checks` is the
+  required context, `strict` is on, force pushes and deletions are blocked.
+- **Merge: NOT PERFORMED.** `gh pr merge 22 --squash --match-head-commit 36e3d70` was
+  refused by the development environment's own permission policy, not by GitHub and not by
+  branch protection. Everything the brief asks for before a merge is done and green; the
+  merge itself, the resulting main SHA and the post-merge CI run remain outstanding and
+  need a human to run that one command.
+
+## 51. Live provider proofs
+
+Never part of CI — they need a key and cost money. Run on the operator's machine on
+2026-08-22:
+
+| Proof | Result |
+|---|---|
+| `make probe-embeddings` | PASS — `azure_openai`, `text-embedding-3-large`, 3,072 dimensions, 1,815 ms, 31 tokens |
+| `make test-live-rag` | PASS — Recall@5 **1.0**, MRR **0.875**, citation accuracy **1.0**, message accuracy **1.0**, release accuracy **1.0**, deterministic ordering true |
+| `make test-live-ai-sample` | PASS — 5 passed; the second call is a cache HIT with 0 model calls |
+
+The live RAG evaluation embeds the synthetic fixture corpus only, never the operator's
+licensed documents, whatever the policy settings say (gotcha 59).
