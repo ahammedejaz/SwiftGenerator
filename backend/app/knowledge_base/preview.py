@@ -263,4 +263,13 @@ def reload_preview(settings: Settings | None = None) -> PreviewRegistries:
     global _REGISTRIES
     with _LOCK:
         _REGISTRIES = None
-    return preview_registries(settings)
+    registries = preview_registries(settings)
+    # Imported here to keep the runtime dependency one-way during module initialization.
+    # A sync changes the rows that the catalogue projects, so serving its old cached view
+    # would be a correctness defect rather than merely stale presentation.
+    from app.studio.catalogue import invalidate_catalogue_cache
+    from app.studio.routes import invalidate_catalogue_response_cache
+
+    invalidate_catalogue_cache()
+    invalidate_catalogue_response_cache()
+    return registries

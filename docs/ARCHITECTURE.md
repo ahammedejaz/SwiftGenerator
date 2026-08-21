@@ -38,7 +38,7 @@ same specification and call the same composer.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  BROWSER                    Next.js 16 · React 19 · Tailwind 4      │
-│  Create · Excel · Intelligence · Validate · Automation · Recent     │
+│  Create · Excel · Intelligence · Validate · Automation · Convert    │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │  HTTP, always /api/v1
 ┌───────────────────────────────▼─────────────────────────────────────┐
@@ -104,6 +104,24 @@ Since Phase 6 there is a second thing beside that room, not inside it:
 The knowledge base is retrieval, index and cache state. It is never validation authority.
 Structure Packs define structure, reviewed Rule Packs define semantic validation, the
 composer builds FIN and XML, and the deterministic endpoints never call into it.
+
+Conversion sits beside authoring, not inside either renderer:
+
+```
+raw/canonical MT -> ordinary MT parser -> exact Mapping Pack
+                                      -> business semantic values
+                                      -> target canonical MX values
+                                      -> ordinary StudioService -> XML/XSD result
+```
+
+Mapping Packs are a fourth configuration type beside Structure, Rule and Presentation
+Packs. They own only semantic transformation. Every pack has evidence/review provenance;
+missing target facts return `NEEDS_INPUT`, and source loss is part of the response. A model
+cannot activate a Mapping Pack or make the deterministic target valid.
+
+Catalogue startup is split deliberately: the browser first requests the configured
+projection, which does not touch knowledge, then enriches it with the cached preview
+projection. See [universal-message-runtime.md](universal-message-runtime.md).
 
 ---
 

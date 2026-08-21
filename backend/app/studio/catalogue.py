@@ -607,6 +607,7 @@ def _knowledge_only_entry(
     )
 
 
+@lru_cache(maxsize=2)
 def build_catalogue(*, include_preview: bool = True) -> StudioCatalogue:
     """Configured messages first; then, when the knowledge base is enabled, every message
     it discovered — generation-ready preview packs and knowledge-only entries alike, each
@@ -667,6 +668,7 @@ def _preview_entries() -> list[CatalogueEntry]:
 
     registries = preview_registries()
     source_counts = knowledge_service.source_counts()
+    cached_samples = knowledge_service.cached_sample_identities()
     entries: list[CatalogueEntry] = []
     seen: set[tuple[str, str, str]] = set()
     for (format_name, message_type, release), status in sorted(registries.structures.items()):
@@ -699,9 +701,7 @@ def _preview_entries() -> list[CatalogueEntry]:
                         blockers=list(status.blockers),
                         knowledge_sources=sources,
                         rules_status="NOT_ESTABLISHED",
-                        ai_sample_ready=knowledge_service.sample_cached(
-                            format_name, message_type, release
-                        ),
+                        ai_sample_ready=(format_name, message_type, release) in cached_samples,
                     )
                 )
                 continue
@@ -737,6 +737,11 @@ def _preview_entries() -> list[CatalogueEntry]:
             )
         )
     return entries
+
+
+def invalidate_catalogue_cache() -> None:
+    """Invalidate projections after a knowledge sync or runtime registry reload."""
+    build_catalogue.cache_clear()
 
 
 def _shadowed_by_configured(format_: MessageFormat, message_type: str, release: str) -> bool:

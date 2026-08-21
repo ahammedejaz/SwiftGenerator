@@ -17,6 +17,7 @@ from collections.abc import Coroutine
 from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any
+from uuid import uuid4
 
 from app.agents.errors import AiServiceError
 from app.agents.providers.base import (
@@ -37,6 +38,7 @@ class AiUnavailable(Exception):
 
 @dataclass
 class AiUsage:
+    request_id: str = field(default_factory=lambda: str(uuid4()))
     provider: str = "deterministic"
     model: str = ""
     llm_calls: int = 0
@@ -47,6 +49,22 @@ class AiUsage:
     cache_hit: bool = False
     calls_avoided: int = 0
     tokens_avoided: int = 0
+    message_type: str | None = None
+    release: str | None = None
+    format_filter: str | None = None
+    rag_used: bool = False
+    rag_mode: str | None = None
+    query_type: str | None = None
+    evidence_count: int = 0
+    lexical_candidates: int = 0
+    semantic_candidates: int = 0
+    context_chars: int = 0
+    retrieval_latency_ms: int = 0
+    embedding_calls: int = 0
+    embedding_tokens: int = 0
+    embedding_cache_hits: int = 0
+    embedding_latency_ms: int = 0
+    corpus_version: str | None = None
 
     def add(self, response: StructuredCompletionResponse) -> None:
         self.llm_calls += 1
@@ -59,6 +77,7 @@ class AiUsage:
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "requestId": self.request_id,
             "provider": self.provider,
             "model": self.model,
             "llmCalls": self.llm_calls,
@@ -69,8 +88,48 @@ class AiUsage:
             "cacheHit": self.cache_hit,
             "callsAvoided": self.calls_avoided,
             "tokensAvoided": self.tokens_avoided,
+            "ragUsed": self.rag_used,
+            "ragMode": self.rag_mode,
+            "queryType": self.query_type,
+            "evidenceCount": self.evidence_count,
+            "lexicalCandidates": self.lexical_candidates,
+            "semanticCandidates": self.semantic_candidates,
+            "contextChars": self.context_chars,
+            "retrievalLatencyMs": self.retrieval_latency_ms,
+            "embeddingCalls": self.embedding_calls,
             "costAvailable": False,
         }
+
+    def set_context(
+        self, message_type: str | None, release: str | None, format_filter: str | None = None
+    ) -> None:
+        self.message_type = message_type
+        self.release = release
+        self.format_filter = format_filter
+
+    def observe_retrieval(
+        self,
+        *,
+        query_type: str,
+        evidence_count: int,
+        latency_ms: int,
+        semantic_available: bool,
+        corpus_version: str | None,
+        lexical_candidates: int,
+        semantic_candidates: int,
+        context_chars: int,
+    ) -> None:
+        self.rag_used = True
+        self.rag_mode = "HYBRID" if semantic_available else "LEXICAL"
+        self.query_type = query_type
+        self.evidence_count += evidence_count
+        self.lexical_candidates += lexical_candidates
+        self.semantic_candidates += semantic_candidates
+        self.context_chars += context_chars
+        self.retrieval_latency_ms += latency_ms
+        self.embedding_calls += 1 if semantic_available else 0
+        self.embedding_latency_ms += latency_ms if semantic_available else 0
+        self.corpus_version = corpus_version or self.corpus_version
 
 
 @dataclass

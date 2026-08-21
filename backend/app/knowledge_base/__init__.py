@@ -13,7 +13,7 @@ Runtime generation reads the knowledge database only; source files are opened by
 command alone.
 """
 
-KNOWLEDGE_SCHEMA_VERSION = 1
+KNOWLEDGE_SCHEMA_VERSION = 3
 CHUNKER_VERSION = "knowledge-chunker/1"
 EMBEDDING_SCHEMA_VERSION = "embedding/1"
 PACK_COMPILER_VERSION = "knowledge-pack-compiler/2"

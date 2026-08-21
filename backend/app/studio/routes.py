@@ -11,15 +11,24 @@ import json
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from datetime import UTC, datetime
+from functools import lru_cache
+from hashlib import sha256
 from io import BytesIO
 from typing import Annotated
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, Query, Response, UploadFile
 from pydantic import ValidationError
 
 from app.config import get_settings
+from app.mapping.models import (
+    ConversionResponse,
+    ConversionTargetsResponse,
+    ConvertRequest,
+    MappingIdentity,
+)
+from app.mapping.service import MappingError, mapping_service
 from app.studio import intelligence
 from app.studio.catalogue import build_catalogue, known_message_type, message_spec, resolve_format
 from app.studio.coverage import UnifiedCoverage, build_coverage
@@ -130,11 +139,46 @@ def _spec_or_404(
 # --------------------------------------------------------------------------------------
 
 
-@router.get("/catalogue", response_model=StudioCatalogue)
-def get_catalogue(caller: AutomationCaller) -> StudioCatalogue:
-    """Every format, business area and message the platform can generate."""
+@lru_cache(maxsize=2)
+def _catalogue_response(include_preview: bool) -> tuple[bytes, str]:
+    payload = build_catalogue(include_preview=include_preview).model_dump_json(
+        by_alias=True
+    ).encode("utf-8")
+    return payload, f'"{sha256(payload).hexdigest()}"'
+
+
+def invalidate_catalogue_response_cache() -> None:
+    _catalogue_response.cache_clear()
+
+
+@router.get(
+    "/catalogue",
+    response_model=StudioCatalogue,
+    responses={304: {"description": "Not modified"}},
+)
+def get_catalogue(
+    caller: AutomationCaller,
+    include_preview: Annotated[bool, Query(alias="includePreview")] = True,
+    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
+) -> Response:
+    """Every configured message, optionally enriched by the local preview catalogue.
+
+    `includePreview=false` is the fast startup projection: it never opens the knowledge DB
+    or loads a local Structure Pack. The default remains the complete historical response
+    for existing automation clients.
+    """
     del caller
-    return build_catalogue()
+    payload, etag = _catalogue_response(include_preview)
+    if if_none_match == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return Response(
+        content=payload,
+        media_type="application/json",
+        headers={
+            "ETag": etag,
+            "Cache-Control": "private, max-age=0, must-revalidate",
+        },
+    )
 
 
 @router.get("/coverage", response_model=UnifiedCoverage)
@@ -215,6 +259,78 @@ def get_sample(
             detail=f"{message_type} has no {variant.value} sample.",
         )
     return build_sample(resolved, message_type, variant, lane, release)
+
+
+@router.get(
+    "/messages/{source}/conversion-targets",
+    response_model=ConversionTargetsResponse,
+)
+def get_conversion_targets(
+    source: str,
+    caller: AutomationCaller,
+    source_format: Annotated[MessageFormat, Query(alias="sourceFormat")] = MessageFormat.MT,
+    source_release: Annotated[
+        str | None, Query(alias="sourceRelease", max_length=32)
+    ] = None,
+    source_lane: Annotated[Lane, Query(alias="sourceLane")] = Lane.CONFIGURED,
+) -> ConversionTargetsResponse:
+    """Exact configured Mapping Packs for one source identity.
+
+    Discovery reports synthetic packs but never promotes them to production eligibility.
+    """
+    del caller
+    return mapping_service.targets(
+        MappingIdentity(
+            format=source_format,
+            message_type=source,
+            release=source_release,
+            lane=source_lane,
+        )
+    )
+
+
+@router.post("/messages/convert", response_model=ConversionResponse)
+def convert_message(request: ConvertRequest, caller: AutomationCaller) -> ConversionResponse:
+    """Map canonical source values, disclose loss, then use normal target generation."""
+    del caller
+    if (
+        request.source_format is not MessageFormat.MT
+        or request.target_format is not MessageFormat.MX
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="The initial conversion capability supports MT to MX only.",
+        )
+    fields = request.fields
+    resolved = request
+    if request.raw_message:
+        read = _read_existing(
+            request.raw_message,
+            request.source_message,
+            request.source_lane,
+            request.source_release,
+        )
+        if read.format is not MessageFormat.MT:
+            raise HTTPException(status_code=422, detail="The supplied source message is not MT.")
+        if request.source_message and request.source_message != read.message_type:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"The source was declared as {request.source_message} but parsed as "
+                    f"{read.message_type}."
+                ),
+            )
+        if read.errors:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Source parsing failed: {read.errors[0].message}",
+            )
+        fields = read.fields
+        resolved = request.model_copy(update={"source_message": read.message_type})
+    try:
+        return mapping_service.convert(resolved, fields)
+    except (KeyError, LookupError, MappingError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=f"Conversion refused: {error}") from error
 
 
 def _resolve_lane(format_: MessageFormat | None, message_type: str, lane: Lane) -> MessageFormat:

@@ -62,6 +62,24 @@ forbidden outside development.
 **Submission fails closed.** Sending a real message requires an authorised connector, an
 approval policy and external validation evidence, all explicitly configured. None ship here.
 
+## No authoritative MT-to-MX mapping ships
+
+The conversion engine and UI are deterministic and validated, but the bundled MT541 to
+sese.023 Mapping Pack is a synthetic software fixture. It is production-ineligible and
+disabled unless a tester explicitly enables synthetic preview. No SWIFT coexistence guide,
+approved client mapping or other authoritative mapping evidence was available, so real
+source-backed conversion reports `BLOCKED_BY_MAPPING_EVIDENCE` rather than guessing.
+
+MT and MX are not generally reversible or one-to-one. Even an approved pack must report
+missing, derived and not-represented data. See [message-conversion.md](message-conversion.md).
+
+## Operator knowledge sources are not distributed
+
+The local audited PDF/XSD set has no recorded redistribution authorization. It is ignored by
+Git and not placed in LFS. A clean clone therefore starts with configured messages only.
+Authorized operators may install a checksum-pinned bundle separately; see
+[knowledge-distribution.md](knowledge-distribution.md).
+
 ## Values the tool refuses to invent
 
 By design, not by omission:

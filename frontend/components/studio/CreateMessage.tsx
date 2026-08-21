@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/studio/Icon";
 import {
   FieldEditor,
@@ -24,6 +25,7 @@ import {
 } from "@/components/studio/FieldEditor";
 import { EnvelopeTable, ProofSheet } from "@/components/studio/ProofSheet";
 import { MessageDiffPanel } from "@/components/studio/MessageDiff";
+import { storeConversionSource } from "@/components/studio/ConvertMessage";
 import { ValidationPanel } from "@/components/studio/ValidationPanel";
 import {
   Badge,
@@ -97,7 +99,9 @@ interface AiContribution {
 const AI_UNAVAILABLE = "AI assistant unavailable; deterministic sample used.";
 
 export function CreateMessage() {
+  const router = useRouter();
   const [catalogue, setCatalogue] = useState<StudioCatalogue | null>(null);
+  const [previewLoadError, setPreviewLoadError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
 
@@ -144,18 +148,43 @@ export function CreateMessage() {
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    studioApi
-      .catalogue()
-      .then((data) => {
-        setCatalogue(data);
-        setProfileId(data.defaultProfileId);
+    let cancelled = false;
+    async function loadCatalogue() {
+      try {
+        const configured = await studioApi.catalogue({
+          includePreview: false,
+          force: reloadToken > 0,
+        });
+        if (cancelled) return;
+        setCatalogue(configured);
+        setProfileId(configured.defaultProfileId);
         setLoadError(null);
-      })
-      .catch((error: unknown) =>
+      } catch (error: unknown) {
+        if (cancelled) return;
         setLoadError(
           error instanceof StudioError ? error.message : "The catalogue could not be loaded.",
-        ),
-      );
+        );
+        return;
+      }
+
+      try {
+        const complete = await studioApi.catalogue({ force: reloadToken > 0 });
+        if (cancelled) return;
+        setCatalogue(complete);
+        setProfileId(complete.defaultProfileId);
+        setPreviewLoadError(null);
+      } catch {
+        if (!cancelled) {
+          setPreviewLoadError(
+            "Configured messages are available. Knowledge-preview messages could not be loaded.",
+          );
+        }
+      }
+    }
+    void loadCatalogue();
+    return () => {
+      cancelled = true;
+    };
   }, [reloadToken]);
 
   /* ----------------------------------------------------------- derivation */
@@ -703,6 +732,16 @@ export function CreateMessage() {
           20022 message ready for your test system. No SWIFT knowledge required — every
           field explains itself.
         </p>
+        {!catalogue && (
+          <p role="status" className="mt-3 text-sm text-ink-3">
+            Loading configured messages…
+          </p>
+        )}
+        {previewLoadError && (
+          <p role="status" className="mt-3 text-sm text-ink-3">
+            {previewLoadError}
+          </p>
+        )}
       </div>
 
       <StepRail current={step} onJump={setStep} reached={reachedStep(format, area, selectedKey, spec)} />
@@ -891,6 +930,20 @@ export function CreateMessage() {
               result.outputs.document) && (
               <>
                 <ProofSheet result={result} onGenerateAnother={startOver} />
+                {result.format === "MT" && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="secondary"
+                      icon="refresh"
+                      onClick={() => {
+                        storeConversionSource(result.messageType, regeneratedText(result));
+                        router.push("/convert");
+                      }}
+                    >
+                      Convert to MX
+                    </Button>
+                  </div>
+                )}
                 {diffError && <ErrorNotice message={diffError} />}
                 {diff && (
                   <MessageDiffPanel
@@ -1976,6 +2029,9 @@ function AiContributionNote({
     : `${calls} model call${calls === 1 ? "" : "s"}`;
   const sections = contribution.segmentsUsed;
   const questions = [...contribution.missingFields, ...contribution.questions];
+  const deterministic = contribution.usage.provider === "deterministic";
+  const cached = contribution.cache?.status === "HIT";
+  const totalTokens = contribution.usage.promptTokens + contribution.usage.completionTokens;
 
   return (
     <div className="rounded-lg border border-accent/25 bg-accent-sk px-5 py-4">
@@ -1983,9 +2039,13 @@ function AiContributionNote({
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-ink">
             <Icon name="spark" className="h-4 w-4 text-accent" />
-            {contribution.kind === "SAMPLE"
-              ? "AI-generated synthetic sample"
-              : "Values prepared from your description"}
+            {deterministic
+              ? "Deterministic fallback"
+              : cached
+                ? "AI sample — cached"
+                : contribution.kind === "SAMPLE"
+                  ? "AI-assisted synthetic sample"
+                  : "AI-assisted values"}
             <span className="font-normal text-ink-2">· validated by the deterministic engine</span>
           </p>
           <p className="mt-1 text-[0.8125rem] leading-5 text-ink-2">
@@ -1996,11 +2056,9 @@ function AiContributionNote({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {contribution.citations.length > 0 && (
-            <Button size="sm" variant="quiet" onClick={() => setOpen(!open)} aria-expanded={open}>
-              {open ? "Hide evidence" : "Show evidence"}
-            </Button>
-          )}
+          <Button size="sm" variant="quiet" onClick={() => setOpen(!open)} aria-expanded={open}>
+            {open ? "Hide details" : "Show details"}
+          </Button>
           {onRefresh && (
             <Button size="sm" variant="quiet" icon="refresh" loading={busy} onClick={onRefresh}>
               Refresh with AI
@@ -2023,23 +2081,43 @@ function AiContributionNote({
       )}
 
       {open && (
-        <ul className="mt-3 space-y-2 border-t border-accent/20 pt-3">
-          {contribution.citations.map((citation) => (
-            <li key={citation.segmentId} className="text-[0.8125rem] leading-5">
-              <span className="font-medium text-ink">{citation.documentTitle}</span>
-              <span className="text-ink-2">
-                {" "}
-                · {citation.section.toLowerCase().replace(/_/g, " ")}
-                {citation.page !== null ? ` · page ${citation.page}` : ""}
-                {citation.heading ? ` · ${citation.heading}` : ""}
-              </span>
-              {citation.snippet && (
-                <p className="mt-0.5 text-xs leading-5 text-ink-3">{citation.snippet}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3 border-t border-accent/20 pt-3">
+          <dl className="grid gap-x-5 gap-y-2 text-[0.8125rem] sm:grid-cols-2 lg:grid-cols-5">
+            <UsageFact label="AI" value={deterministic ? "Not called" : `${contribution.usage.model || "Configured model"} via ${contribution.usage.provider}`} />
+            <UsageFact label="RAG" value={`${sections} source section${sections === 1 ? "" : "s"}`} />
+            <UsageFact label="Tokens" value={totalTokens.toLocaleString()} />
+            <UsageFact label="Response" value={`${contribution.usage.latencyMs} ms`} />
+            <UsageFact label="Cache" value={cached ? "Hit · 0 live calls" : "Miss"} />
+          </dl>
+          {contribution.citations.length > 0 && (
+            <ul className="mt-3 space-y-2 border-t border-accent/20 pt-3">
+              {contribution.citations.map((citation) => (
+                <li key={citation.segmentId} className="text-[0.8125rem] leading-5">
+                  <span className="font-medium text-ink">{citation.documentTitle}</span>
+                  <span className="text-ink-2">
+                    {" "}
+                    · {citation.section.toLowerCase().replace(/_/g, " ")}
+                    {citation.page !== null ? ` · page ${citation.page}` : ""}
+                    {citation.heading ? ` · ${citation.heading}` : ""}
+                  </span>
+                  {citation.snippet && (
+                    <p className="mt-0.5 text-xs leading-5 text-ink-3">{citation.snippet}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
+    </div>
+  );
+}
+
+function UsageFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-ink-3">{label}</dt>
+      <dd className="truncate font-medium text-ink" title={value}>{value}</dd>
     </div>
   );
 }

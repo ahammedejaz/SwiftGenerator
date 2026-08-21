@@ -142,6 +142,19 @@ and the generated [universal-message-readiness.md](generated/universal-message-r
 [knowledge-rag-coverage.md](generated/knowledge-rag-coverage.md) and
 [ai-sample-readiness.md](generated/ai-sample-readiness.md).
 
+**The universal runtime hardening, observability and conversion layer now exists.** Create
+Message fetches a small configured-only catalogue first and enriches it in the background;
+server projections/JSON and browser in-flight responses are cached with sync invalidation
+and ETags. `knowledge_operation_metric` is a bounded, content-free correlated AI/RAG/cache
+ledger, and `/ai-efficiency` is the AI & Knowledge Usage operational page. `app/mapping/`
+loads exact, declarative Mapping Packs and sends mapped target values through ordinary
+`StudioService`; the only committed MT541-to-sese.023 pack is synthetic, production-
+ineligible and opt-in. `make quickstart` is the Docker first-run path. Raw operator sources
+remain untracked and may be installed only through the HTTPS/local, checksum-required
+`make knowledge-fetch` bootstrap. See [universal-message-runtime.md](universal-message-runtime.md),
+[ai-rag-observability.md](ai-rag-observability.md), [message-conversion.md](message-conversion.md),
+[knowledge-distribution.md](knowledge-distribution.md), and [quickstart.md](quickstart.md).
+
 **Verification status (measured 2026-08-21 on the Phase 6 branch final head):**
 
 ```

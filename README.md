@@ -37,39 +37,36 @@ There is nothing the app can do that the API cannot. The app *is* an API client.
 
 ---
 
-## Start it up
+## Quickstart
 
-You need **Python 3.13**, **Node 22** and about two minutes.
+With Docker, Compose and OpenSSL installed, a fresh clone is one command:
 
 ```bash
 git clone <this-repo>
 cd SwiftGenerator
 
-make install     # Python virtualenv, npm packages, and the browser the tests drive
-make migrate     # creates the database
+make quickstart
 ```
 
-Then open two terminals:
+Open <http://localhost:3000>. The command creates safe local secrets, builds both images,
+runs migrations, starts the platform and waits for readiness. AI and the local knowledge
+base are optional; without credentials or an approved source bundle, all 23 configured
+messages still work deterministically.
 
 ```bash
-make backend     # terminal 1 → http://localhost:8000
-make frontend    # terminal 2 → http://localhost:3000
+make stop       # stop services, keep development data
+make reset-dev  # stop services and remove the Docker data volume
 ```
 
-Open <http://localhost:3000> and you are looking at Create Message.
-
-**No API keys are needed, and there is no `.env` to write.** The AI features are optional
-and off by default; everything that makes a message is plain deterministic code. A clean
-clone runs `make install`, `make check` and `make e2e` with nothing else configured — and
-that is verified, not assumed.
-
-### Or use Docker
+For a local Python/Node developer environment:
 
 ```bash
-docker compose up --build
+make install
+make migrate
+make dev
 ```
 
-Same two URLs. Nothing else to configure.
+Details, knowledge bootstrap and troubleshooting: [docs/quickstart.md](docs/quickstart.md).
 
 ---
 
@@ -111,12 +108,12 @@ business language, and there is an **ℹ** button next to each one that explains
 | **Message Intelligence** | Look anything up. Type `PSET` or `SttlmDt` and find out what it means. |
 | **Validate** | Check data, or paste an existing MT or MX message, without generating anything. |
 | **API & Automation** | Copy-paste-ready examples in curl, Java, Python and JavaScript. |
-| **Recent Messages** | Everything you generated lately, ready to download again. |
+| **Convert Message** | Map MT business values to MX through an explicit, provenance-bearing Mapping Pack. |
 
 There is also an **Advanced** page holding specialist workflows (settlement lifecycle,
-corporate actions, penalties, the approval stack) and, since Phase 6, the **Knowledge
-Base** screen — what is indexed, how ready each discovered message is, and search with
-citations. You do not need any of it to make a message.
+corporate actions, penalties, the approval stack) and the **Knowledge Base**, **Recent
+Messages**, and **AI & Knowledge Usage** screens. You do not need any of them to make a
+message.
 
 ---
 
@@ -147,12 +144,23 @@ an ignored local folder (`swiftKnowledgeBase/`), run `make knowledge-sync`, and 
 indexes them for search, lets a model draft samples grounded in them with page-level
 citations, and — where deterministic structure evidence exists — generates test messages
 for types nobody configured by hand, in a separate, clearly labelled **knowledge-preview
-lane**. On the operator's folder that is 209 generation-ready message/release structures
-beside the 23 configured ones; a message without structural evidence can be searched but
+lane**. The exact generation-ready count depends on the operator's sources and is reported
+by `make knowledge-status`; a message without structural evidence can be searched but
 is never generated, and the readiness report names the exact blocker. Nothing licensed is
 ever committed, and no source text leaves the machine unless you say so twice. See
 [docs/universal-financial-message-rag.md](docs/universal-financial-message-rag.md) and
 [docs/knowledge-source-handling.md](docs/knowledge-source-handling.md).
+
+Raw source redistribution is not authorized by the repository, so no operator PDF/XSD is
+committed. Approved organization bundles use checksum-gated `make knowledge-fetch`; see
+[docs/knowledge-distribution.md](docs/knowledge-distribution.md).
+
+### MT to MX conversion
+
+Conversion is a deterministic business-semantic Mapping Pack workflow, not a syntax rename.
+The included MT541 to sese.023 pack is conspicuously synthetic and disabled until a tester
+opts into preview mode. No real source-backed conversion is claimed because no approved
+mapping evidence is present. See [docs/message-conversion.md](docs/message-conversion.md).
 
 ### An honest note about coverage
 
@@ -182,6 +190,8 @@ Two audiences, in the order you should read.
 | Call it from a test suite | [docs/for-automation-testers.md](docs/for-automation-testers.md) · [docs/automation-api.md](docs/automation-api.md) |
 | Index your own guides and schemas | [docs/knowledge-source-handling.md](docs/knowledge-source-handling.md) |
 | Let a model draft a sample from a business request | [docs/ai-assisted-authoring.md](docs/ai-assisted-authoring.md) |
+| Inspect model, RAG, embedding and cache usage | [docs/ai-rag-observability.md](docs/ai-rag-observability.md) |
+| Convert an MT to MX through a Mapping Pack | [docs/message-conversion.md](docs/message-conversion.md) |
 | Run the Phase 6 manual checklist | [docs/testing/phase-06-universal-rag-uat-checklist.md](docs/testing/phase-06-universal-rag-uat-checklist.md) |
 | Understand a message format | [docs/how-messages-are-built.md](docs/how-messages-are-built.md) |
 | Know exactly what is and is not supported | [docs/limitations.md](docs/limitations.md) |
@@ -211,6 +221,9 @@ as such; they describe how the code reached its current shape, not how it works 
 
 ```bash
 make install     # first-time setup
+make quickstart  # Docker build, migrate, start and readiness wait
+make stop        # stop Docker services, retain data
+make reset-dev   # stop Docker services and remove development data
 make migrate     # apply database migrations
 make backend     # run the API on :8000
 make frontend    # run the web app on :3000
@@ -223,6 +236,7 @@ make coverage       # fail if the message-coverage report is out of date
 make coverage-write # regenerate it
 make secret-scan    # no secret-shaped strings in tracked files
 make knowledge-sync     # index swiftKnowledgeBase/ (add KNOWLEDGE_SOURCE_DIR=a,b for more roots)
+make knowledge-fetch    # install one approved checksum-pinned organisation bundle
 make knowledge-status   # what is indexed, and the embedding/LLM policy in force
 make knowledge-dev      # sync, then run the API in local UAT mode (enables the sync endpoint)
 make knowledge-reports-write   # regenerate the three docs/generated knowledge reports

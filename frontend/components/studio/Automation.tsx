@@ -51,6 +51,16 @@ const ENDPOINTS: Array<{ method: string; path: string; body: string }> = [
     body: "Tag or element data in, a complete message out.",
   },
   {
+    method: "GET",
+    path: "/api/v1/messages/{source}/conversion-targets",
+    body: "Exact Mapping Packs for a source identity, with review and production eligibility.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/messages/convert",
+    body: "Map MT business values to MX, report loss and missing data, then run ordinary target validation.",
+  },
+  {
     method: "POST",
     path: "/api/v1/messages/import",
     body: "An existing MT or ISO 20022 message in, its canonical values out. The format and the message are read from the message itself.",

@@ -3,6 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 /** A shared runner is slower than a laptop, and a cold Next compile is the slowest part of
  *  the first test. Thirty seconds is comfortable locally and marginal in CI. */
 const CI_SERVER_TIMEOUT_MS = process.env.CI ? 180_000 : 30_000;
+const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT ?? 8000);
+const FRONTEND_PORT = Number(process.env.E2E_FRONTEND_PORT ?? 3000);
+const REUSE_EXISTING = !process.env.CI && !process.env.E2E_BACKEND_PORT && !process.env.E2E_FRONTEND_PORT;
 
 /**
  * The knowledge base the AI-authoring specs run against. Built from the synthetic fixture
@@ -34,7 +37,7 @@ export default defineConfig({
     // so a request occasionally died with ECONNREFUSED ::1:8000 and a test unrelated to
     // networking failed with "the backend is down". macOS binds `--host ::` as IPv6-only,
     // so matching the address is the fix rather than listening on both.
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: `http://127.0.0.1:${FRONTEND_PORT}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -42,13 +45,13 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "../backend/.venv/bin/uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port 8000",
-      url: "http://127.0.0.1:8000/api/health",
+        `../backend/.venv/bin/uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port ${BACKEND_PORT}`,
+      url: `http://127.0.0.1:${BACKEND_PORT}/api/health/ready`,
       // Never adopt a process CI did not start. A runner has nothing on these ports, so
       // this changes no behaviour there — it removes the possibility of a green run that
       // tested somebody else's server, which is a failure mode worth making impossible
       // rather than unlikely.
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: REUSE_EXISTING,
       timeout: CI_SERVER_TIMEOUT_MS,
       env: {
         DATABASE_URL: "sqlite://",
@@ -64,6 +67,7 @@ export default defineConfig({
         // past 600 requests a minute. The throttle itself is still tested, in
         // backend/tests/security/test_cors_and_throttling.py, which installs its own limiter.
         RATE_LIMIT_REQUESTS_PER_MINUTE: "1000000",
+        FRONTEND_ORIGIN: `http://127.0.0.1:${FRONTEND_PORT}`,
         // local_uat exposes the sync endpoint, which the Knowledge Base page offers only
         // when the backend says it may. The scripted provider answers from deterministic
         // seeds, so no model is ever called and no key is needed.
@@ -72,10 +76,14 @@ export default defineConfig({
       },
     },
     {
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
-      url: "http://127.0.0.1:3000",
-      reuseExistingServer: !process.env.CI,
+      command: `npm run dev -- --hostname 127.0.0.1 --port ${FRONTEND_PORT}`,
+      url: `http://127.0.0.1:${FRONTEND_PORT}`,
+      reuseExistingServer: REUSE_EXISTING,
       timeout: CI_SERVER_TIMEOUT_MS,
+      env: {
+        NEXT_PUBLIC_API_BASE_URL: `http://127.0.0.1:${BACKEND_PORT}`,
+        NEXT_DIST_DIR: `.next-e2e-${FRONTEND_PORT}`,
+      },
     },
   ],
 });

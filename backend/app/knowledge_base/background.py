@@ -22,7 +22,8 @@ async def run_background_sync() -> None:
         from app.knowledge_base.index import KnowledgeIndexer, SyncOptions
         from app.knowledge_base.preview import reload_preview
         from app.knowledge_base.service import knowledge_service
-        from app.studio.catalogue import message_spec
+        from app.studio.catalogue import invalidate_catalogue_cache, message_spec
+        from app.studio.routes import invalidate_catalogue_response_cache
 
         indexer = KnowledgeIndexer(
             settings, knowledge_service.database, knowledge_service.embeddings
@@ -30,6 +31,8 @@ async def run_background_sync() -> None:
         report = indexer.sync(SyncOptions())
         reload_preview(settings)
         message_spec.cache_clear()
+        invalidate_catalogue_cache()
+        invalidate_catalogue_response_cache()
         LOGGER.info(
             "knowledge auto-sync complete: %s discovered, %s unchanged, %s parsed, %s failed",
             report.documents_discovered,

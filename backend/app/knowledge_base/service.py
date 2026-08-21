@@ -455,6 +455,28 @@ class KnowledgeService:
         except sqlite3.Error:
             return False
 
+    def cached_sample_identities(self) -> set[tuple[str, str, str]]:
+        """All cached message identities in one read for catalogue projection.
+
+        Opening one SQLite connection per preview entry made a 400-message catalogue perform
+        hundreds of avoidable reads. The catalogue needs only a membership test, so one
+        bounded query is both simpler and materially cheaper.
+        """
+        if not self.indexed:
+            return set()
+        try:
+            with self._database.read() as connection:
+                rows = connection.execute(
+                    "SELECT DISTINCT format, message_type, release "
+                    "FROM knowledge_sample_cache"
+                ).fetchall()
+            return {
+                (str(row["format"]), str(row["message_type"]), str(row["release"]))
+                for row in rows
+            }
+        except sqlite3.Error:
+            return set()
+
     def presentation_get(self, cache_key: str) -> dict[str, Any] | None:
         if not self.indexed:
             return None
@@ -509,7 +531,10 @@ class KnowledgeService:
     def record_ai_metric(
         self,
         *,
+        request_id: str,
         operation: str,
+        message_type: str | None,
+        release: str | None,
         provider: str,
         model: str,
         llm_calls: int,
@@ -519,6 +544,20 @@ class KnowledgeService:
         calls_avoided: int,
         tokens_avoided: int,
         latency_ms: int,
+        rag_used: bool,
+        rag_mode: str | None,
+        query_type: str | None,
+        format_filter: str | None,
+        lexical_candidates: int,
+        semantic_candidates: int,
+        evidence_count: int,
+        context_chars: int,
+        retrieval_latency_ms: int,
+        embedding_calls: int,
+        embedding_tokens: int,
+        embedding_cache_hits: int,
+        embedding_latency_ms: int,
+        corpus_version: str | None,
         outcome: str,
     ) -> None:
         if not self.enabled:
@@ -544,6 +583,61 @@ class KnowledgeService:
                         outcome,
                     ),
                 )
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO knowledge_operation_metric(
+                        request_id, at, operation, message_type, release, provider, model,
+                        llm_calls, prompt_tokens, completion_tokens, cache_hit, calls_avoided,
+                        tokens_avoided, latency_ms, rag_used, rag_mode, query_type,
+                        format_filter, lexical_candidates, semantic_candidates, evidence_count,
+                        context_chars, retrieval_latency_ms, embedding_calls, embedding_tokens,
+                        embedding_cache_hits, embedding_latency_ms, corpus_version, outcome
+                    ) VALUES (
+                        :request_id, datetime('now'), :operation, :message_type, :release,
+                        :provider, :model, :llm_calls, :prompt_tokens, :completion_tokens,
+                        :cache_hit, :calls_avoided, :tokens_avoided, :latency_ms, :rag_used,
+                        :rag_mode, :query_type, :format_filter, :lexical_candidates,
+                        :semantic_candidates, :evidence_count, :context_chars,
+                        :retrieval_latency_ms, :embedding_calls, :embedding_tokens,
+                        :embedding_cache_hits, :embedding_latency_ms, :corpus_version, :outcome
+                    )
+                    """,
+                    {
+                        "request_id": request_id,
+                        "operation": operation,
+                        "message_type": message_type,
+                        "release": release,
+                        "provider": provider,
+                        "model": model,
+                        "llm_calls": llm_calls,
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "cache_hit": 1 if cache_hit else 0,
+                        "calls_avoided": calls_avoided,
+                        "tokens_avoided": tokens_avoided,
+                        "latency_ms": latency_ms,
+                        "rag_used": 1 if rag_used else 0,
+                        "rag_mode": rag_mode,
+                        "query_type": query_type,
+                        "format_filter": format_filter,
+                        "lexical_candidates": lexical_candidates,
+                        "semantic_candidates": semantic_candidates,
+                        "evidence_count": evidence_count,
+                        "context_chars": context_chars,
+                        "retrieval_latency_ms": retrieval_latency_ms,
+                        "embedding_calls": embedding_calls,
+                        "embedding_tokens": embedding_tokens,
+                        "embedding_cache_hits": embedding_cache_hits,
+                        "embedding_latency_ms": embedding_latency_ms,
+                        "corpus_version": corpus_version,
+                        "outcome": outcome,
+                    },
+                )
+                connection.execute(
+                    "DELETE FROM knowledge_operation_metric "
+                    "WHERE at < datetime('now', ?)",
+                    (f"-{self._settings.knowledge_telemetry_retention_days} days",),
+                )
         except sqlite3.Error:
             return
 
@@ -551,12 +645,57 @@ class KnowledgeService:
         if not self.indexed:
             return {
                 "indexed": False,
-                "llm": {},
-                "embeddings": {},
-                "retrieval": {},
+                "llm": {
+                    "operations": 0,
+                    "calls": 0,
+                    "promptTokens": 0,
+                    "completionTokens": 0,
+                    "cacheHits": 0,
+                    "callsAvoided": 0,
+                    "tokensAvoided": 0,
+                    "averageLatencyMs": 0,
+                },
+                "embeddings": {
+                    "vectorsStored": 0,
+                    "segmentsEmbedded": 0,
+                    "lastRunRequests": 0,
+                    "lastRunCacheHits": 0,
+                    "lastRunRequestsAvoided": 0,
+                    "lastRunTokens": 0,
+                    "lastRunBlockedSegments": 0,
+                    "provider": self._settings.embedding_provider_effective,
+                },
+                "retrieval": {
+                    "queries": 0,
+                    "averageLatencyMs": 0,
+                    "averageSegments": 0,
+                    "hybrid": 0,
+                    "lexical": 0,
+                    "semantic": 0,
+                },
+                "samples": {"cached": 0, "cacheHits": 0},
+                "overview": {
+                    "operationsToday": 0,
+                    "aiCallsToday": 0,
+                    "tokensToday": 0,
+                    "cacheHitsToday": 0,
+                    "retentionDays": self._settings.knowledge_telemetry_retention_days,
+                },
+                "knowledge": {
+                    "sources": 0,
+                    "messages": 0,
+                    "segments": 0,
+                    "lastSync": None,
+                    "syncState": "NOT_INDEXED",
+                    "loadErrors": [],
+                },
+                "recentOperations": [],
                 "costAvailable": False,
                 "costNote": "cost unavailable: the configured provider does not report cost",
             }
+        # Existing indexes predate the operation ledger. Initialisation is additive and
+        # idempotent, so a telemetry read upgrades them without forcing a reindex.
+        self._database.initialise()
         with self._database.read() as connection:
             llm = connection.execute(
                 "SELECT COUNT(*) AS operations, COALESCE(SUM(llm_calls),0) AS calls, "
@@ -584,7 +723,18 @@ class KnowledgeService:
                 "SELECT COUNT(*) AS cached, COALESCE(SUM(hits),0) AS hits "
                 "FROM knowledge_sample_cache"
             ).fetchone()
+            today = connection.execute(
+                "SELECT COALESCE(SUM(llm_calls),0) AS calls, "
+                "COALESCE(SUM(prompt_tokens + completion_tokens),0) AS tokens, "
+                "COALESCE(SUM(cache_hit),0) AS cache_hits, COUNT(*) AS operations "
+                "FROM knowledge_operation_metric WHERE at >= date('now')"
+            ).fetchone()
+            recent_rows = connection.execute(
+                "SELECT * FROM knowledge_operation_metric ORDER BY at DESC, rowid DESC LIMIT ?",
+                (self._settings.knowledge_telemetry_recent_limit,),
+            ).fetchall()
         stats = (last_run or {}).get("stats", {}) if last_run else {}
+        status = self.status()
         return {
             "indexed": True,
             "llm": {
@@ -616,6 +766,53 @@ class KnowledgeService:
                 "semantic": int(retrieval["semantic"] or 0),
             },
             "samples": {"cached": int(samples["cached"]), "cacheHits": int(samples["hits"])},
+            "overview": {
+                "operationsToday": int(today["operations"]),
+                "aiCallsToday": int(today["calls"]),
+                "tokensToday": int(today["tokens"]),
+                "cacheHitsToday": int(today["cache_hits"]),
+                "retentionDays": self._settings.knowledge_telemetry_retention_days,
+            },
+            "knowledge": {
+                "sources": status.counts.get("sources", 0),
+                "messages": status.counts.get("messages", 0),
+                "segments": status.counts.get("segments", 0),
+                "lastSync": status.last_run,
+                "syncState": (
+                    status.last_run.get("state") if status.last_run is not None else "NOT_RUN"
+                ),
+                "loadErrors": status.load_errors,
+            },
+            "recentOperations": [
+                {
+                    "requestId": str(row["request_id"]),
+                    "timestamp": str(row["at"]),
+                    "operation": str(row["operation"]),
+                    "messageType": row["message_type"],
+                    "release": row["release"],
+                    "provider": str(row["provider"]),
+                    "model": str(row["model"]),
+                    "llmCalls": int(row["llm_calls"]),
+                    "tokens": int(row["prompt_tokens"]) + int(row["completion_tokens"]),
+                    "cacheHit": bool(row["cache_hit"]),
+                    "latencyMs": int(row["latency_ms"]),
+                    "ragUsed": bool(row["rag_used"]),
+                    "ragMode": row["rag_mode"],
+                    "queryType": row["query_type"],
+                    "formatFilter": row["format_filter"],
+                    "lexicalCandidates": int(row["lexical_candidates"]),
+                    "semanticCandidates": int(row["semantic_candidates"]),
+                    "evidenceCount": int(row["evidence_count"]),
+                    "contextChars": int(row["context_chars"]),
+                    "retrievalLatencyMs": int(row["retrieval_latency_ms"]),
+                    "embeddingCalls": int(row["embedding_calls"]),
+                    "embeddingTokens": int(row["embedding_tokens"]),
+                    "embeddingCacheHits": int(row["embedding_cache_hits"]),
+                    "embeddingLatencyMs": int(row["embedding_latency_ms"]),
+                    "outcome": str(row["outcome"]),
+                }
+                for row in recent_rows
+            ],
             "costAvailable": False,
             "costNote": "cost unavailable: the configured provider does not report cost",
         }

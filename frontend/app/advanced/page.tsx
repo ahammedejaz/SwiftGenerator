@@ -67,6 +67,11 @@ const GROUPS: Array<{
         label: "Annotated samples",
         body: "Composer-generated samples with line-by-line field annotations.",
       },
+      {
+        href: "/recent",
+        label: "Recent messages",
+        body: "Open messages generated and retained by the configured local store.",
+      },
     ],
   },
   {
@@ -91,8 +96,8 @@ const GROUPS: Array<{
       },
       {
         href: "/ai-efficiency",
-        label: "AI efficiency",
-        body: "Live API calls, cache hits, tokens, cost, latency and what was avoided.",
+        label: "AI & Knowledge Usage",
+        body: "Model, retrieval, embedding, cache and synchronization counters without message content.",
       },
       {
         href: "/knowledge-base",

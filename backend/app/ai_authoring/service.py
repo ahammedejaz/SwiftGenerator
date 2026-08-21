@@ -80,6 +80,8 @@ class Evidence:
     latency_ms: int
     context_chars: int
     corpus_version: str
+    lexical_candidates: int
+    semantic_candidates: int
 
     def prompt(self) -> str:
         return fence_evidence(self.citations, self.texts, allow_text=self.allow_text)
@@ -161,6 +163,22 @@ def gather_evidence(
         latency_ms=result.latency_ms,
         context_chars=result.context_chars,
         corpus_version=result.corpus_version,
+        lexical_candidates=result.lexical_candidates,
+        semantic_candidates=result.semantic_candidates,
+    )
+
+
+def observe_evidence(usage: AiUsage, evidence: Evidence, query_type: QueryType) -> None:
+    """Attach privacy-safe retrieval facts to the operation that requested them."""
+    usage.observe_retrieval(
+        query_type=query_type.value,
+        evidence_count=len(evidence.citations),
+        latency_ms=evidence.latency_ms,
+        semantic_available=evidence.semantic_available,
+        corpus_version=evidence.corpus_version or None,
+        lexical_candidates=evidence.lexical_candidates,
+        semantic_candidates=evidence.semantic_candidates,
+        context_chars=evidence.context_chars,
     )
 
 
@@ -294,6 +312,8 @@ def identify(
         "confidence": round(min(0.95, candidates[0][1] / total), 3) if candidates else 0.0,
     }
     usage = AiUsage()
+    usage.set_context(None, None, format_.value if format_ else None)
+    observe_evidence(usage, evidence, QueryType.MESSAGE_SELECTION)
     payload = seed
     if candidates and authoring_provider.available:
         try:
@@ -595,6 +615,8 @@ def prepare(
         release=spec.release,
     )
     usage = AiUsage()
+    usage.set_context(spec.message_type, spec.release or spec.version, spec.format.value)
+    observe_evidence(usage, evidence, QueryType.SAMPLE_PREPARATION)
     payload: dict[str, Any] = seed
     if authoring_provider.available:
         try:
@@ -731,6 +753,7 @@ def ai_sample(
         hashlib.sha256(scenario.encode()).hexdigest()[:16] if scenario else ""
     )
     usage = AiUsage(provider=provider_name, model=model)
+    usage.set_context(spec.message_type, spec.release or spec.version, spec.format.value)
     cached = None if refresh else knowledge_service.sample_cache_get(key)
     if cached is not None:
         usage.cache_hit = True
@@ -769,6 +792,7 @@ def ai_sample(
         message_type=spec.version or spec.message_type,
         release=spec.release,
     )
+    observe_evidence(usage, evidence, QueryType.SAMPLE_PREPARATION)
     seed = {
         "scenario": scenario or f"{variant.value.title()} synthetic {spec.message_type} sample",
         "values": seed_values,
@@ -1055,6 +1079,8 @@ def test_data(
         release=spec.release,
     )
     usage = AiUsage(provider=authoring_provider.name)
+    usage.set_context(spec.message_type, spec.release or spec.version, spec.format.value)
+    observe_evidence(usage, evidence, QueryType.TEST_SCENARIO_PREPARATION)
     if test_intent.upper() == "NEGATIVE":
         return _negative(
             spec,
@@ -1354,6 +1380,10 @@ def enrich_presentation(
         "citations": [],
     }
     if cached is not None:
+        usage = AiUsage(provider="cache")
+        usage.set_context(spec.message_type, spec.release or spec.version, spec.format.value)
+        usage.cache_hit = True
+        _metric("PRESENTATION", usage, started, "CACHE_HIT")
         return {
             "fieldId": field_id,
             "presentation": cached,
@@ -1362,6 +1392,7 @@ def enrich_presentation(
             "source": "AI_CACHED",
         }
     usage = AiUsage()
+    usage.set_context(spec.message_type, spec.release or spec.version, spec.format.value)
     evidence = gather_evidence(
         f"{target.tag or ''} {target.qualifier or ''} {target.display_name} {target.xpath or ''}",
         query_type=QueryType.FIELD_EXPLANATION,
@@ -1369,6 +1400,7 @@ def enrich_presentation(
         message_type=spec.version or spec.message_type,
         release=spec.release,
     )
+    observe_evidence(usage, evidence, QueryType.FIELD_EXPLANATION)
     payload = deterministic
     source = "DETERMINISTIC"
     if authoring_provider.available and evidence.citations:
@@ -1438,6 +1470,8 @@ def ask(
         limit=10,
     )
     usage = AiUsage()
+    usage.set_context(message_type, release, format_.value if format_ else None)
+    observe_evidence(usage, evidence, query_type)
     unsupported = {
         "answer": "The available indexed source does not establish this.",
         "supported": "UNSUPPORTED_BY_EVIDENCE",
@@ -1529,6 +1563,9 @@ def compare_releases(
     )
     structural = _structural_diff(format_, message_type, release_a, release_b)
     usage = AiUsage()
+    usage.set_context(message_type, f"{release_a}..{release_b}", format_.value)
+    observe_evidence(usage, left, QueryType.MESSAGE_COMPARISON)
+    observe_evidence(usage, right, QueryType.MESSAGE_COMPARISON)
     citations = left.citations + right.citations
     seed = {
         "summary": (
@@ -1629,7 +1666,10 @@ def _structural_diff(
 
 def _metric(operation: str, usage: AiUsage, started: float, outcome: str) -> None:
     knowledge_service.record_ai_metric(
+        request_id=usage.request_id,
         operation=operation,
+        message_type=usage.message_type,
+        release=usage.release,
         provider=usage.provider,
         model=usage.model,
         llm_calls=usage.llm_calls,
@@ -1639,6 +1679,20 @@ def _metric(operation: str, usage: AiUsage, started: float, outcome: str) -> Non
         calls_avoided=usage.calls_avoided,
         tokens_avoided=usage.tokens_avoided,
         latency_ms=round((time.monotonic() - started) * 1000),
+        rag_used=usage.rag_used,
+        rag_mode=usage.rag_mode,
+        query_type=usage.query_type,
+        format_filter=usage.format_filter,
+        lexical_candidates=usage.lexical_candidates,
+        semantic_candidates=usage.semantic_candidates,
+        evidence_count=usage.evidence_count,
+        context_chars=usage.context_chars,
+        retrieval_latency_ms=usage.retrieval_latency_ms,
+        embedding_calls=usage.embedding_calls,
+        embedding_tokens=usage.embedding_tokens,
+        embedding_cache_hits=usage.embedding_cache_hits,
+        embedding_latency_ms=usage.embedding_latency_ms,
+        corpus_version=usage.corpus_version,
         outcome=outcome[:60],
     )
 

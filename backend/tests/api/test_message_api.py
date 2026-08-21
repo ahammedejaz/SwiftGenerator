@@ -6,6 +6,24 @@ def test_health(client) -> None:
     )
 
 
+def test_health_distinguishes_liveness_readiness_and_optional_services(client) -> None:
+    assert client.get("/api/health/live").json() == {"status": "alive"}
+
+    response = client.get("/api/health/ready")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ready"
+    assert payload["required"]["database"]["ready"] is True
+    assert payload["required"]["registries"]["configuredMt"] > 0
+    assert payload["required"]["registries"]["configuredMx"] > 0
+    assert payload["optional"]["knowledge"]["state"] in {
+        "OPTIONAL_DISABLED",
+        "OPTIONAL_NOT_INDEXED",
+        "READY",
+    }
+    assert payload["optional"]["ai"]["state"] in {"OPTIONAL_DISABLED", "CONFIGURED"}
+
+
 def test_profile_detail_and_controlled_statuses(client) -> None:
     profile = client.get("/api/profiles/BFS_CLIENT_DEMO_V1")
     status_options = client.get("/api/statuses")
