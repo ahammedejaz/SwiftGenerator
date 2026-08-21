@@ -936,7 +936,10 @@ export function CreateMessage() {
                       variant="secondary"
                       icon="refresh"
                       onClick={() => {
-                        storeConversionSource(result.messageType, regeneratedText(result));
+                        storeConversionSource(result.messageType, regeneratedText(result), {
+                          lane: result.lane,
+                          release: result.provenance?.release ?? null,
+                        });
                         router.push("/convert");
                       }}
                     >

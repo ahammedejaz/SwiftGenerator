@@ -17,6 +17,7 @@ import type {
   ConversionTarget,
   ConversionTargetsResponse,
   ElementInput,
+  Lane,
   MappingCitation,
   MappingEvidenceClass,
 } from "@/lib/studio-types";
@@ -27,6 +28,8 @@ export function ConvertMessage() {
   const [sourceType, setSourceType] = useState("MT541");
   const [rawMessage, setRawMessage] = useState("");
   const [targets, setTargets] = useState<ConversionTargetsResponse | null>(null);
+  const [sourceLane, setSourceLane] = useState<Lane>("CONFIGURED");
+  const [sourceRelease, setSourceRelease] = useState<string | null>(null);
   const [selected, setSelected] = useState<ConversionTarget | null>(null);
   const [allowPreview, setAllowPreview] = useState(false);
   const [targetValues, setTargetValues] = useState<Record<string, string>>({});
@@ -36,13 +39,28 @@ export function ConvertMessage() {
 
   useEffect(() => {
     let initialSource = "MT541";
+    let initialLane: Lane = "CONFIGURED";
+    let initialRelease: string | null = null;
     const transferred = window.sessionStorage.getItem(TRANSFER_KEY);
     if (transferred) {
       try {
-        const parsed = JSON.parse(transferred) as { messageType?: string; rawMessage?: string };
+        const parsed = JSON.parse(transferred) as {
+          messageType?: string;
+          rawMessage?: string;
+          lane?: Lane;
+          release?: string | null;
+        };
         if (parsed.messageType) {
           initialSource = parsed.messageType;
           setSourceType(parsed.messageType);
+        }
+        if (parsed.lane) {
+          initialLane = parsed.lane;
+          setSourceLane(parsed.lane);
+        }
+        if (parsed.release !== undefined) {
+          initialRelease = parsed.release;
+          setSourceRelease(parsed.release);
         }
         if (parsed.rawMessage) setRawMessage(parsed.rawMessage);
       } finally {
@@ -50,7 +68,7 @@ export function ConvertMessage() {
       }
     }
     studioApi
-      .conversionTargets(initialSource)
+      .conversionTargets(initialSource, "MT", { lane: initialLane, release: initialRelease })
       .then((response) => {
         setTargets(response);
         setSelected(response.targets[0] ?? null);
@@ -66,7 +84,10 @@ export function ConvertMessage() {
     setError(null);
     setResult(null);
     try {
-      const response = await studioApi.conversionTargets(source);
+      const response = await studioApi.conversionTargets(source, "MT", {
+        lane: sourceLane,
+        release: sourceRelease,
+      });
       setTargets(response);
       setSelected(response.targets.find((item) => item.convertible) ?? response.targets[0] ?? null);
     } catch (caught) {
@@ -87,6 +108,8 @@ export function ConvertMessage() {
       const response = await studioApi.convert({
         sourceFormat: "MT",
         sourceMessage: sourceType,
+        sourceLane,
+        sourceRelease,
         rawMessage,
         targetFormat: "MX",
         targetMessage: selected.target.messageType,
@@ -326,8 +349,15 @@ function ReportFact({ label, value }: { label: string; value: number }) {
   return <div className="border-b border-line px-5 py-4 sm:border-r"><dt className="text-xs uppercase text-ink-3">{label}</dt><dd className="tnum mt-1 text-xl font-semibold">{value}</dd></div>;
 }
 
-export function storeConversionSource(messageType: string, rawMessage: string) {
-  window.sessionStorage.setItem(TRANSFER_KEY, JSON.stringify({ messageType, rawMessage }));
+export function storeConversionSource(
+  messageType: string,
+  rawMessage: string,
+  source?: { lane?: Lane; release?: string | null },
+) {
+  window.sessionStorage.setItem(
+    TRANSFER_KEY,
+    JSON.stringify({ messageType, rawMessage, lane: source?.lane, release: source?.release ?? null }),
+  );
 }
 
 function evidenceLabel(value: MappingEvidenceClass): string {

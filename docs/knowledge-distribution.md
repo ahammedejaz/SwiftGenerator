@@ -1,15 +1,23 @@
 # Knowledge distribution
 
-## Audit and decision
+## Decision (superseded on 2026-08-21)
 
-The operator folder audited on 21 August 2026 contained 164 files (163 active PDF/XSD
-sources plus `.DS_Store`), about 36 MB. Repository documentation identifies the SWIFT MRGs
-as licensed, and no explicit redistribution authorization was present for the raw PDF/XSD
-set. The files are therefore `RESTRICTED` or `UNKNOWN`; both remain untracked.
+The audit of 2026-08-21 recorded the operator folder at 164 files, about 36 MB, and — with
+no explicit redistribution authorisation at the time — kept it untracked behind a secure
+bootstrap. The operator has since **explicitly authorised the knowledge-base content for
+this internal, non-distributed project**, and the source tree is now committed through Git
+LFS. The current contract is [knowledge-repository.md](knowledge-repository.md):
 
-Git LFS is not used. LFS changes storage mechanics, not redistribution rights. The chosen
-mode is **secure bootstrap**: configured messages work with no bundle, and an authorized
-operator may fetch/copy one separately.
+```bash
+git clone https://github.com/ahammedejaz/SwiftGenerator.git && cd SwiftGenerator
+git lfs pull
+make quickstart
+```
+
+Git LFS changes storage mechanics, not rights; the authorisation is what changed. The
+secure bootstrap below remains for an operator who cannot reach the repository's LFS
+store, and `make quickstart` uses it only when the bundle variables are set and the
+committed tree is absent.
 
 ## Secure bootstrap
 

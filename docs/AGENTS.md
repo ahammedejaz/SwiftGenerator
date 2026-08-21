@@ -155,7 +155,32 @@ remain untracked and may be installed only through the HTTPS/local, checksum-req
 [ai-rag-observability.md](ai-rag-observability.md), [message-conversion.md](message-conversion.md),
 [knowledge-distribution.md](knowledge-distribution.md), and [quickstart.md](quickstart.md).
 
-**Verification status (measured 2026-08-21 on the Phase 6 branch final head):**
+**The universal completion engagement (branch `feat/universal-mt-semantic-mapping-completion`)
+closed three gaps generically.** *Generation:* the MRG→pack compiler reads flat and
+unbracketed sequences, nested repeat groups, misnumbered rows and common-group (`MT n9x`)
+guides; the format grammar gained groups, alternation and repeats and the guide's own FORMAT
+notations; code lists are keyed by exact tag and enforced only when closed; the parser and
+generator address a tag listed twice in one sequence by ordinal and open nested unbracketed
+parents implicitly. SR2026 went from 47 to **210/210** ready structures, the catalogue from
+250/419 to **424/481** generatable MT entries, and every generation-ready preview structure
+passes the API matrix (`tests/knowledge_base/test_universal_generation_matrix.py`,
+408/408 on the operator's corpus). The 57 blocked entries are evidence gaps, grouped in
+[generated/mt-generation-blockers.md](generated/mt-generation-blockers.md). *Semantics:*
+`app/rule_engine/mt_mrg/corpus.py` reads all 156 guides; `rule-dsl/3` adds component
+extraction and `allEqual`; `templates_generic.py` adds the cross-category sentence forms.
+911 rules, one disposition each: 330 exact, 115 partial, 466 unsupported with reasons; all
+`REVIEW_REQUIRED`, 0 active. *Mapping:* `app/mapping/evidence.py` sweeps the knowledge base;
+`relationships.yaml` records only supported correspondences with their evidence class;
+two `CANDIDATE_PREVIEW` packs (MT202→pacs.009, MT103→pacs.008) cite every rule; no pack
+is `SOURCE_BACKED` because the corpus holds no field-level mapping material. *Knowledge:*
+`swiftKnowledgeBase/` is committed through Git LFS with a content manifest
+(`make knowledge-verify`). See [universal-mt-generation.md](universal-mt-generation.md),
+[mt-semantic-coverage.md](mt-semantic-coverage.md), [mt-mx-mapping.md](mt-mx-mapping.md),
+[knowledge-repository.md](knowledge-repository.md) and the engagement report in
+`history/universal-mt-semantic-mapping-completion-report.md`.
+
+**Verification status (measured 2026-08-21 on the Phase 6 branch final head; the
+universal-completion figures are in its report):**
 
 ```
 1546 backend tests passed, 22 skipped, 6 deselected (live marker)   ruff: clean   mypy --strict: clean (227 files)
@@ -282,7 +307,9 @@ backend/app/knowledge_base/
     mt_loader.py    MT pack → MessageSpecification (the runtime type the composer reads)
     mrg.py          Format Specification tables read from an MRG's page-marked text
     mx_pack.py      operator XSD → MX pack via spec_engine.compile_schema + validate_pack
-    swift_format.py SWIFT field-format patterns → synthetic values for the sample gate
+    swift_format.py SWIFT field-format patterns → synthetic values for the sample gate; component patterns
+  common_group.py   ``MT n90`` → MT190 … MT990 (runtime-safe helpers)
+  manifest.py       swiftKnowledgeBase/source-manifest.json: write from the database, verify anywhere
 backend/app/ai_authoring/
   service.py        identify, prepare, samples, test data, presentation, ask, releases/compare
   provider.py       structured-completion provider (organisation endpoint / OpenRouter / scripted)
@@ -300,6 +327,9 @@ app/spec_engine/                 XSD -> specification-pack compiler (offline CLI
 app/spec_engine/mt_prowide/      pinned Prowide MT extractor; build-time only
 app/rule_engine/mt_semantics.py  MT semantic source readiness + canonical reference checks
 app/rule_engine/mt_mrg/          reads a SWIFT Message Reference Guide as evidence; offline only
+app/rule_engine/mt_mrg/corpus.py every guide in the knowledge base → compact evidence index, coverage, review packs
+app/rule_engine/mt_mrg/templates_generic.py  cross-category NVR sentence forms (rule-dsl/3)
+app/mapping/evidence.py          MT↔MX correspondence sweep, relationships, packs, proofs → coverage report
 app/studio/capability.py         derived capability dimensions + plain-language summary
 app/studio/registry.py           format-neutral message-definition projection (catalogue metadata only)
 app/knowledge/loader.py          MT knowledge base
@@ -697,9 +727,12 @@ is a miss; a hit makes zero model calls and returns the same checksum.
 
 **What is committed and what is not.** Committed: code, the synthetic fixture corpus
 (`backend/tests/knowledge_fixtures.py`), the generated reports (counts, checksums, no
-source text). Never committed: anything under `swiftKnowledgeBase/`, `build/knowledge*/`
-(database, vectors, source cache, compiled packs), and no `.env` value. `make secret-scan`
-and the `.gitignore` entries enforce it.
+source text), and — since the universal completion engagement, on the operator's explicit
+authorisation for this internal project — the source tree `swiftKnowledgeBase/` through
+Git LFS with `swiftKnowledgeBase/source-manifest.json`. Never committed: `build/knowledge*/`
+(database, vectors, source cache, compiled packs), and no `.env` value. `make secret-scan`,
+`make knowledge-verify` and the `.gitignore` entries enforce it. Only the Clean Clone CI job
+checks out LFS content; the others see pointer files and open no source.
 
 **Endpoints.** `/api/v1/knowledge`: `GET status`, `GET messages`,
 `GET messages/{message}/status`, `POST search`, `GET telemetry`, `GET sources`,
@@ -721,7 +754,7 @@ on demand. **Python 3.13, Node 22** — the same versions this repository target
 | Job | What it runs | On |
 |---|---|---|
 | **Required Checks** | `make install` → `make check` → `make secret-scan` → `git diff --check`. Since Phase 6 `make check` includes `knowledge-check`: the retrieval evaluation over the synthetic fixture corpus with `EMBEDDING_PROVIDER=fake` — no PDF, no XSD, no key, no network | PR, main |
-| **Clean Clone** | `make install` → `make migrate` → `make check`, from git-tracked files only | PR, main |
+| **Clean Clone** | checkout with `lfs: true` → `make install` → `make migrate` → `make knowledge-verify` → `make check`, from git-tracked files only | PR, main |
 | **MT Prowide Source** | backend deps + Java 21 → `make verify-prowide-mt-source` | PR, main |
 | **Browser E2E** | `make e2e`; report, traces and screenshots uploaded **on failure only**. Its Playwright global setup first indexes the synthetic corpus into `build/knowledge-e2e/` (fake embeddings, `scripted` AI provider), so the Knowledge Base and AI authoring screens are exercised with no licensed document and no provider key | PR, main |
 | **Docker** | `docker compose config --quiet` → `docker compose build`. Nothing is pushed | PR, main |
@@ -798,7 +831,15 @@ make knowledge-sync            # discover, identify, segment, index, embed (poli
 make knowledge-status          # counts, last run, embedding/LLM policy, load errors
 make knowledge-reindex         # sync --reindex: re-parse every source, reuse nothing
 make knowledge-clean-cache     # drop build/knowledge caches; never touches a source
-make knowledge-reports-write   # docs/generated/{universal-message-readiness,knowledge-rag-coverage,ai-sample-readiness}.md
+make knowledge-reports-write   # docs/generated/{universal-message-readiness,knowledge-rag-coverage,ai-sample-readiness,
+                               #   universal-mt-generation-coverage,mt-generation-blockers}.md
+make knowledge-rebuild-structures  # re-read guide artifacts from the cached text, recompile every pack (seconds)
+make knowledge-manifest-write  # swiftKnowledgeBase/source-manifest.json from the synced database
+make knowledge-verify          # committed sources present, real bytes (not LFS pointers), hashes as recorded
+make mt-mrg-corpus-extract     # read every guide → backend/tests/fixtures/mt_mrg/sr2026-corpus-evidence.json
+make mt-mrg-corpus-write       # docs/generated/mt-semantic-rule-coverage.md + mt-rule-review/*.md (checked by make check)
+make mt-mx-mapping-scan        # sweep the knowledge base for MT↔MX correspondence vocabulary → evidence-index.json
+make mt-mx-mapping-write       # run the conversion proofs locally; docs/generated/mt-mx-mapping-coverage.md (checked)
 make knowledge-reports-check   # fail if those reports no longer match the database
 make knowledge-check           # offline retrieval evaluation, synthetic fixtures, fake embeddings — in make check
 make evaluate-rag              # the same evaluation, by its own name
@@ -1140,6 +1181,43 @@ Defects found and fixed while building this. These are the ones likely to recur:
     `make test-live-rag` embeds `tests/knowledge_fixtures.py`, never the operator's folder,
     whatever the policy settings say — so it can be run on a machine that holds licensed
     PDFs without sending one.
+
+**The universal completion engagement**
+
+60. **A guide misnumbers its own table.** MT548 SR2026 closes `GENL` as row 14 after row
+    15; waiting for the number due swallowed the rest of the book. `16R`/`16S` rows are
+    complete one-line rows whatever their number, and other rows resynchronise within ±3
+    with a recorded `ROW_NUMBER_RESYNC_…`.
+61. **A sync process runs the code it imported, not the code on disk.** Editing the reader
+    while a 27-minute `--reindex` ran produced artifacts in the old convention and packs
+    compiled by the new one (108 `KNOWLEDGE_ONLY`). `make knowledge-rebuild-structures`
+    re-reads artifacts from the cached text in seconds; the pack identity now includes the
+    artifact's content hash, so a reader change recompiles without a version bump.
+62. **`ruff format` over the whole tree reformats files the repository never formatted.**
+    `make lint` runs `ruff check` only; format only the files you touched.
+63. **A guide's code list is not always closed.** "One of the following codes may be used"
+    and "or bilaterally agreed codes" leave the list open; enforcing it would reject codes
+    SWIFT permits. Only a list introduced with "must" compiles to an allowed set, and only
+    for a single-token value (`4!c`, `10a`, `16x`) — a composite like `8a/4!a2!c…` is
+    checked against the whole value by the runtime and would be wrong.
+64. **Prowide's `<CUR>` knows more than the guide's `3!a`.** The guide's notation is the
+    fallback for Prowide-only macros, not the first choice: `<CUR><AMOUNT>` drives the
+    input kind and a currency-shaped sample, `3!a15d` would sample `SYN`.
+65. **The same tag twice in one sequence is two rows, not a duplicate.** MT011's two `175`
+    times, MT360's two `18A`, MT942's two `34F`. The n-th value at an address is the n-th
+    row in table order — in the composer, the parser, the Excel importer and the JSON
+    resolver alike, or a workbook built from the template fails its own upload.
+66. **A sequence whose rows are all optional can still be mandatory.** MT503's Agreement
+    subsequence and pacs.009's Debtor block: a minimal sample has to open it with its first
+    value-carrying leaf, and a conversion has to ask for that leaf (`NEEDS_INPUT`) rather
+    than invent a party. Prefer the shallowest leaf as the opener; the deepest mandatory one
+    drags an optional proprietary block in behind it.
+67. **Case-insensitive regexes make a sequence-path token match English.** `SEQ` matched
+    "if" in "B, C, E and F, if field …" under `re.IGNORECASE`; the generic templates spell
+    their sentence starts out (`[Ii]f`) instead.
+68. **Playwright adopts whatever listens on 8000.** A `make dev` pair left running from
+    earlier in the day made every browser test time out against a backend with a different
+    environment. Stop your servers before `make e2e` (gotcha 20, relearned).
 
 ---
 

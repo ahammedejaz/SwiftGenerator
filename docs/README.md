@@ -27,7 +27,11 @@ row from the table below based on why you are here.
 | Drop a source into the knowledge base, and know what may leave the machine | [knowledge-source-handling.md](knowledge-source-handling.md) |
 | Start a clean clone or operate Docker locally | [quickstart.md](quickstart.md) |
 | Understand configured-first and dynamic runtime behavior | [universal-message-runtime.md](universal-message-runtime.md) |
-| Install an approved knowledge bundle without committing it | [knowledge-distribution.md](knowledge-distribution.md) |
+| Understand what the repository carries as its knowledge base, and how a clone proves it arrived | [knowledge-repository.md](knowledge-repository.md) |
+| Install a knowledge bundle out of band (when the LFS store is out of reach) | [knowledge-distribution.md](knowledge-distribution.md) |
+| See how any MT becomes generation-ready, and exactly what still blocks the rest | [universal-mt-generation.md](universal-mt-generation.md) |
+| See every Network Validated Rule of every guide with its disposition | [mt-semantic-coverage.md](mt-semantic-coverage.md) |
+| Know what the knowledge base supports about MT→MX correspondence, and how far each pack reaches | [mt-mx-mapping.md](mt-mx-mapping.md) |
 | Inspect privacy-safe AI/RAG usage | [ai-rag-observability.md](ai-rag-observability.md) |
 | Convert MT to MX through an evidence-bearing Mapping Pack | [message-conversion.md](message-conversion.md) |
 | Let a model draft a sample or interpret a business request | [ai-assisted-authoring.md](ai-assisted-authoring.md) |
@@ -140,6 +144,10 @@ row from the table below based on why you are here.
 | [generated/universal-message-readiness.md](generated/universal-message-readiness.md) | `make knowledge-reports-write` (needs a synced knowledge base) |
 | [generated/knowledge-rag-coverage.md](generated/knowledge-rag-coverage.md) | `make knowledge-reports-write` |
 | [generated/ai-sample-readiness.md](generated/ai-sample-readiness.md) | `make knowledge-reports-write` |
+| [generated/universal-mt-generation-coverage.md](generated/universal-mt-generation-coverage.md) | `make knowledge-reports-write` |
+| [generated/mt-generation-blockers.md](generated/mt-generation-blockers.md) | `make knowledge-reports-write` |
+| [generated/mt-semantic-rule-coverage.md](generated/mt-semantic-rule-coverage.md) and `generated/mt-rule-review/*.md` | `make mt-mrg-corpus-write` (checked by `make check`) |
+| [generated/mt-mx-mapping-coverage.md](generated/mt-mx-mapping-coverage.md) | `make mt-mx-mapping-write` (checked by `make check`) |
 
 Do not edit generated files by hand. `make coverage` fails the build if message coverage
 is stale. It covers every configured message in both formats, and every figure in it is

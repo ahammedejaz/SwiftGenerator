@@ -211,9 +211,15 @@ export const studioApi = {
       body: JSON.stringify(payload),
     }),
 
-  conversionTargets: (source: string, sourceFormat: MessageFormat = "MT") =>
+  conversionTargets: (
+    source: string,
+    sourceFormat: MessageFormat = "MT",
+    options: { lane?: Lane; release?: string | null } = {},
+  ) =>
     request<ConversionTargetsResponse>(
-      `/api/v1/messages/${encodeURIComponent(source)}/conversion-targets?sourceFormat=${sourceFormat}`,
+      `/api/v1/messages/${encodeURIComponent(source)}/conversion-targets?sourceFormat=${sourceFormat}` +
+        (options.lane ? `&sourceLane=${encodeURIComponent(options.lane)}` : "") +
+        (options.release ? `&sourceRelease=${encodeURIComponent(options.release)}` : ""),
     ),
 
   convert: (payload: ConvertRequest) =>

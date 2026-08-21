@@ -39,19 +39,22 @@ There is nothing the app can do that the API cannot. The app *is* an API client.
 
 ## Quickstart
 
-With Docker, Compose and OpenSSL installed, a fresh clone is one command:
+With Docker, Compose, OpenSSL and Git LFS installed, a fresh clone is three commands:
 
 ```bash
 git clone <this-repo>
 cd SwiftGenerator
-
+git lfs pull
 make quickstart
 ```
 
 Open <http://localhost:3000>. The command creates safe local secrets, builds both images,
-runs migrations, starts the platform and waits for readiness. AI and the local knowledge
-base are optional; without credentials or an approved source bundle, all 23 configured
-messages still work deterministically.
+runs migrations, starts the platform, waits for readiness, verifies the committed knowledge
+base against its manifest and indexes it in the background. The 23 configured messages work
+immediately; the knowledge-preview lane (hundreds of MT and MX structures compiled from the
+committed SWIFT guides and ISO 20022 schemas) appears when the first sync finishes. AI
+credentials are optional: without them, indexing is lexical and everything deterministic
+still works.
 
 ```bash
 make stop       # stop services, keep development data
@@ -139,15 +142,16 @@ invent.
 
 ### Beyond the configured 23: the knowledge base
 
-If you hold authorised SWIFT Message Reference Guides or ISO 20022 schemas, drop them into
-an ignored local folder (`swiftKnowledgeBase/`), run `make knowledge-sync`, and the studio
-indexes them for search, lets a model draft samples grounded in them with page-level
-citations, and — where deterministic structure evidence exists — generates test messages
-for types nobody configured by hand, in a separate, clearly labelled **knowledge-preview
-lane**. The exact generation-ready count depends on the operator's sources and is reported
-by `make knowledge-status`; a message without structural evidence can be searched but
-is never generated, and the readiness report names the exact blocker. Nothing licensed is
-ever committed, and no source text leaves the machine unless you say so twice. See
+The repository carries the authorised knowledge base (`swiftKnowledgeBase/`, through Git
+LFS: 156 SWIFT SR2026 Message Reference Guides and 8 ISO 20022 `pacs` schemas). `make
+knowledge-sync` indexes it for search, lets a model draft samples grounded in it with
+page-level citations, and — where deterministic structure evidence exists — generates test
+messages for types nobody configured by hand, in a separate, clearly labelled
+**knowledge-preview lane**: 424 of 481 MT catalogue entries and all 15 MX entries were
+generation-ready on 2026-08-21, every one proven through the same API matrix (sample,
+FIN, import, round trip, Excel, JSON). A message without structural evidence can be
+searched but is never generated, and the blocker report names the exact reason. No source
+text leaves the machine unless you say so twice. See
 [docs/universal-financial-message-rag.md](docs/universal-financial-message-rag.md) and
 [docs/knowledge-source-handling.md](docs/knowledge-source-handling.md).
 
@@ -236,6 +240,7 @@ make coverage       # fail if the message-coverage report is out of date
 make coverage-write # regenerate it
 make secret-scan    # no secret-shaped strings in tracked files
 make knowledge-sync     # index swiftKnowledgeBase/ (add KNOWLEDGE_SOURCE_DIR=a,b for more roots)
+make knowledge-verify   # the committed knowledge base is present, real bytes, and hashes as recorded
 make knowledge-fetch    # install one approved checksum-pinned organisation bundle
 make knowledge-status   # what is indexed, and the embedding/LLM policy in force
 make knowledge-dev      # sync, then run the API in local UAT mode (enables the sync endpoint)

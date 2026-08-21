@@ -62,23 +62,29 @@ forbidden outside development.
 **Submission fails closed.** Sending a real message requires an authorised connector, an
 approval policy and external validation evidence, all explicitly configured. None ship here.
 
-## No authoritative MT-to-MX mapping ships
+## No source-backed MT-to-MX mapping ships
 
-The conversion engine and UI are deterministic and validated, but the bundled MT541 to
-sese.023 Mapping Pack is a synthetic software fixture. It is production-ineligible and
-disabled unless a tester explicitly enables synthetic preview. No SWIFT coexistence guide,
-approved client mapping or other authoritative mapping evidence was available, so real
-source-backed conversion reports `BLOCKED_BY_MAPPING_EVIDENCE` rather than guessing.
+The conversion engine and UI are deterministic and validated, and three Mapping Packs are
+committed — but none is `SOURCE_BACKED` and none is production eligible. The MT541 to
+sese.023 pack is a synthetic fixture. The MT202 to pacs.009 and MT103 to pacs.008 packs are
+**candidate previews**: their target relationships rest on the MT205 guide's Scope
+(documentary, `TARGET_RELATIONSHIP_ONLY`) and on two documents' titles
+(`NAME_CORRESPONDENCE`) respectively, and every field rule cites where its two sides are
+defined — not a document that relates them, because the knowledge base holds no coexistence
+guide, translation rule set or approved client mapping. All three run only behind the
+explicit preview opt-in and label themselves in every response.
 
-MT and MX are not generally reversible or one-to-one. Even an approved pack must report
-missing, derived and not-represented data. See [message-conversion.md](message-conversion.md).
+MT and MX are not generally reversible or one-to-one. Every conversion reports missing,
+derived and not-represented data and its business-mapping coverage as numbers. See
+[mt-mx-mapping.md](mt-mx-mapping.md) and [message-conversion.md](message-conversion.md).
 
-## Operator knowledge sources are not distributed
+## The knowledge base is committed for this internal project only
 
-The local audited PDF/XSD set has no recorded redistribution authorization. It is ignored by
-Git and not placed in LFS. A clean clone therefore starts with configured messages only.
-Authorized operators may install a checksum-pinned bundle separately; see
-[knowledge-distribution.md](knowledge-distribution.md).
+The operator authorised the knowledge-base content for this internal, non-distributed
+project, and `swiftKnowledgeBase/` is committed through Git LFS. The guides remain licensed
+MyStandards material; nothing in the repository changes what may be sent to a model (both
+policy gates still apply), and the repository is not to be redistributed. See
+[knowledge-repository.md](knowledge-repository.md).
 
 ## Values the tool refuses to invent
 
