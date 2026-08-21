@@ -262,10 +262,29 @@ def render_coverage(evidence: dict[str, Any], proofs: list[dict[str, Any]] | Non
     return _document(lines)
 
 
+def _widest_sample(format_: Any, message_type: str, *, lane: Any, release: Any = None) -> Any:
+    """FULL where the message has one, then TYPICAL, then MINIMAL."""
+    from app.studio.models import SampleVariant
+    from app.studio.samples import build_sample
+
+    for variant in (SampleVariant.FULL, SampleVariant.TYPICAL, SampleVariant.MINIMAL):
+        try:
+            return build_sample(format_, message_type, variant, lane=lane, release=release)
+        except (LookupError, KeyError, ValueError):
+            continue
+    raise LookupError(f"{message_type} has no deterministic sample")
+
+
 def run_proofs() -> list[dict[str, Any]]:
-    """Convert the deterministic MINIMAL sample of each pack's source through the pack and
+    """Convert the widest deterministic sample of each pack's source through the pack and
     record what came back. Opt-in preview is set explicitly: every pack here is a candidate
-    or synthetic, and the report says so."""
+    or synthetic, and the report says so.
+
+    *Widest*, not minimal. A minimal sample carries the mandatory rows and nothing else, so
+    it never exercises an optional field's transform — and that is where MT103's exchange
+    rate reached ``XchgRate`` with its SWIFT decimal comma, which the FORMAT layer rejects.
+    The proof said READY for a year because it had never sent field 36 at all.
+    """
     from app.mapping.models import ConvertRequest
     from app.mapping.registry import mapping_registry
     from app.mapping.service import MappingError, mapping_service
@@ -276,10 +295,9 @@ def run_proofs() -> list[dict[str, Any]]:
     proofs: list[dict[str, Any]] = []
     for pack in mapping_registry().packs:
         try:
-            sample = build_sample(
+            sample = _widest_sample(
                 pack.source.format,
                 pack.source.message_type,
-                SampleVariant.MINIMAL,
                 lane=pack.source.lane,
                 release=pack.source.release,
             )

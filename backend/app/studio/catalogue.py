@@ -12,6 +12,7 @@ from functools import lru_cache
 from app.knowledge.code_lists import code_lists
 from app.knowledge.loader import knowledge_repository
 from app.knowledge.models import RuleLayer, WorkflowModuleId
+from app.knowledge_base.structures.swift_format import describe_format, looks_like_notation
 from app.profiles.loader import profiles
 from app.specifications.models import MessageSpecification
 from app.specifications.registry import specification_registry
@@ -186,9 +187,28 @@ def _mt_spec_from(specification: MessageSpecification) -> MessageSpec:
                 business_meaning=knowledge.business_meaning if knowledge else row.technical_name,
                 technical_meaning=row.technical_name,
                 why_used=knowledge.why_used if knowledge else "",
-                business_question=knowledge.business_question if knowledge else "",
+                # A compiled preview row has no hand-authored knowledge record, and an
+                # empty question reaches the tester as a blank prompt — in the field editor,
+                # and in the conversion screen's "what is still missing" list. The row's own
+                # business name is the question nobody has to write twice.
+                business_question=(
+                    knowledge.business_question
+                    if knowledge and knowledge.business_question
+                    else f"What is the {row.business_name}?"
+                ),
                 missing_impact=knowledge.missing_impact if knowledge else None,
-                format_explanation=row.format,
+                # The notation in words. The studio tells the tester no SWIFT knowledge is
+                # required, so ``<DATE2><CUR><AMOUNT>15`` cannot be the whole answer to
+                # "expected format"; the notation itself is kept at the end for an expert.
+                format_explanation=(
+                    describe_format(row.format)
+                    if looks_like_notation(row.format)
+                    else row.format
+                ),
+                # Only when it really is notation. A configured row carries a hand-authored
+                # sentence in this same slot, and calling it a notation would both mangle
+                # the sentence and offer a client something it cannot parse.
+                format_notation=row.format if looks_like_notation(row.format) else None,
                 allowed_codes=row.allowed_codes,
                 allowed_values=_allowed_values(row.code_list, row.allowed_codes),
                 code_list=row.code_list,
@@ -322,8 +342,15 @@ def _mx_spec_from(spec: MxMessageSpec, registry: MxRegistry) -> MessageSpec:
                 business_meaning=element.business_meaning,
                 technical_meaning=element.technical_meaning,
                 why_used=element.why_used,
-                business_question=element.business_question,
+                # A compiled MX pack has no authored question either, and this one reaches
+                # the tester twice: in the field editor, and in the conversion screen's list
+                # of what the source could not supply.
+                business_question=(
+                    element.business_question
+                    or f"What is the {element.display_name}?"
+                ),
                 format_explanation=element.format_text(),
+                format_notation=element.data_type or None,
                 allowed_codes=element.codes,
                 allowed_values=_allowed_values(element.code_list, element.codes),
                 code_list=element.code_list,

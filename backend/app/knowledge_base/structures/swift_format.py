@@ -342,6 +342,147 @@ def _describe(notation: str) -> str:
     return f"SWIFT format {notation}: {words}".strip()
 
 
+#: What each notation token is, in the words the studio uses everywhere else. Only tokens
+#: whose meaning the notation itself states are listed; anything else keeps its notation,
+#: so a description never claims to know more than the source does.
+_TOKEN_WORDS: dict[str, str] = {
+    "<DATE1>": "a month and day (MMDD)",
+    "<DATE2>": "a date (YYMMDD)",
+    "<DATE3>": "a year and month (YYMM)",
+    "<DATE4>": "a date (YYYYMMDD)",
+    "<YEAR>": "a year (YYYY)",
+    "<TIME2>": "a time (HHMM)",
+    "<TIME3>": "a time (HHMMSS)",
+    "<HHMM>": "a time (HHMM)",
+    "<HH>": "an hour (HH)",
+    "<DDHHMM>": "a day and time (DDHHMM)",
+    "<YYMMDDHHMM>": "a date and time (YYMMDDHHMM)",
+    "<UTC>": "a UTC offset",
+    "<CUR>": "a three-letter currency code",
+    "<AMOUNT>": "an amount, written with a comma as the decimal separator",
+    "<BIC>": "a BIC — eight or eleven characters",
+    "<LT>": "a twelve-character logical terminal address",
+    "<ISIN>": "the literal ISIN",
+    "<SIGN>": "a plus or minus sign",
+    "<N>": "an optional N for a negative value",
+    "<NUMBER>": "a number",
+    "<VALUE>": "a number, written with a comma as the decimal separator",
+    "<DC>": "C for credit or D for debit",
+    "<DM>": "D or M",
+    "<CC>": "a two-letter country code",
+    "<MT>": "a three-digit message type",
+    "<BOOL>": "Y or N",
+    "<OFFSET>": "a four-digit offset from UTC",
+    "<SPACE>": "a space",
+    "<MIR>": "a message input reference",
+    "<MOR>": "a message output reference",
+}
+#: Plural then singular, so "exactly 1 capital letters" cannot be written.
+_CLASS_WORDS: dict[str, tuple[str, str]] = {
+    "n": ("digits", "digit"),
+    "a": ("capital letters", "capital letter"),
+    "c": ("capital letters or digits", "capital letter or digit"),
+    "x": ("characters of text", "character of text"),
+    "y": ("characters of text", "character of text"),
+    "z": ("characters of text", "character of text"),
+    "e": ("spaces", "space"),
+    "h": ("hexadecimal characters", "hexadecimal character"),
+}
+_DECIMAL_WORDS = "a number, written with a comma as the decimal separator"
+
+
+def _sized(width: int, cls: str, *, fixed: bool) -> str:
+    plural, singular = _CLASS_WORDS.get(cls, ("characters", "character"))
+    noun = singular if width == 1 else plural
+    return f"{'exactly' if fixed else 'up to'} {width} {noun}"
+
+
+_NOTATION_SHAPE = re.compile(r"[0-9A-Za-z!<>\[\]$*/():,.\-]+")
+_NOTATION_TOKEN = re.compile(r"\d!?[nacxyzhed]\b|<[A-Z]")
+
+
+def looks_like_notation(text: str) -> bool:
+    """``:4!c//16x`` and ``1a`` are notation; ``Date is rendered as YYYYMMDD`` is prose.
+
+    A configured message's rows carry a hand-authored sentence in the same slot a compiled
+    preview row carries its notation, so anything that reads one has to tell them apart.
+    """
+    stripped = text.strip()
+    return bool(
+        stripped and _NOTATION_SHAPE.fullmatch(stripped) and _NOTATION_TOKEN.search(stripped)
+    )
+
+
+def describe_format(notation: str) -> str:
+    """The notation as a sentence a tester who does not know SWIFT can act on.
+
+    The studio promises that no SWIFT knowledge is required, and then a compiled preview
+    row put ``<DATE2><CUR><AMOUNT>15`` under the box as its "expected format". This says
+    the same thing in words. The notation is still printed, because an expert reads it
+    faster than the sentence and a bug report needs it.
+    """
+    try:
+        compiled = compile_format(notation)
+    except FormatUnsupported:
+        return f"SWIFT format {notation}."
+    value_notation = compiled.value_notation
+    if not value_notation.strip():
+        return "This field carries no value; its tag alone opens or closes a sequence."
+    currency_at = currency_offsets(value_notation)
+    parts: list[str] = []
+    position = 0
+    optional = 0
+    while position < len(value_notation):
+        match = _TOKEN.match(value_notation, position)
+        if match is None:
+            return f"SWIFT format {notation}."
+        start, position = match.start(), match.end()
+        if match.group("annotation") or match.group("alt"):
+            continue
+        if match.group("open"):
+            optional += 1
+            continue
+        if match.group("close"):
+            optional = max(0, optional - 1)
+            continue
+        if match.group("gopen") or match.group("gclose") or match.group("glines"):
+            continue
+        word: str | None = None
+        if match.group("macro"):
+            word = _TOKEN_WORDS.get(match.group("macro"))
+        elif match.group("amount"):
+            word = _TOKEN_WORDS["<AMOUNT>"]
+        elif match.group("len"):
+            width, cls = int(match.group("len")), match.group("cls")
+            fixed = bool(match.group("fixed"))
+            if start in currency_at:
+                word = _TOKEN_WORDS["<CUR>"]
+            elif cls == "d":
+                word = _DECIMAL_WORDS
+            else:
+                word = _sized(width, cls, fixed=fixed)
+        elif match.group("lines") or match.group("anglelen"):
+            width = int(match.group("line_len") or match.group("al_len"))
+            cls = match.group("line_cls") or match.group("al_cls")
+            word = _DECIMAL_WORDS if cls == "d" else _sized(width, cls, fixed=False)
+        elif match.group("lit") is not None:
+            # Punctuation the composer writes (``/``, ``//``, ``$``). It carries no value
+            # for the caller to supply, so it is not part of what the field accepts.
+            continue
+        if word is None:
+            # An unknown token. A sentence that leaves a component out reads as if the field
+            # were simpler than it is, which is worse than showing the notation alone.
+            return f"SWIFT format {notation}."
+        parts.append(f"{word} (optional)" if optional else word)
+    if not parts:
+        return f"SWIFT format {notation}."
+    if len(parts) == 1:
+        sentence = parts[0][0].upper() + parts[0][1:] + "."
+    else:
+        sentence = "In order: " + ", then ".join(parts) + "."
+    return f"{sentence} SWIFT format {notation}."
+
+
 def is_single_code_token(value_notation: str) -> bool:
     """``4!c``, ``10a``, ``16x``, ``3!a``: a value that is one token, so a code list can be
     the whole value. ``8a/4!a2!c4!n4!a2!c`` or ``4!c[/4!c]`` carry more than the code, and
@@ -353,6 +494,22 @@ def is_value_less(notation: str) -> bool:
     """``$`` or nothing: a field whose line is its tag alone (``:15A:`` opens a sequence)."""
     cleaned = re.sub(r"\(\*+\)", "", notation.strip())
     return cleaned in {"", "$"}
+
+
+#: ``3!a`` immediately before a decimal is a currency — the same reading
+#: ``_COMPONENT_TOKENS`` already applies when a rule names the CURRENCY component of
+#: ``6!n3!a15d``. Stating it once here is what stops the guide's own spelling of an amount
+#: being sampled as ``SYN`` while Prowide's ``<CUR><AMOUNT>`` samples ``USD``.
+#:
+#: A ``3!a`` that is *not* followed by a decimal is left alone, however tempting: 71A
+#: Details of Charges is ``3!a`` and its codes are BEN, OUR and SHA. Calling that a currency
+#: would put a false sentence under the box and sample a value the field does not accept.
+_CURRENCY_THEN_AMOUNT = re.compile(r"3!a(?=\[?(?:<AMOUNT>|\d{1,2}!?d))")
+
+
+def currency_offsets(value_notation: str) -> frozenset[int]:
+    """Character offsets in ``value_notation`` where a ``3!a`` token is a currency."""
+    return frozenset(match.start() for match in _CURRENCY_THEN_AMOUNT.finditer(value_notation))
 
 
 def input_kind_for(compiled: CompiledFormat, *, codes: bool) -> str:
@@ -372,6 +529,11 @@ def input_kind_for(compiled: CompiledFormat, *, codes: bool) -> str:
         return "QUANTITY"
     if value == "<CUR>":
         return "CURRENCY"
+    # The guide's own spelling of a currency-and-amount pair. Without this the field reaches
+    # the tester as a bare text box, and the studio has told them no SWIFT knowledge is
+    # needed — so the control has to know what the notation already says it is.
+    if currency_offsets(value):
+        return "AMOUNT"
     if value == "1a":
         return "INDICATOR"
     return "TEXT"
@@ -424,6 +586,7 @@ def synthetic_value(notation: str, *, codes: list[str] | None = None, seed: str 
     value_notation = compiled.value_notation
     if codes and is_single_code_token(value_notation):
         return codes[0]
+    currency_at = currency_offsets(value_notation)
     out: list[str] = []
     depth = 0  # inside ``[…]``: optional content, left out of a minimal sample
     skipping = 0  # inside a later ``|`` alternative: the first alternative is the sample
@@ -478,7 +641,9 @@ def synthetic_value(notation: str, *, codes: list[str] | None = None, seed: str 
             width = int(match.group("len"))
             cls = match.group("cls")
             fixed = bool(match.group("fixed"))
-            if cls == "d":
+            if match.start() in currency_at:
+                out.append(_SYNTHETIC_MACROS["<CUR>"])
+            elif cls == "d":
                 out.append("1000,")
             elif cls == "c" and width == 4 and codes:
                 out.append(codes[0])

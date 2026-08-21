@@ -22,7 +22,6 @@ Two mechanisms keep samples honest:
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
@@ -249,14 +248,17 @@ def _candidates(field: SpecField, message_type: str) -> list[str]:
             fallback = "SYNTHETICVALUE"
     if fallback:
         options.append(fallback)
-    if field.format is MessageFormat.MT and _looks_like_swift_notation(field.format_explanation):
+    # The notation as the source states it. `format_explanation` is prose, and reading the
+    # notation back out of a sentence is exactly how this stopped finding it once.
+    notation = field.format_notation or field.format_explanation
+    if field.format is MessageFormat.MT and _looks_like_swift_notation(notation):
         # A pack compiled from source evidence carries the field's own SWIFT notation; a
         # structurally valid synthetic value follows from it without a per-tag table. It
         # comes last so a curated value still wins where one exists and is accepted.
         from app.knowledge_base.structures.swift_format import FormatUnsupported, synthetic_value
 
         try:
-            derived = synthetic_value(field.format_explanation, codes=field.allowed_codes or None)
+            derived = synthetic_value(notation, codes=field.allowed_codes or None)
         except FormatUnsupported:
             derived = ""
         if derived:
@@ -268,16 +270,11 @@ def _candidates(field: SpecField, message_type: str) -> list[str]:
     return list(dict.fromkeys(option for option in options if option))
 
 
-_NOTATION_SHAPE = re.compile(r"[0-9A-Za-z!<>\[\]$*/():,.\-]+")
-_NOTATION_TOKEN = re.compile(r"\d!?[nacxyzhed]\b|<[A-Z]")
-
-
 def _looks_like_swift_notation(text: str) -> bool:
-    """``:4!c//16x`` and ``1a`` are notation; ``Date is rendered as YYYYMMDD`` is prose."""
-    stripped = text.strip()
-    return bool(
-        stripped and _NOTATION_SHAPE.fullmatch(stripped) and _NOTATION_TOKEN.search(stripped)
-    )
+    """One definition, in the grammar module that owns the notation."""
+    from app.knowledge_base.structures.swift_format import looks_like_notation
+
+    return looks_like_notation(text)
 
 
 def _mt_acceptable(field: SpecField, message_type: str, value: str, ctx: SampleContext) -> bool:

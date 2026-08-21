@@ -167,6 +167,12 @@ class InputKind(StrEnum):
     PARTY_BIC = "PARTY_BIC"
     PARTY_PROPRIETARY = "PARTY_PROPRIETARY"
     INDICATOR = "INDICATOR"
+    #: A three-letter currency code on its own. The pack compiler has derived this from the
+    #: notation since the preview lane existed; without the member here the loader fell back
+    #: to TEXT and 83 rows lost a control the source had already identified.
+    CURRENCY = "CURRENCY"
+    #: A date and a time in one value (``<DATE4><TIME2>``), 497 rows, same story.
+    DATETIME = "DATETIME"
 
 
 class SampleVariant(StrEnum):
@@ -308,7 +314,14 @@ class SpecField(ApiModel):
     why_used: str
     business_question: str
     missing_impact: str | None = None
+    #: What the field accepts, in words a tester who does not know SWIFT can act on.
     format_explanation: str
+    #: The format exactly as the source states it — the SWIFT notation for an MT row
+    #: (``:4!c//16x``, ``<DATE2><CUR><AMOUNT>15``), the ISO 20022 representation class for
+    #: an MX leaf. Carried separately because `format_explanation` is prose: a client that
+    #: needs to derive a value from the format needs the notation, and reading it back out
+    #: of an English sentence is how a sample generator silently stops finding it.
+    format_notation: str | None = None
     #: Kept for existing clients. `allowed_values` carries the same codes with their words.
     allowed_codes: list[str] = Field(default_factory=list)
     allowed_values: list[AllowedValue] = Field(default_factory=list)

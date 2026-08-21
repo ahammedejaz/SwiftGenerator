@@ -10,8 +10,8 @@ target:
   messageType: sese.023
   release: sese.023.001.11
   lane: CONFIGURED
-sourceStructureChecksum: de265ea7cad97ae41d3bde4448d2b1f1f8dd83e8b9236901e72e864fe66b02e7
-targetStructureChecksum: c06c40a7edea6bae2814fc154a30b80bb1270e4e23da5041392f56904a44ad39
+sourceStructureChecksum: b7d397c0138354f810fc0425a93aedd59979472ef7e384ccd4c417337a3d6897
+targetStructureChecksum: 228084418d842e8d59b0a04e89533e9b51b50214f8396a4a6d752f47723bdc32
 provenance:
   sourceType: SYNTHETIC_FIXTURE
   sourceReference: backend/config/mapping_sources/synthetic_mt541_to_sese023_v1.md

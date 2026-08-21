@@ -114,6 +114,12 @@ export function ConvertMessage() {
         targetFormat: "MX",
         targetMessage: selected.target.messageType,
         targetVersion: selected.target.release ?? selected.target.messageType,
+        // The target's own lane, not the default. Both candidate packs target
+        // KNOWLEDGE_PREVIEW, and a request that leaves this out resolves against
+        // CONFIGURED and is refused with "No exact Mapping Pack matches this source and
+        // target" — after the screen has just listed the pack and had the user tick the
+        // preview opt-in, which reads as a dead button rather than as a refusal.
+        targetLane: selected.target.lane,
         mappingPackId: selected.packId ?? undefined,
         targetValues: supplied,
         allowSyntheticPreview: allowPreview,

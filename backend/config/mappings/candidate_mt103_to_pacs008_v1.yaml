@@ -12,12 +12,12 @@ target:
   messageType: pacs.008
   release: pacs.008.001.14
   lane: KNOWLEDGE_PREVIEW
-sourceStructureChecksum: 0d8512840239958a8bba40f55e6d5371b34ccb734d35b42fcf740c7923ab0514
-targetStructureChecksum: 9431152e5420f8cc63982dc4fd2ea16cc5d19e14727da62f20dab72b88eecdb7
+sourceStructureChecksum: c00d484d3723969a7c7413cb1bab37546920206203560865e5219af6ae26f20e
+targetStructureChecksum: 7acb3e1b34eafa6b8d26f1ae80a6466c9e9508d5cede68b41bd7740193b0b3ac
 provenance:
   sourceType: CANDIDATE_FROM_CITED_DEFINITIONS
   sourceReference: backend/config/mapping_sources/candidate_mt103_to_pacs008_v1.md
-  sourceChecksum: ba25c9212357b5846e48c79e30669b7df0b5bea68ceeb454f23842e93137d8ad
+  sourceChecksum: 629de2a82e22915af70bc29c36035dc2814c7c3a3cfd7d66cf3d0afc54184834
   reviewState: CANDIDATE_PREVIEW
   productionEligible: false
   evidenceClass: NAME_CORRESPONDENCE
@@ -36,6 +36,8 @@ provenance:
     not reviewed.
   - The target relationship rests on the two documents' titles (name correspondence).
   - SWIFT YYMMDD value dates are read as 20YY-MM-DD.
+  - A SWIFT decimal is rewritten with a full stop and a trailing separator is dropped; the
+    number itself is unchanged.
   - 71A to ChrgBr is a candidate code correspondence by definition.
   - NbOfTxs is set to 1; SttlmMtd and CreDtTm need caller input.
   - Customer name/address options and correspondents are reported as not represented.
@@ -194,12 +196,15 @@ rules:
     section: XSD
     note: Element CdtTrfTxInf/InstdAmt
 - id: exchange-rate
-  kind: DIRECT
+  kind: TRANSFORM
+  semantic: exchange_rate
   sourceRefs:
   - MT103-ROOT-36-NONE
   outputs:
   - targetRef: /Document/FIToFICstmrCdtTrf/CdtTrfTxInf/XchgRate
-  note: 'Candidate: rate carried as written; decimal comma is an open question for review.'
+    transform: MT_DECIMAL_TO_ISO
+  note: 'Candidate: the rate itself is carried unchanged; only the decimal separator is
+    rewritten, because SWIFT writes a comma and ISO 20022 decimals write a full stop.'
   citations:
   - sourceId: SWIFT-MT-SR2026-MT103-MRG
     sourceChecksum: 69e72cc7e377c9eb2afdf2be0e21530927665c900d3cde2d202e29afb907a8a0

@@ -14,6 +14,8 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from app.knowledge_base.manifest import MANIFEST_NAME
+
 SUPPORTED_SUFFIXES = frozenset(
     {".pdf", ".txt", ".md", ".markdown", ".html", ".htm", ".xsd", ".xml", ".zip"}
 )
@@ -75,6 +77,12 @@ def discover(
             )
             for filename in sorted(filenames):
                 if filename.startswith("."):
+                    continue
+                if filename == MANIFEST_NAME:
+                    # The sync's own output, written into the root it walks. Reporting it as
+                    # an unsupported source means every clean run ends with one failure and
+                    # a permanent "Unsupported 1" on the Knowledge Base page, which trains
+                    # the operator to ignore the number that is there to be read.
                     continue
                 absolute = Path(dirpath) / filename
                 relative = prefix + absolute.relative_to(root).as_posix()

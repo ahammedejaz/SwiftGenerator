@@ -1,7 +1,7 @@
 [
  {
   "packId": "CANDIDATE_MT103_TO_PACS008_V1",
-  "status": "NEEDS_INPUT \u2192 READY after 6 answer(s)",
+  "status": "NEEDS_INPUT \u2192 READY after 4 answer(s)",
   "mandatoryTargetMapped": 7,
   "mandatoryTargetTotal": 7,
   "sourceRowsRepresented": 12,
@@ -11,7 +11,7 @@
  },
  {
   "packId": "CANDIDATE_MT202_TO_PACS009_V1",
-  "status": "NEEDS_INPUT \u2192 READY after 3 answer(s)",
+  "status": "NEEDS_INPUT \u2192 READY after 2 answer(s)",
   "mandatoryTargetMapped": 6,
   "mandatoryTargetTotal": 6,
   "sourceRowsRepresented": 8,
