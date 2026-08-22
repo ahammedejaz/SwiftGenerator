@@ -57,6 +57,10 @@ export function FieldControl({
       return <QuantityInput field={field} id={id} value={value} invalid={invalid} onChange={onChange} />;
     case "AMOUNT":
       return <AmountInput field={field} id={id} value={value} invalid={invalid} onChange={onChange} />;
+    case "CURRENCY":
+      return <CurrencyInput field={field} id={id} value={value} invalid={invalid} onChange={onChange} />;
+    case "DATETIME":
+      return <DateTimeInput field={field} id={id} value={value} invalid={invalid} onChange={onChange} />;
     case "DATE":
       return <DateInput field={field} id={id} value={value} invalid={invalid} onChange={onChange} />;
     case "NARRATIVE":
@@ -398,7 +402,38 @@ function QuantityInput({ field, id, value, invalid, onChange }: ControlProps) {
 }
 
 /** `USD25000,00` — a currency and a decimal amount. */
+/**
+ * Whether the value this field carries *begins* with its currency.
+ *
+ * `32A` is `<DATE2><CUR><AMOUNT>15` — a date, then the currency, then the amount — so the
+ * currency is not the first three characters and cannot be edited on its own. Splitting it
+ * anyway produced an empty currency box beside the whole composite, and typing in that box
+ * wrote a currency in front of the date. Where the notation does not put the currency
+ * first, the field is one value and gets one control.
+ */
+function currencyLeads(field: SpecField): boolean {
+  const notation = field.formatNotation;
+  if (!notation) return true; // a configured row: the curated AMOUNT rows are currency-first
+  return /^(?:\[N\]|<N>)?(?:<CUR>|3!a)/.test(notation.trim());
+}
+
 function AmountInput({ field, id, value, invalid, onChange }: ControlProps) {
+  if (!currencyLeads(field)) {
+    return (
+      <>
+        <TextInput
+          id={id}
+          value={value}
+          invalid={invalid}
+          maxLength={field.maxLength ?? undefined}
+          placeholder={field.examples[0]?.value}
+          className="font-mono"
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <Counter length={value.length} max={field.maxLength} />
+      </>
+    );
+  }
   const match = /^([A-Z]{0,3})(.*)$/.exec(value.toUpperCase());
   const currency = match?.[1] ?? "";
   const amount = match?.[2] ?? "";
@@ -425,6 +460,48 @@ function AmountInput({ field, id, value, invalid, onChange }: ControlProps) {
         onChange={(event) => join(currency, event.target.value.replace(/[^\d,.]/g, ""))}
       />
     </div>
+  );
+}
+
+/** A three-letter currency code on its own. */
+function CurrencyInput({ field, id, value, invalid, onChange }: ControlProps) {
+  return (
+    <TextInput
+      id={id}
+      value={value}
+      invalid={invalid}
+      maxLength={3}
+      aria-label={field.displayName}
+      placeholder={field.examples[0]?.value ?? "USD"}
+      className="font-mono sm:w-32"
+      onChange={(event) => onChange(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+    />
+  );
+}
+
+/**
+ * A date and a time in one value. MT writes them run together (`YYYYMMDDHHMM`); the picker
+ * speaks ISO, so only what is written back differs — the same shape as `DateInput`.
+ */
+function DateTimeInput({ field, id, value, invalid, onChange }: ControlProps) {
+  const compact = field.format === "MT";
+  const isoValue = compact
+    ? /^\d{12}$/.test(value)
+      ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T${value.slice(8, 10)}:${value.slice(10, 12)}`
+      : ""
+    : value;
+  return (
+    <TextInput
+      id={id}
+      type="datetime-local"
+      value={isoValue}
+      invalid={invalid}
+      className="font-mono"
+      onChange={(event) => {
+        const next = event.target.value;
+        onChange(compact ? next.replace(/[-:T]/g, "").slice(0, 12) : next);
+      }}
+    />
   );
 }
 

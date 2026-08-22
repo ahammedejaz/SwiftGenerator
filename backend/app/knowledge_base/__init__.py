@@ -16,4 +16,4 @@ command alone.
 KNOWLEDGE_SCHEMA_VERSION = 3
 CHUNKER_VERSION = "knowledge-chunker/1"
 EMBEDDING_SCHEMA_VERSION = "embedding/1"
-PACK_COMPILER_VERSION = "knowledge-pack-compiler/6"
+PACK_COMPILER_VERSION = "knowledge-pack-compiler/8"

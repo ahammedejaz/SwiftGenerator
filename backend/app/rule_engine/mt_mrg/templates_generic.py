@@ -82,9 +82,15 @@ CONDITION = (
     r"(?:[Ii]f|[Ww]hen|[Ww]here)\s+(?:the\s+)?(?:[^()]*?\()?(?:field\s+)?"
     + _f("a")
     + rf"\)?(?:\s+in\s+(?:sub)?sequence\s+(?P<aseq>{SEQ}))?\s+"
-    r"(?P<cond>is present|is not present|is NOT present|is absent|is NOT used|is not used|is used|"
+    # ``is present and contains RTND`` must be read before ``is present``, or the alternation
+    # stops at the presence clause and the rest of the sentence is left for the consequence
+    # to fail on. Saying "present and equal to this code" is exactly the value predicate —
+    # a code cannot be present in an absent field — so the compound form is not weaker.
+    r"(?P<cond>"
+    rf'(?:is present and )?contains (?:the )?(?:code )?"?(?P<code>{CODE})"?|'
+    r"is present|is not present|is NOT present|is absent|is NOT used|is not used|is used|"
     rf'is\s+"?(?P<val>{CODE})"?|is equal to\s+"?(?P<val2>{CODE})"?|'
-    rf"contains (?:the )?(?:code )?(?P<code>{CODE})|contains one of the codes\s+(?P<codes>{CODES})|"
+    rf"contains one of the codes\s+(?P<codes>{CODES})|"
     rf"contains (?:the )?codes?\s+(?P<codes2>{CODES})|"
     rf"does not contain (?:the )?(?:code )?(?P<notcode>{CODE}))"
 )
@@ -112,6 +118,19 @@ EITHER_OR = re.compile(
     SCOPE
     + rf"(?:[Ee]ither\s+)?fields?\s+{_f('a')}\s+or\s+(?:field\s+)?{_f('b')}(?P<both>,\s*but not both,?)?\s+"
     r"(?P<mode>may|must) be present",
+)
+#: ``In sequence D, field 30F may only be present if field 34B is present`` — the guide
+#: states the consequence first and the condition second. The reading is exactly
+#: "A present implies B present"; the condition must itself be a field's presence, because
+#: ``Field 31C may only be present when field 23 specifies an American style option`` is
+#: prose about a value this engine cannot evaluate, and reading it as a presence rule would
+#: constrain more than the guide does.
+ONLY_IF_PRESENT = re.compile(
+    SCOPE
+    + rf"(?:[Tt]he\s+)?[Ff]ields?\s+{_f('a')}(?:\s+in\s+(?:sub)?sequence\s+(?P<aseq>{SEQ}))?\s+"
+    r"may only be (?:present|used)\s+(?:if|when)\s+(?:the\s+)?(?:field\s+)?"
+    + _f("b")
+    + rf"(?:\s+in\s+(?:sub)?sequence\s+(?P<bseq>{SEQ}))?\s+is present",
 )
 BOTH_OR_NEITHER = re.compile(
     SCOPE
@@ -732,6 +751,28 @@ def _build_both_or_neither(
     )
 
 
+def _build_only_if_present(
+    match: re.Match[str], rule: MrgSourceRule, structure: MrgStructure
+) -> TemplateMatch | None:
+    scope, per_occurrence = _scope_of(match, structure)
+    groups = match.groupdict()
+    a = _ref(structure, match, "a", groups.get("aseq") or scope)
+    b = _ref(structure, match, "b", groups.get("bseq") or scope)
+    if a is None or b is None:
+        return None
+    node = _implies(_exists(a), _exists(b))
+    assertion, residual = _scoped(structure, scope, per_occurrence, node, (a, b))
+    return TemplateMatch(
+        template="ONLY_IF_PRESENT",
+        when=None,
+        assertion=assertion,
+        references=(a, b),
+        interpretation=f"{_name(a)} may be present only where {_name(b)} is.",
+        fidelity=RuleFidelity.PARTIAL if residual else RuleFidelity.EXACT,
+        residual=residual,
+    )
+
+
 def _build_count_limit(
     match: re.Match[str], rule: MrgSourceRule, structure: MrgStructure
 ) -> TemplateMatch | None:
@@ -1268,5 +1309,6 @@ GENERIC_TEMPLATES: tuple[tuple[str, re.Pattern[str], Builder], ...] = (
     ("NOT_THE_ONLY_FIELD", NOT_ONLY_FIELD, _build_not_only_field),
     ("EITHER_OR", EITHER_OR, _build_either_or),
     ("BOTH_OR_NEITHER", BOTH_OR_NEITHER, _build_both_or_neither),
+    ("ONLY_IF_PRESENT", ONLY_IF_PRESENT, _build_only_if_present),
     ("CONDITIONAL_PRESENCE_GENERAL", CONDITIONAL_GENERAL, _build_conditional_general),
 )

@@ -36,6 +36,11 @@ class TransformName(StrEnum):
     MT_DATE_TO_ISO = "MT_DATE_TO_ISO"
     MT_UNIT_QUANTITY = "MT_UNIT_QUANTITY"
     MT_AMOUNT_TO_ISO = "MT_AMOUNT_TO_ISO"
+    #: A bare SWIFT decimal (``d``: ``15d``, ``12d``) as an ISO 20022 decimal. SWIFT writes
+    #: the separator as a comma and permits a trailing one (``1000,``); ISO 20022 decimals
+    #: use a full stop. Carrying the written form through reaches the target as ``1000,``,
+    #: which the MX FORMAT layer rejects and which no caller input can repair.
+    MT_DECIMAL_TO_ISO = "MT_DECIMAL_TO_ISO"
     #: ``6!n3!a15d`` (32A): the date part as an ISO date. SWIFT's two-digit year is read as
     #: 20YY — the deterministic convention, recorded as a limitation on every pack using it.
     MT_DATED_AMOUNT_DATE = "MT_DATED_AMOUNT_DATE"
@@ -100,6 +105,8 @@ class BusinessSemantic(StrEnum):
     TRANSACTION_TYPE = "transaction_type"
     SAFEKEEPING_ACCOUNT = "safekeeping_account"
     MESSAGE_FUNCTION = "message_function"
+    #: The rate between an instructed and a settled amount (MT 36, pacs.008 XchgRate).
+    EXCHANGE_RATE = "exchange_rate"
 
 
 class MappingIdentity(ApiModel):

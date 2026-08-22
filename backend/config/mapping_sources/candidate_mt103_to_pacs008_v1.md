@@ -22,6 +22,10 @@ drawn from the definitions of the fields it cites (`SWIFT-MT-SR2026-MT103-MRG`, 
 ## Conventions the pack records as limitations
 
 - A SWIFT `YYMMDD` value date is read as `20YY-MM-DD`.
+- A SWIFT `d` decimal is rewritten with a full stop, and a trailing separator is
+  dropped (`1000,` → `1000`). The number itself is unchanged; only the separator is,
+  because the two standards spell it differently. Carrying the SWIFT spelling through
+  produces a value the ISO 20022 decimal datatype rejects.
 - `71A` codes are mapped to `ChrgBr` by their definitions (`BEN`→`CRED`, `OUR`→`DEBT`,
   `SHA`→`SHAR`); the correspondence is a candidate, not a published table.
 - `NbOfTxs` is set to `1`; `SttlmMtd` and `CreDtTm` are surfaced as `NEEDS_INPUT`.

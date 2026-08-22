@@ -120,8 +120,8 @@ a machine that has never held one. See
 [generated/mt-sr2026-semantic-readiness.md](generated/mt-sr2026-semantic-readiness.md) and
 the reviewer packages in `docs/generated/mt54*-sr2026-rule-review.md`.
 
-**The universal knowledge base, hybrid RAG and AI authoring exist (Phase 6 — branch
-`feat/phase-6-universal-rag-ai-authoring`, not merged).** `app/knowledge_base/` discovers
+**The universal knowledge base, hybrid RAG and AI authoring exist (Phase 6, merged in
+`75db246`).** `app/knowledge_base/` discovers
 authorised sources the operator drops into the ignored `swiftKnowledgeBase/` directory (and
 `build/mx-real-sources`), identifies each from its content, segments it into a local SQLite
 index with FTS5, embeds it only where policy allows, retrieves with lexical + semantic
@@ -179,17 +179,16 @@ is `SOURCE_BACKED` because the corpus holds no field-level mapping material. *Kn
 [knowledge-repository.md](knowledge-repository.md) and the engagement report in
 `history/universal-mt-semantic-mapping-completion-report.md`.
 
-**Verification status (measured 2026-08-21 on the Phase 6 branch final head; the
-universal-completion figures are in its report):**
+**Verification status (measured 2026-08-22 on the final MVP release-hardening head):**
 
 ```
-1546 backend tests passed, 22 skipped, 6 deselected (live marker)   ruff: clean   mypy --strict: clean (227 files)
-  96 browser tests (Playwright)   eslint: clean   tsc --noEmit: clean   next build: clean
+1639 backend tests passed, 27 skipped, 6 deselected (live marker)   ruff: clean   mypy --strict: clean (238 files)
+  98 browser tests (Playwright)   eslint: clean   tsc --noEmit: clean   next build: clean
 make check green (incl. knowledge-check: 11/11 synthetic retrieval cases, Recall@5 1.0, MRR 0.81)
 live proofs, never in CI: probe-embeddings PASS (3072 dims) · test-live-rag Recall@5 1.0 / MRR 0.875
                           test-live-ai-sample 5 passed (second call: cache HIT, 0 model calls)
 CI: six jobs on every PR and every push to main    see §11
-docker: both images build, compose config valid
+docker: both images build, compose config valid, and compose up serves both services
 secret scan: clean; no raw source and no knowledge database is tracked
 clean clone, no .env, no keys: install -> migrate -> check -> e2e, and docker, all green
 ```
@@ -1218,6 +1217,54 @@ Defects found and fixed while building this. These are the ones likely to recur:
 68. **Playwright adopts whatever listens on 8000.** A `make dev` pair left running from
     earlier in the day made every browser test time out against a backend with a different
     environment. Stop your servers before `make e2e` (gotcha 20, relearned).
+
+**The final MVP release hardening**
+
+69. **`next dev` blocks its own resources for any host it was not started on.** This
+    repository standardises on `127.0.0.1` (gotcha 21) and its documentation says so, but
+    `allowedDevOrigins` was unset — so opening `http://127.0.0.1:3000` blocked `/_next/hmr`,
+    the client never hydrated, and Create Message sat on "Loading configured messages…" for
+    ever having made **no API request at all**. It looked exactly like a dead backend, and
+    the same build on `localhost:3000` was perfect. The block is a one-line warning in the
+    dev server's log and nothing in the browser console. `next.config.ts` now names both
+    spellings.
+70. **The lane belongs to the target, not to the default.** `ConvertMessage.tsx` sent no
+    `targetLane`, so every convert request resolved against `CONFIGURED` while both
+    candidate packs address `KNOWLEDGE_PREVIEW`. The screen listed the pack, the user ticked
+    the preview opt-in, and the button answered "No exact Mapping Pack matches this source
+    and target" — a refusal that reads as a dead control. No API test could see it, because
+    an API test names the lane itself; `conversion.spec.ts` now watches the request body.
+71. **A proof built from the MINIMAL sample proves the mandatory rows and nothing else.**
+    MT103 to pacs.008 was recorded as READY for a year while it could never actually
+    complete: field 36 is optional, so the minimal sample never sent it, and when it *is*
+    sent it reaches `XchgRate` carrying SWIFT's decimal comma, which the MX FORMAT layer
+    rejects and no caller input can repair. `run_proofs` now uses the widest sample the
+    message has.
+72. **`format_explanation` was doing two jobs.** A configured row carries a hand-authored
+    sentence there; a compiled row carries its SWIFT notation, and `samples.py` derives a
+    structurally valid value by parsing it back out. Replacing the notation with prose broke
+    sample generation for the whole preview lane in a way that surfaced as
+    `MT_MANDATORY_FIELD_MISSING`. The notation now has its own field, `format_notation`, set
+    only where the text really is notation (`looks_like_notation`).
+73. **A change to the specification projection invalidates every Mapping Pack at once.**
+    Each pack pins the checksum of the two specifications it was written against, and the
+    gate refuses rather than mapping into a structure that moved. Adding one field to
+    `SpecField` therefore breaks all three packs. That is the gate working;
+    `python -m app.mapping packs --refresh-checksums` rewrites them, and the diff is meant
+    to be read.
+74. **`3!a` is a currency only when a decimal follows it.** Reading every lone `3!a` as a
+    currency put "a three-letter currency code" under 71A Details of Charges — whose codes
+    are BEN, OUR and SHA — and sampled `USD` for it. The shape that is evidence is
+    `3!a` immediately before `<AMOUNT>` or a `d` token, which is the same reading
+    `_COMPONENT_TOKENS` already applies.
+75. **A test that passes alone and fails in the suite is worse than no test.** Asserting
+    `indexed is False` in `test_degraded_mode.py` passed on its own and failed in the full
+    run, because the session-scoped knowledge fixture had already synced the synthetic
+    corpus. Assert the shape that holds either way.
+76. **The knowledge sync counted its own manifest as an unsupported source.**
+    `swiftKnowledgeBase/source-manifest.json` is written into the root that discovery walks,
+    so every clean run ended with one failure and the Knowledge Base page showed a permanent
+    "Unsupported 1" — which trains the operator to ignore the number that exists to be read.
 
 ---
 

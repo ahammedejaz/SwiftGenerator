@@ -48,7 +48,7 @@ git lfs pull
 make quickstart
 ```
 
-Open <http://localhost:3000>. The command creates safe local secrets, builds both images,
+Open <http://localhost:3000> (or <http://127.0.0.1:3000> — both work). The command creates safe local secrets, builds both images,
 runs migrations, starts the platform, waits for readiness, verifies the committed knowledge
 base against its manifest and indexes it in the background. The 23 configured messages work
 immediately; the knowledge-preview lane (hundreds of MT and MX structures compiled from the

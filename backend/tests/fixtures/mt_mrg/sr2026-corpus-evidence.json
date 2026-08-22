@@ -926,12 +926,15 @@
      "page": 8,
      "textHash": "sha256:611adeca65056120df6ee7c7fad5790e7bb5671fc775ca8d0cff83f7ab70e5fe",
      "characters": 390,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:23E",
+      "A:72"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -1190,12 +1193,15 @@
      "page": 8,
      "textHash": "sha256:91656e9df5ec459f28f90780966ad6fc284c9ab1d34b01641bf2b8abc6d66648",
      "characters": 367,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:23E",
+      "A:72"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -1980,12 +1986,15 @@
      "page": 13,
      "textHash": "sha256:8d72ef7273a01bda8d381a97217424ec9c57f9ce103863d0f276b9d126f40d81",
      "characters": 267,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:17F",
+      "A:17O"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -2016,12 +2025,15 @@
      "page": 13,
      "textHash": "sha256:fb8dc433ce6132f47490da29f32c8a235d865a120fadcd2c54fe6d260ac8d3a6",
      "characters": 533,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "ONLY_IF_PRESENT",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "B:35C",
+      "A:17F"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     }
@@ -2164,12 +2176,15 @@
      "page": 9,
      "textHash": "sha256:818e71a79f932060085c3c89708c6598417d9264524ddbfeedfec2f0fad1d58d",
      "characters": 93,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "ONLY_IF_PRESENT",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "D:30F",
+      "D:34B"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -2391,12 +2406,15 @@
      "page": 8,
      "textHash": "sha256:e8d8d529230f3497a4e26e6e8cb4c70afa8c2cf0e6d976c8f8ca94f902e544aa",
      "characters": 525,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "ONLY_IF_PRESENT",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:35C",
+      "A:17F"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     }
@@ -3169,12 +3187,15 @@
      "page": 11,
      "textHash": "sha256:e4ebfa854bbc4d07f5f766778faec941dbd783461642655f3e9080bd3c413a39",
      "characters": 273,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:94A",
+      "A:21N"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -3683,12 +3704,15 @@
      "page": 9,
      "textHash": "sha256:715d6be40e423047dd4d7b983b272e557664aace9e54e318282692f623856163",
      "characters": 259,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:94A",
+      "A:21N"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -4335,12 +4359,15 @@
      "page": 7,
      "textHash": "sha256:feb9e2650d3cfdcd0bf1d8ae9ab54e376d93d7968f48e7b163b03bbec5ca98a8",
      "characters": 259,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:94A",
+      "A:21N"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },
@@ -19174,12 +19201,15 @@
      "page": 10,
      "textHash": "sha256:3dbfec0ca242a4de97cc0123c6fb713ea0118544bfaca0cac86423f5e6350d43",
      "characters": 285,
-     "disposition": "UNSUPPORTED",
-     "template": null,
-     "reason": "SENTENCE_FORM_NOT_RECOGNISED",
+     "disposition": "EXACT",
+     "template": "CONDITIONAL_PRESENCE_GENERAL",
+     "reason": null,
      "residual": [],
      "enforcedByStructure": false,
-     "references": [],
+     "references": [
+      "A:94A",
+      "A:21N"
+     ],
      "objections": [],
      "reviewStatus": "REVIEW_REQUIRED"
     },

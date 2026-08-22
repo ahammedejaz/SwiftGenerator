@@ -146,6 +146,6 @@ Run locally against the operator's knowledge base (`python -m app.mapping eviden
 
 | Pack | Status | Mandatory target mapped | Source rows represented | Missing target fields | XSD |
 |---|---|---|---|---|---|
-| CANDIDATE_MT103_TO_PACS008_V1 | NEEDS_INPUT → READY after 6 answer(s) | 7/7 | 12/39 | none | accepted |
-| CANDIDATE_MT202_TO_PACS009_V1 | NEEDS_INPUT → READY after 3 answer(s) | 6/6 | 8/20 | none | accepted |
+| CANDIDATE_MT103_TO_PACS008_V1 | NEEDS_INPUT → READY after 4 answer(s) | 7/7 | 12/39 | none | accepted |
+| CANDIDATE_MT202_TO_PACS009_V1 | NEEDS_INPUT → READY after 2 answer(s) | 6/6 | 8/20 | none | accepted |
 | SYNTHETIC_MT541_TO_SESE023_V1 | READY | 8/8 | 12/17 | none | accepted |

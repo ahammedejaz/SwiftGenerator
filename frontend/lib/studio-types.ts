@@ -209,7 +209,9 @@ export type InputKind =
   | "IDENTIFIER"
   | "PARTY_BIC"
   | "PARTY_PROPRIETARY"
-  | "INDICATOR";
+  | "INDICATOR"
+  | "CURRENCY"
+  | "DATETIME";
 
 /** One controlled code, with the words a person uses for it. */
 export interface AllowedValue {
@@ -235,6 +237,8 @@ export interface SpecField {
   businessQuestion: string;
   missingImpact: string | null;
   formatExplanation: string;
+  /** The format exactly as the source states it, when the source states a notation. */
+  formatNotation: string | null;
   allowedCodes: string[];
   allowedValues: AllowedValue[];
   codeList: string | null;

@@ -384,7 +384,12 @@ To be equally honest in the other direction:
 - **Every `GENERATION_READY` preview structure earned the label** by loading, sampling,
   validating, composing, parsing back and re-composing identically through the ordinary
   engine — and for MX, by the source XSD accepting the output.
-- **1,642 automated tests** cover it: 1,546 backend (22 skipped, 6 live-only deselected),
-  96 in a real browser — measured 2026-08-21 on the Phase 6 branch.
+- **1,737 automated tests** cover it: 1,639 backend (27 skipped, 6 live-only deselected),
+  98 in a real browser — measured 2026-08-22 on the final MVP release-hardening branch.
 - **A clean clone works with nothing configured** — `make install`, `make check` and
-  `make e2e` all pass with no `.env` and no API keys. That is verified, not assumed.
+  `make e2e` all pass with no `.env` and no API keys. Verified this engagement by cloning
+  into a separate directory with no copied environment, database, index or cache: 164/164
+  knowledge sources verified, `make check` green, 99/99 browser tests.
+- **All three conversion proofs complete** — MT103 to pacs.008, MT202 to pacs.009 and
+  MT541 to sese.023 each reach a target the XSD accepts, after asking for exactly the data
+  the source could not supply and inventing none of it.

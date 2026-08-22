@@ -365,6 +365,10 @@ class MappingService:
             if not match:
                 raise MappingError(f"Expected UNIT/quantity, got {value!r}")
             return match.group(1).replace(",", ".")
+        if transform is TransformName.MT_DECIMAL_TO_ISO:
+            if not re.fullmatch(r"[0-9]+(?:,[0-9]*)?", value):
+                raise MappingError(f"Expected a SWIFT decimal (d), got {value!r}")
+            return _iso_decimal(value)
         if transform is TransformName.MT_AMOUNT_TO_ISO:
             match = re.fullmatch(r"([A-Z]{3})([0-9]+(?:,[0-9]*)?)", value)
             if not match:

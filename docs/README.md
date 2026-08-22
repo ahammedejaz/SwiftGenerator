@@ -167,6 +167,19 @@ changes. `GET /api/v1/sources` reports which are present.
 
 ---
 
+## Releasing and demonstrating
+
+- [final-mvp-release-plan.md](final-mvp-release-plan.md) — the plan the final
+  engagement worked from, with its own self-review and the measurements it started from.
+- [demo/final-mvp-demo-guide.md](demo/final-mvp-demo-guide.md) — a ten-minute walkthrough
+  with a fallback for every step that needs no live AI.
+- [testing/final-mvp-uat-checklist.md](testing/final-mvp-uat-checklist.md) — a tester's
+  checklist, no SWIFT or architecture knowledge assumed.
+- [history/final-mvp-release-audit.md](history/final-mvp-release-audit.md) — every route,
+  endpoint, engine and boundary with a verdict.
+
+---
+
 ## Historical reports
 
 Point-in-time records of a piece of work. **Useful history, not a description of how

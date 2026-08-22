@@ -12,16 +12,16 @@ none is installed and runtime activations are 0. No rule text is reproduced here
 - Guides read: 156 (unreadable: 0)
 - Guides stating Network Validated Rules: 128
 - Rules discovered: 911
-- Exact: 335
+- Exact: 345
 - Partial (weaker than source): 115
-- Unsupported: 461
-- Review required: 450 candidates · Reviewed: 0 · Active: 0
+- Unsupported: 451
+- Review required: 460 candidates · Reviewed: 0 · Active: 0
 
 ## Unsupported, by reason
 
 | Reason | Rules |
 |---|---:|
-| SENTENCE_FORM_NOT_RECOGNISED | 416 |
+| SENTENCE_FORM_NOT_RECOGNISED | 406 |
 | COMPONENT_SCOPE_NOT_EXPRESSIBLE | 10 |
 | REFERENCE_NOT_RESOLVED | 10 |
 | ENVELOPE_DEPENDENT | 9 |
@@ -42,7 +42,7 @@ none is installed and runtime activations are 0. No rule text is reproduced here
 | CANCELLATION_REQUIRES_ONE_PREVIOUS_REFERENCE | 30 | 0 | 0 |
 | CODE_REQUIRES_FIELD_IN_RESPECTIVE_SEQUENCE | 2 | 0 | 6 |
 | CONDITIONAL_PRESENCE | 21 | 4 | 0 |
-| CONDITIONAL_PRESENCE_GENERAL | 75 | 23 | 1 |
+| CONDITIONAL_PRESENCE_GENERAL | 82 | 23 | 1 |
 | COUNT_LIMIT | 17 | 2 | 0 |
 | CROSS_SUBSEQUENCE_EXCLUSION | 8 | 0 | 0 |
 | CURRENCY_CONSISTENT | 20 | 0 | 11 |
@@ -58,6 +58,7 @@ none is installed and runtime activations are 0. No rule text is reproduced here
 | MANDATORY_FIELDS_IN_OPTIONAL_SEQUENCE | 13 | 0 | 0 |
 | MANDATORY_QUALIFIED_FIELD | 1 | 0 | 0 |
 | NOT_THE_ONLY_FIELD | 20 | 0 | 0 |
+| ONLY_IF_PRESENT | 3 | 0 | 0 |
 | PARTY_CHAIN_COMPLETENESS | 0 | 15 | 0 |
 | PARTY_FIELDS_UNIQUE_IN_MESSAGE | 11 | 0 | 0 |
 | PRESENT_INDICATOR_REQUIRES_PARTY | 4 | 8 | 0 |
@@ -74,9 +75,9 @@ none is installed and runtime activations are 0. No rule text is reproduced here
 | MT101 | SR2026 | 57 | 9 | 1 | 0 | 8 | 1 | 0 | 0 | [MT101](mt-rule-review/MT101-SR2026.md) |
 | MT102 | SR2026 | 54 | 11 | 0 | 1 | 10 | 1 | 0 | 0 | [MT102](mt-rule-review/MT102-SR2026.md) |
 | MT103 | SR2026 | 80 | 19 | 11 | 0 | 8 | 11 | 0 | 0 | [MT103](mt-rule-review/MT103-SR2026.md) |
-| MT104 | SR2026 | 36 | 13 | 1 | 0 | 12 | 1 | 0 | 0 | [MT104](mt-rule-review/MT104-SR2026.md) |
+| MT104 | SR2026 | 36 | 13 | 2 | 0 | 11 | 2 | 0 | 0 | [MT104](mt-rule-review/MT104-SR2026.md) |
 | MT105 | SR2026 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | [MT105](mt-rule-review/MT105-SR2026.md) |
-| MT107 | SR2026 | 33 | 9 | 1 | 0 | 8 | 1 | 0 | 0 | [MT107](mt-rule-review/MT107-SR2026.md) |
+| MT107 | SR2026 | 33 | 9 | 2 | 0 | 7 | 2 | 0 | 0 | [MT107](mt-rule-review/MT107-SR2026.md) |
 | MT110 | SR2026 | 19 | 2 | 1 | 0 | 1 | 1 | 0 | 0 | [MT110](mt-rule-review/MT110-SR2026.md) |
 | MT111 | SR2026 | 11 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | [MT111](mt-rule-review/MT111-SR2026.md) |
 | MT112 | SR2026 | 11 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | [MT112](mt-rule-review/MT112-SR2026.md) |
@@ -87,16 +88,16 @@ none is installed and runtime activations are 0. No rule text is reproduced here
 | MT204 | SR2026 | 20 | 3 | 2 | 0 | 1 | 2 | 0 | 0 | [MT204](mt-rule-review/MT204-SR2026.md) |
 | MT205 | SR2026 | 21 | 1 | 1 | 0 | 0 | 1 | 0 | 0 | [MT205](mt-rule-review/MT205-SR2026.md) |
 | MT210 | SR2026 | 16 | 3 | 2 | 0 | 1 | 2 | 0 | 0 | [MT210](mt-rule-review/MT210-SR2026.md) |
-| MT300 | SR2026 | 101 | 9 | 3 | 0 | 6 | 3 | 0 | 0 | [MT300](mt-rule-review/MT300-SR2026.md) |
-| MT304 | SR2026 | 70 | 10 | 2 | 0 | 8 | 2 | 0 | 0 | [MT304](mt-rule-review/MT304-SR2026.md) |
-| MT305 | SR2026 | 61 | 7 | 3 | 0 | 4 | 3 | 0 | 0 | [MT305](mt-rule-review/MT305-SR2026.md) |
+| MT300 | SR2026 | 101 | 9 | 5 | 0 | 4 | 5 | 0 | 0 | [MT300](mt-rule-review/MT300-SR2026.md) |
+| MT304 | SR2026 | 70 | 10 | 3 | 0 | 7 | 3 | 0 | 0 | [MT304](mt-rule-review/MT304-SR2026.md) |
+| MT305 | SR2026 | 61 | 7 | 4 | 0 | 3 | 4 | 0 | 0 | [MT305](mt-rule-review/MT305-SR2026.md) |
 | MT306 | SR2026 | 155 | 36 | 15 | 1 | 20 | 16 | 0 | 0 | [MT306](mt-rule-review/MT306-SR2026.md) |
-| MT320 | SR2026 | 91 | 11 | 4 | 1 | 6 | 5 | 0 | 0 | [MT320](mt-rule-review/MT320-SR2026.md) |
+| MT320 | SR2026 | 91 | 11 | 5 | 1 | 5 | 6 | 0 | 0 | [MT320](mt-rule-review/MT320-SR2026.md) |
 | MT321 | SR2026 | 41 | 12 | 2 | 0 | 10 | 2 | 0 | 0 | [MT321](mt-rule-review/MT321-SR2026.md) |
-| MT330 | SR2026 | 79 | 11 | 5 | 1 | 5 | 6 | 0 | 0 | [MT330](mt-rule-review/MT330-SR2026.md) |
+| MT330 | SR2026 | 79 | 11 | 6 | 1 | 4 | 7 | 0 | 0 | [MT330](mt-rule-review/MT330-SR2026.md) |
 | MT340 | SR2026 | 81 | 12 | 4 | 0 | 8 | 4 | 0 | 0 | [MT340](mt-rule-review/MT340-SR2026.md) |
 | MT341 | SR2026 | 51 | 6 | 6 | 0 | 0 | 6 | 0 | 0 | [MT341](mt-rule-review/MT341-SR2026.md) |
-| MT350 | SR2026 | 35 | 6 | 3 | 0 | 3 | 3 | 0 | 0 | [MT350](mt-rule-review/MT350-SR2026.md) |
+| MT350 | SR2026 | 35 | 6 | 4 | 0 | 2 | 4 | 0 | 0 | [MT350](mt-rule-review/MT350-SR2026.md) |
 | MT360 | SR2026 | 151 | 24 | 5 | 0 | 19 | 5 | 0 | 0 | [MT360](mt-rule-review/MT360-SR2026.md) |
 | MT361 | SR2026 | 178 | 24 | 5 | 0 | 19 | 5 | 0 | 0 | [MT361](mt-rule-review/MT361-SR2026.md) |
 | MT362 | SR2026 | 55 | 10 | 2 | 0 | 8 | 2 | 0 | 0 | [MT362](mt-rule-review/MT362-SR2026.md) |
@@ -169,7 +170,7 @@ none is installed and runtime activations are 0. No rule text is reproduced here
 | MT606 | SR2026 | 16 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | [MT606](mt-rule-review/MT606-SR2026.md) |
 | MT607 | SR2026 | 17 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | [MT607](mt-rule-review/MT607-SR2026.md) |
 | MT608 | SR2026 | 20 | 2 | 0 | 0 | 2 | 0 | 0 | 0 | [MT608](mt-rule-review/MT608-SR2026.md) |
-| MT620 | SR2026 | 81 | 12 | 3 | 1 | 8 | 4 | 0 | 0 | [MT620](mt-rule-review/MT620-SR2026.md) |
+| MT620 | SR2026 | 81 | 12 | 4 | 1 | 7 | 5 | 0 | 0 | [MT620](mt-rule-review/MT620-SR2026.md) |
 | MT670 | SR2026 | 59 | 9 | 1 | 0 | 8 | 1 | 0 | 0 | [MT670](mt-rule-review/MT670-SR2026.md) |
 | MT671 | SR2026 | 46 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | [MT671](mt-rule-review/MT671-SR2026.md) |
 | MT700 | SR2026 | 31 | 3 | 2 | 0 | 1 | 2 | 0 | 0 | [MT700](mt-rule-review/MT700-SR2026.md) |

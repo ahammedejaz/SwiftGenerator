@@ -49,3 +49,28 @@ test("conversion discloses synthetic authority, loss and validated target XML", 
   await expect(page.locator(".proof")).toContainText("sese.023");
   await expect(page.locator(".proof")).toContainText("BusinessMessage");
 });
+
+test("the convert request carries the lane the chosen target declares", async ({ page }) => {
+  // The two candidate packs address the knowledge-preview lane, and a request that leaves
+  // `targetLane` out resolves against CONFIGURED and is refused with "No exact Mapping Pack
+  // matches this source and target" — behind a screen that has just listed the pack and had
+  // the user tick the opt-in, which reads as a dead button rather than as a refusal. Only a
+  // browser test sees this: every API test names the lane itself.
+  const bodies: Record<string, unknown>[] = [];
+  await page.route("**/api/v1/messages/convert", async (route) => {
+    bodies.push(route.request().postDataJSON());
+    await route.continue();
+  });
+
+  await page.goto("/convert");
+  await page.locator("textarea").fill(MT541);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Preview conversion" }).click();
+  await expect(page.getByText("READY", { exact: true })).toBeVisible();
+
+  expect(bodies).not.toHaveLength(0);
+  for (const body of bodies) {
+    expect(body).toHaveProperty("targetLane");
+    expect(body.targetLane).toBeTruthy();
+  }
+});

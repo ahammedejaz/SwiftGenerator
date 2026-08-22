@@ -12,8 +12,8 @@ target:
   messageType: pacs.009
   release: pacs.009.001.13
   lane: KNOWLEDGE_PREVIEW
-sourceStructureChecksum: 6bd43b2947052ef024d57c0cc3411282f55903cdce7f5f94a3327b29fa664840
-targetStructureChecksum: b952bcc561c429468b46e1e13de2c63c16279dfb77aa17bf69e34923fa30d44a
+sourceStructureChecksum: ea9f7be627132bb5b2b818a291eafa3c5701c487fccc9fa940e877ef5237e901
+targetStructureChecksum: 1d56b957dbc0efd7e0d0421e9d9296e84b2ad8cf4323c3661aa85b273dd98b8b
 provenance:
   sourceType: CANDIDATE_FROM_CITED_DEFINITIONS
   sourceReference: backend/config/mapping_sources/candidate_mt202_to_pacs009_v1.md
