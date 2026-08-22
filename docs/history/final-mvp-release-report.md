@@ -363,11 +363,16 @@ Tester checklist: `docs/testing/final-mvp-uat-checklist.md`.
   (run `32522040683`).
 - **Branch protection** verified before attempting the merge: `Required Checks` is the
   required context, `strict` is on, force pushes and deletions are blocked.
-- **Merge: NOT PERFORMED.** `gh pr merge 22 --squash --match-head-commit 36e3d70` was
-  refused by the development environment's own permission policy, not by GitHub and not by
-  branch protection. Everything the brief asks for before a merge is done and green; the
-  merge itself, the resulting main SHA and the post-merge CI run remain outstanding and
-  need a human to run that one command.
+- **Merge: DONE.** Normal protected squash merge with `--match-head-commit`; no `--admin`,
+  no force push, no branch-protection bypass. The first attempt was refused by the
+  development environment's own permission policy rather than by GitHub; the operator
+  granted permission and the same command then succeeded unchanged.
+- **Final main SHA:** `4e0053960eb1d13a2d1000944351f51c77613c41` — *"Fix the three release
+  blockers and harden the studio for MVP (#22)"*, merged 2026-08-22T03:44:05Z. Local `main`,
+  `origin/main` and the remote all agree.
+- **Post-merge CI on `4e00539`:** all six jobs pass — Clean Clone, Browser E2E, MT Prowide
+  Source, Docker, Required Checks, Security Audit
+  (run [32549783871](https://github.com/ahammedejaz/SwiftGenerator/actions/runs/32549783871)).
 
 ## 51. Live provider proofs
 
