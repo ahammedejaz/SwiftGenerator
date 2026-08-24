@@ -267,9 +267,8 @@ class Settings(BaseSettings):
     def structured_ai_provider_effective(self) -> str:
         """Which structured-completion provider serves the Phase 6 AI authoring paths.
 
-        ``ai_provider`` keeps its historical meaning for the settlement-intent screen. The
-        authoring paths prefer the organisation endpoint when it is configured, fall back
-        to OpenRouter when that is what exists, and are otherwise disabled.
+        The authoring paths prefer the organisation endpoint when it is configured, fall
+        back to OpenRouter when that is what exists, and are otherwise disabled.
         """
         if self.ai_provider == "disabled":
             return "disabled"
@@ -280,6 +279,59 @@ class Settings(BaseSettings):
         if self.ai_provider == "openrouter" and self.openrouter_api_key:
             return "openrouter"
         return "disabled"
+
+    @property
+    def agent_ai_provider_effective(self) -> str:
+        """Which provider serves the settlement-intent interpretation screen.
+
+        The same resolution as ``structured_ai_provider_effective``, deliberately: one
+        deployment configures the whole platform. ``ai_provider`` used to be read as fact
+        here, so an installation holding only the organisation endpoint built an
+        OpenRouter client it could never reach — every other AI path worked and this one
+        screen answered AI_NOT_CONFIGURED.
+        """
+        return self.structured_ai_provider_effective
+
+    @property
+    def agent_on_organisation_endpoint(self) -> bool:
+        return self.agent_ai_provider_effective in {"azure_openai", "openai_compatible"}
+
+    @property
+    def agent_primary_model(self) -> str:
+        """On the organisation endpoint the deployment *is* the model."""
+        if self.agent_on_organisation_endpoint:
+            return self.ai_chat_deployment
+        return self.openrouter_primary_model
+
+    @property
+    def agent_escalation_model(self) -> str:
+        if self.agent_on_organisation_endpoint:
+            return self.ai_chat_deployment
+        return self.openrouter_escalation_model
+
+    @property
+    def agent_escalation_enabled(self) -> bool:
+        """A second call to the same deployment is a retry, not an escalation."""
+        return (
+            self.openrouter_escalation_enabled
+            and self.agent_escalation_model != self.agent_primary_model
+        )
+
+    @property
+    def agent_privacy_enforcement_enabled(self) -> bool:
+        """Whether the OpenRouter routing controls are in force.
+
+        Require-parameters, ``data_collection=deny`` and ZDR are OpenRouter's own routing
+        controls. They describe nothing about a call to the organisation's endpoint, so
+        the screen must not claim them when that is what serves it.
+        """
+        if self.agent_ai_provider_effective != "openrouter":
+            return False
+        return (
+            self.openrouter_require_parameters
+            and self.openrouter_data_collection == "deny"
+            and self.openrouter_zdr_required
+        )
 
     @property
     def knowledge_enabled(self) -> bool:

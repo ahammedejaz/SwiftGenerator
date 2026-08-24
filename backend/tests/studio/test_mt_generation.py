@@ -321,3 +321,45 @@ def test_every_mt_message_generates_from_its_samples() -> None:
                 [item.message for item in result.validation.errors],
             )
             assert result.outputs.fin is not None
+
+
+# -- quantity ---------------------------------------------------------------------------
+
+
+def set_quantity(fields: list[FieldInput], value: str) -> list[FieldInput]:
+    """Only 36B. Several fields in an MT541 carry the SETT qualifier."""
+    return [
+        item.model_copy(update={"value": value}) if item.tag == "36B" else item
+        for item in fields
+    ]
+
+
+@pytest.mark.parametrize("quantity", ["UNIT/0", "UNIT/0,00", "FAMT/0"])
+def test_zero_settlement_quantity_is_refused(
+    mt541_fields: list[FieldInput], quantity: str
+) -> None:
+    """A quantity of zero settles nothing. MX already refused it and 36B's own help says
+    "a positive amount", but MT checked only the format, so UNIT/0 generated as valid."""
+    result = generate("MT541", set_quantity(mt541_fields, quantity))
+    assert result.valid is False
+    issue = next(
+        item for item in result.validation.errors if item.rule_id == "QUANTITY_NOT_POSITIVE"
+    )
+    assert issue.layer is ValidationLayer.BUSINESS_RULES
+    assert "greater than zero" in issue.message
+
+
+def test_a_positive_quantity_still_generates(mt541_fields: list[FieldInput]) -> None:
+    result = generate("MT541", set_quantity(mt541_fields, "UNIT/2500,75"))
+    assert [item.rule_id for item in result.validation.errors] == []
+    assert ":36B::SETT//UNIT/2500,75" in result.outputs.block4
+
+
+@pytest.mark.parametrize("quantity", ["UNIT/1000", "1000", "", "UNIT/", "not-a-number"])
+def test_quantity_positivity_only_speaks_when_it_reads_a_number(
+    mt541_fields: list[FieldInput], quantity: str
+) -> None:
+    """A preview structure may carry a bare number, and an unparseable value is the format
+    layer's business — this check must never invent a finding of its own for either."""
+    result = generate("MT541", set_quantity(mt541_fields, quantity))
+    assert "QUANTITY_NOT_POSITIVE" not in [item.rule_id for item in result.validation.errors]

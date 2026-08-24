@@ -104,3 +104,50 @@ def test_cache_requires_server_side_hmac_secret_in_production() -> None:
 def test_cache_can_be_explicitly_disabled_without_a_secret() -> None:
     configured = settings(app_env="production", ai_cache_enabled=False)
     assert configured.ai_cache_enabled is False
+
+
+def _organisation_endpoint(**overrides: object) -> Settings:
+    """An installation holding only the organisation's own Azure OpenAI deployment."""
+    return settings(
+        ai_endpoint="https://demo.openai.azure.com",
+        ai_api_key="organisation-secret",
+        ai_chat_deployment="gpt-deployment-1",
+        **overrides,
+    )
+
+
+def test_organisation_endpoint_serves_the_settlement_intent_screen() -> None:
+    """The regression: ``ai_provider`` defaults to ``openrouter``, so an installation with
+    only the organisation endpoint built an OpenRouter client it could never reach. Every
+    other AI path worked and the guided screen alone answered AI_NOT_CONFIGURED."""
+    value = _organisation_endpoint()
+    assert value.ai_provider == "openrouter"  # the default, never set by the operator
+    assert value.agent_ai_provider_effective == "azure_openai"
+    assert value.agent_ai_provider_effective == value.structured_ai_provider_effective
+    assert value.agent_primary_model == "gpt-deployment-1"
+    assert value.agent_escalation_model == "gpt-deployment-1"
+    # One deployment: a second call to it is a retry, not an escalation.
+    assert value.agent_escalation_enabled is False
+
+
+def test_openrouter_installation_is_unchanged() -> None:
+    value = settings(openrouter_api_key="test-secret-key")
+    assert value.agent_ai_provider_effective == "openrouter"
+    assert value.agent_primary_model == "openai/gpt-5.4-mini"
+    assert value.agent_escalation_model == "openai/gpt-5.4"
+    assert value.agent_escalation_enabled is True
+    assert value.agent_privacy_enforcement_enabled is True
+
+
+def test_openrouter_routing_controls_are_not_claimed_off_openrouter() -> None:
+    """Require-parameters, data-collection denial and ZDR are OpenRouter's own routing
+    controls. They say nothing about a call to the organisation's endpoint."""
+    value = _organisation_endpoint()
+    assert value.openrouter_zdr_required is True
+    assert value.agent_privacy_enforcement_enabled is False
+    assert settings(ai_provider="disabled").agent_privacy_enforcement_enabled is False
+
+
+def test_disabled_provider_stays_disabled_for_the_agent_screen() -> None:
+    assert settings(ai_provider="disabled").agent_ai_provider_effective == "disabled"
+    assert settings().agent_ai_provider_effective == "disabled"  # no key, no endpoint

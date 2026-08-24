@@ -302,3 +302,37 @@ def test_choice_level_generation_error_is_classified_safely() -> None:
     assert caught.value.code == "AI_PROVIDER_UNAVAILABLE"
     assert caught.value.provider_http_status == 503
     assert caught.value.provider_error_type == "provider_unavailable"
+
+
+def test_openai_compatible_error_code_is_read_when_metadata_is_absent() -> None:
+    """OpenRouter carries the type in ``metadata``; Azure OpenAI puts it in ``code``.
+    Reading only the first left every branch keyed on the type dead for Azure."""
+    client = OpenRouterClient(settings())
+    error = client._http_error(
+        429,
+        {"error": {"message": "Too many requests", "code": "rate_limit_exceeded"}},
+    )
+    assert error.code == "AI_RATE_LIMITED"
+    assert error.retryable is True
+
+
+def test_provider_content_policy_refusal_is_named_as_itself() -> None:
+    """Azure's content filter refusing a wording is not a malformed request; reporting it
+    as one sent testers looking for a fault in the platform."""
+    client = OpenRouterClient(settings())
+    error = client._http_error(
+        400,
+        {
+            "error": {
+                "message": (
+                    "The response was filtered due to the prompt triggering Azure "
+                    "OpenAI's content management policy."
+                ),
+                "code": "content_filter",
+            }
+        },
+    )
+    assert error.code == "AI_CONTENT_FILTERED"
+    assert error.http_status == 400
+    assert error.escalatable is False
+    assert "rephrase" in error.safe_message.casefold()

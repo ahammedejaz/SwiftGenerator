@@ -170,9 +170,8 @@ def readiness() -> dict[str, Any]:
         if knowledge_service.indexed
         else "OPTIONAL_NOT_INDEXED"
     )
-    ai_configured = settings.ai_provider not in {"disabled", "mock"} and bool(
-        settings.openrouter_api_key or settings.ai_api_key
-    )
+    ai_provider = settings.agent_ai_provider_effective
+    ai_configured = ai_provider not in {"disabled", "mock"}
     ready = database_ready and registry_ready
     return {
         "status": "ready" if ready else "not_ready",
@@ -188,7 +187,7 @@ def readiness() -> dict[str, Any]:
             "knowledge": {"state": knowledge_state},
             "ai": {
                 "state": "CONFIGURED" if ai_configured else "OPTIONAL_DISABLED",
-                "provider": settings.ai_provider,
+                "provider": ai_provider,
             },
             "embeddings": {
                 "state": (

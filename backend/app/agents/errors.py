@@ -97,6 +97,10 @@ SAFE_AI_MESSAGES = {
     "AI_TIMEOUT": "AI interpretation timed out. Retry later or use the deterministic form.",
     "AI_PROVIDER_UNAVAILABLE": "AI interpretation is temporarily unavailable.",
     "AI_INVALID_REQUEST": "The AI provider rejected the structured interpretation request.",
+    "AI_CONTENT_FILTERED": (
+        "The AI provider's content policy refused this wording. Rephrase the business "
+        "scenario, or use the deterministic form."
+    ),
     "AI_SCHEMA_REQUEST_INVALID": "The AI provider rejected the structured-output schema.",
     "AI_UNSUPPORTED_MODEL_OR_PARAMETERS": (
         "No AI endpoint supports all configured model parameters and privacy requirements."
@@ -134,6 +138,7 @@ def ai_error(
         "AI_PAYMENT_REQUIRED",
         "AI_PRIVACY_REQUIREMENTS_UNAVAILABLE",
         "AI_INVALID_REQUEST",
+        "AI_CONTENT_FILTERED",
         "AI_SCHEMA_REQUEST_INVALID",
         "AI_UNSUPPORTED_MODEL_OR_PARAMETERS",
         "AI_BUDGET_EXCEEDED",

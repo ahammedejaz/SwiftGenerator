@@ -37,6 +37,10 @@ class _ProviderErrorDetails(TypedDict):
 
 
 class OpenRouterClient:
+    #: Named on every audit and usage record. Subclasses that speak to a different
+    #: endpoint override it.
+    provider_name = "openrouter"
+
     def __init__(
         self,
         settings: Settings,
@@ -363,6 +367,12 @@ class OpenRouterClient:
             metadata = error.get("metadata")
             if isinstance(metadata, dict):
                 error_type = str(metadata.get("error_type", ""))
+            # OpenRouter carries the type in ``metadata``; Azure OpenAI and every other
+            # OpenAI-compatible server put it in ``code`` or ``type``. Reading only the
+            # first left ``error_type`` empty for those servers, so the branches keyed on
+            # it — rate limit, timeout, content filter — could never fire there.
+            if not error_type:
+                error_type = str(error.get("code") or error.get("type") or "")
         lowered_message = provider_message.casefold()
         lowered_type = error_type.casefold()
         safe_message = safe_provider_error_message(provider_message)
@@ -418,6 +428,16 @@ class OpenRouterClient:
         if status == 404:
             return ai_error(
                 "AI_UNSUPPORTED_MODEL_OR_PARAMETERS",
+                escalatable=False,
+                **details,
+            )
+        # The provider's own content policy refused the text. Nothing about the request
+        # was malformed, so saying "rejected the structured interpretation request" sent
+        # testers looking for a fault in the platform.
+        if lowered_type == "content_filter" or "content management policy" in lowered_message:
+            return ai_error(
+                "AI_CONTENT_FILTERED",
+                status=400,
                 escalatable=False,
                 **details,
             )

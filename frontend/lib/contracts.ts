@@ -471,7 +471,12 @@ export interface ScenarioInterpretation {
   requiresClarification: boolean;
   ai: {
     used: boolean;
-    provider: "openrouter" | "deterministic_non_ai" | "test_mock";
+    provider:
+      | "openrouter"
+      | "azure_openai"
+      | "openai_compatible"
+      | "deterministic_non_ai"
+      | "test_mock";
     model?: string;
     primaryModel?: string;
     escalated: boolean;

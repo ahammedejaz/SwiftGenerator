@@ -51,6 +51,9 @@ from app.studio.mt.fin import FinEnvelopeUnavailable, build_fin_message
 #: what the composer and the catalogue read.
 __all__ = ["DIRECT_CODE_TAG_PREFIXES", "MtGenerator", "mt_generator", "plan_sequences"]
 
+#: ISO 15022 quantity-of-financial-instrument fields, rendered as ``<code>/<amount>``.
+_MT_QUANTITY_TAGS = frozenset({"36A", "36B", "36C", "36D", "36E"})
+
 
 @dataclass
 class ResolvedField:
@@ -576,6 +579,30 @@ class MtGenerator:
                                 location=row.row_id,
                                 current=item.value,
                                 suggestion="Enter a positive amount.",
+                            )
+                        )
+                except (InvalidOperation, ValueError):
+                    pass
+            # A quantity of zero settles nothing. MX already refused it
+            # (MX_QUANTITY_NOT_POSITIVE) and the field's own help says "a positive
+            # amount", but MT checked only the format — so `:36B::SETT//UNIT/0`
+            # generated as a fully valid instruction.
+            if row.tag in _MT_QUANTITY_TAGS:
+                # `UNIT/1000` in the configured subset; a bare number wherever a preview
+                # structure carries the quantity without its type code.
+                head, slash, tail = item.value.rpartition("/")
+                quantity_text = (tail if slash else head).replace(",", ".").strip()
+                try:
+                    if quantity_text and Decimal(quantity_text) <= 0:
+                        issues.append(
+                            _error(
+                                "QUANTITY_NOT_POSITIVE",
+                                f"{row.business_name} must be greater than zero.",
+                                layer=ValidationLayer.BUSINESS_RULES,
+                                field_name=row.business_name,
+                                location=row.row_id,
+                                current=item.value,
+                                suggestion="Enter a positive quantity, for example UNIT/1000.",
                             )
                         )
                 except (InvalidOperation, ValueError):

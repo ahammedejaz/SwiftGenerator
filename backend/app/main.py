@@ -42,9 +42,13 @@ ai_rate_limiter = SlidingWindowRateLimiter(settings.ai_rate_limit_requests_per_m
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     create_schema()
     model_client: OpenRouterClient | None = None
-    if settings.ai_provider == "openrouter":
+    # Which provider actually serves the screen, not which one was named: an installation
+    # holding only the organisation endpoint used to get an OpenRouter client it could
+    # never reach.
+    agent_provider = settings.agent_ai_provider_effective
+    if agent_provider == "openrouter":
         model_client = OpenRouterClient(settings)
-    elif settings.ai_provider in {"azure_openai", "openai_compatible"}:
+    elif agent_provider in {"azure_openai", "openai_compatible"}:
         from app.agents.providers.openai_compatible import OpenAiCompatibleClient
 
         model_client = OpenAiCompatibleClient(settings)

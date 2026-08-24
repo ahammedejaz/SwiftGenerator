@@ -215,6 +215,8 @@ class CanonicalFieldPath(StrEnum):
 
 class AiSource(StrEnum):
     OPENROUTER = "openrouter"
+    AZURE_OPENAI = "azure_openai"
+    OPENAI_COMPATIBLE = "openai_compatible"
     DETERMINISTIC_NON_AI = "deterministic_non_ai"
     TEST_MOCK = "test_mock"
 

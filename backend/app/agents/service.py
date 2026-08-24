@@ -117,6 +117,22 @@ class AgentInterpretationService:
     def configured(self) -> bool:
         return self._client is not None and bool(getattr(self._client, "configured", True))
 
+    @property
+    def _provider_name(self) -> str:
+        """The provider that actually served the call, for audit and usage records.
+
+        Read from the client rather than from configuration, so a record can never name a
+        provider the request did not go to.
+        """
+        return str(getattr(self._client, "provider_name", "openrouter"))
+
+    @property
+    def _ai_source(self) -> AiSource:
+        try:
+            return AiSource(self._provider_name)
+        except ValueError:
+            return AiSource.OPENROUTER
+
     async def interpret(
         self,
         request: InterpretScenarioRequest,
@@ -131,7 +147,7 @@ class AgentInterpretationService:
             decision = ai_call_decision_pipeline.decide(AiOperation.INTENT_INTERPRETATION)
             if decision.decision != AiCallDecision.CACHE_THEN_MODEL:
                 raise RuntimeError("Intent interpretation decision policy is misconfigured")
-            if self._settings.ai_provider != "openrouter" or not self.configured:
+            if self._settings.agent_ai_provider_effective == "disabled" or not self.configured:
                 raise ai_error("AI_NOT_CONFIGURED", escalatable=False)
             sanitised = sanitize_user_text(
                 request.text,
@@ -213,7 +229,7 @@ class AgentInterpretationService:
         estimated_tokens_per_call = (
             len(sanitised.text) // 4 + self._settings.openrouter_max_output_tokens
         )
-        maximum_model_calls = 2 + int(self._settings.openrouter_escalation_enabled)
+        maximum_model_calls = 2 + int(self._settings.agent_escalation_enabled)
         reservation = await self._budget.reserve(estimated_tokens_per_call * maximum_model_calls)
         await self._circuit.acquire()
         result = await asyncio.wait_for(
@@ -250,8 +266,8 @@ class AgentInterpretationService:
             AiAuditEvent(
                 request_id=request_id,
                 scenario_id=interpretation.scenario.scenario_id,
-                provider="openrouter",
-                primary_model=self._settings.openrouter_primary_model,
+                provider=self._provider_name,
+                primary_model=self._settings.agent_primary_model,
                 final_model=interpretation.ai.model,
                 escalated=interpretation.ai.escalated,
                 escalation_reason=interpretation.ai.escalation_reason,
@@ -271,7 +287,7 @@ class AgentInterpretationService:
                 interaction_id=request_id,
                 operation_type="INTENT_INTERPRETATION",
                 source=AiProcessingSource.LIVE_API,
-                provider="openrouter",
+                provider=self._provider_name,
                 model=interpretation.ai.model,
                 escalated=interpretation.ai.escalated,
                 cache_hit=False,
@@ -330,7 +346,7 @@ class AgentInterpretationService:
             schema_version=SCHEMA_VERSION,
             knowledge_version=self._settings.ai_cache_knowledge_version,
             taxonomy_version=self._settings.ai_cache_taxonomy_version,
-            primary_model=self._settings.openrouter_primary_model,
+            primary_model=self._settings.agent_primary_model,
             model_settings={
                 "maxOutputTokens": self._settings.openrouter_max_output_tokens,
                 "confidenceThreshold": self._settings.openrouter_confidence_threshold,
@@ -385,7 +401,7 @@ class AgentInterpretationService:
                 interaction_id=request_id,
                 operation_type="INTENT_INTERPRETATION",
                 source=AiProcessingSource.CACHE,
-                provider="openrouter",
+                provider=self._provider_name,
                 model=entry.model,
                 escalated=entry.escalated,
                 cache_hit=True,
@@ -425,7 +441,7 @@ class AgentInterpretationService:
             context=context,
             result_payload=canonicalise_payload(payload, normalisation),
             usage=live.usage,
-            final_model=live.interpretation.ai.model or self._settings.openrouter_primary_model,
+            final_model=live.interpretation.ai.model or self._settings.agent_primary_model,
             escalated=live.escalated,
             escalation_reason=live.escalation_reason,
             attempt_count=live.attempt_count,
@@ -452,7 +468,7 @@ class AgentInterpretationService:
         try:
             primary = await self._call_and_validate(
                 request_id,
-                self._settings.openrouter_primary_model,
+                self._settings.agent_primary_model,
                 request,
                 sanitised,
             )
@@ -468,7 +484,7 @@ class AgentInterpretationService:
                 try:
                     primary = await self._call_and_validate(
                         request_id,
-                        self._settings.openrouter_primary_model,
+                        self._settings.agent_primary_model,
                         request,
                         sanitised,
                         correction=True,
@@ -489,7 +505,7 @@ class AgentInterpretationService:
         elif primary_error is not None:
             escalation_reason = _primary_error_escalation_reason(primary_error)
 
-        if not self._settings.openrouter_escalation_enabled:
+        if not self._settings.agent_escalation_enabled:
             if primary_error is not None:
                 raise primary_error
             assert primary is not None
@@ -498,7 +514,7 @@ class AgentInterpretationService:
         try:
             escalated = await self._call_and_validate(
                 request_id,
-                self._settings.openrouter_escalation_model,
+                self._settings.agent_escalation_model,
                 request,
                 sanitised,
             )
@@ -684,16 +700,16 @@ class AgentInterpretationService:
             requires_clarification=(requires_confirmation or bool(missing_decisions)),
             ai=AiMetadata(
                 used=True,
-                provider=AiSource.OPENROUTER,
+                provider=self._ai_source,
                 model=(
                     model_override
                     or (
-                        self._settings.openrouter_escalation_model
+                        self._settings.agent_escalation_model
                         if escalated
-                        else self._settings.openrouter_primary_model
+                        else self._settings.agent_primary_model
                     )
                 ),
-                primary_model=self._settings.openrouter_primary_model,
+                primary_model=self._settings.agent_primary_model,
                 escalated=escalated,
                 escalation_reason=escalation_reason,
                 request_id=request_id,
@@ -725,17 +741,13 @@ class AgentInterpretationService:
         return AiHealthResponse(
             configured=self.configured,
             mode=self._settings.ai_mode,
-            provider=self._settings.ai_provider,
-            primary_model=self._settings.openrouter_primary_model,
-            escalation_model=self._settings.openrouter_escalation_model,
-            escalation_enabled=self._settings.openrouter_escalation_enabled,
+            provider=self._settings.agent_ai_provider_effective,
+            primary_model=self._settings.agent_primary_model,
+            escalation_model=self._settings.agent_escalation_model,
+            escalation_enabled=self._settings.agent_escalation_enabled,
             circuit_state=self._circuit.state,
             last_successful_call_at=self._telemetry.last_successful_call_at,
-            privacy_enforcement_enabled=(
-                self._settings.openrouter_require_parameters
-                and self._settings.openrouter_data_collection == "deny"
-                and self._settings.openrouter_zdr_required
-            ),
+            privacy_enforcement_enabled=self._settings.agent_privacy_enforcement_enabled,
             require_parameters=self._settings.openrouter_require_parameters,
             data_collection=self._settings.openrouter_data_collection,
             zdr_required=self._settings.openrouter_zdr_required,
@@ -773,8 +785,8 @@ class AgentInterpretationService:
                     if request.current_scenario is not None
                     else None
                 ),
-                provider="openrouter",
-                primary_model=self._settings.openrouter_primary_model,
+                provider=self._provider_name,
+                primary_model=self._settings.agent_primary_model,
                 final_model=None,
                 escalated=error.code == "AI_ESCALATION_FAILED",
                 escalation_reason=(
@@ -796,7 +808,7 @@ class AgentInterpretationService:
                 interaction_id=request_id,
                 operation_type="INTENT_INTERPRETATION",
                 source=AiProcessingSource.AI_UNAVAILABLE,
-                provider="openrouter",
+                provider=self._provider_name,
                 model=None,
                 escalated=error.code == "AI_ESCALATION_FAILED",
                 cache_hit=False,

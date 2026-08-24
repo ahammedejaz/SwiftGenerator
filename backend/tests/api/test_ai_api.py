@@ -6,7 +6,12 @@ def test_ai_health_is_safe_and_does_not_probe_provider(client) -> None:
     assert payload["primaryModel"] == "openai/gpt-5.4-mini"
     assert payload["escalationModel"] == "openai/gpt-5.4"
     assert payload["configured"] is False
-    assert payload["privacyEnforcementEnabled"] is True
+    # The OpenRouter routing controls describe OpenRouter. With no provider serving the
+    # screen there is nothing they are in force over, so the screen must not claim them.
+    assert payload["privacyEnforcementEnabled"] is False
+    assert payload["requireParameters"] is True
+    assert payload["dataCollection"] == "deny"
+    assert payload["zdrRequired"] is True
     serialized = response.text.casefold()
     assert "api_key" not in serialized
     assert "authorization" not in serialized

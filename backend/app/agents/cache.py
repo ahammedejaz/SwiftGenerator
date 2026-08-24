@@ -294,10 +294,13 @@ class AiResultCache:
             and entry.profile_id == context.profile_id
             and entry.profile_version == context.profile_version
             and entry.standards_release == context.standards_release
+            # The models of the provider that serves this screen. Pinning the OpenRouter
+            # slugs rejected every entry written on the organisation endpoint, so the
+            # cache silently never hit.
             and entry.model
             in {
-                self._settings.openrouter_primary_model,
-                self._settings.openrouter_escalation_model,
+                self._settings.agent_primary_model,
+                self._settings.agent_escalation_model,
             }
         )
 

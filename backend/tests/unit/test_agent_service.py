@@ -586,3 +586,57 @@ def test_party_labels_do_not_trigger_false_post_escalation_contradiction() -> No
     assert result.intent.direction == Direction.DELIVER
     assert result.resolution.resolved_message_type is not None
     assert result.resolution.resolved_message_type.value == "MT543"
+
+
+def organisation_settings(**overrides: object) -> Settings:
+    """Only the organisation's Azure deployment configured — no OpenRouter key."""
+    defaults: dict[str, object] = {
+        "ai_provider": "openrouter",  # the default; the operator never set it
+        "ai_endpoint": "https://demo.openai.azure.com",
+        "ai_api_key": "organisation-secret",
+        "ai_chat_deployment": "gpt-deployment-1",
+        "openrouter_max_retries": 0,
+    }
+    defaults.update(overrides)
+    return Settings(_env_file=None, **defaults)
+
+
+class AzureQueueClient(QueueClient):
+    provider_name = "azure_openai"
+
+
+def test_organisation_endpoint_interpretation_is_not_refused_as_unconfigured() -> None:
+    """The reported defect: the guided screen answered AI_NOT_CONFIGURED on an install
+    where every other AI path worked, because it demanded ai_provider == "openrouter"."""
+    client = AzureQueueClient([response(payload(), model="gpt-deployment-1")])
+    result = run(
+        AgentInterpretationService(organisation_settings(), client),
+        InterpretScenarioRequest(text="I purchased 1,000 securities and need to settle them."),
+    )
+    assert result.resolution.resolved_message_type.value == "MT541"
+    assert result.ai.used is True
+    assert result.ai.provider.value == "azure_openai"
+    assert result.ai.model == "gpt-deployment-1"
+    assert result.ai.primary_model == "gpt-deployment-1"
+
+
+def test_organisation_endpoint_does_not_escalate_to_the_same_deployment() -> None:
+    """One deployment is both models, so escalation would be a duplicate paid call."""
+    low_confidence = response(payload(confidence=0.10), model="gpt-deployment-1")
+    client = AzureQueueClient([low_confidence])
+    result = run(
+        AgentInterpretationService(organisation_settings(), client),
+        InterpretScenarioRequest(text="Receive securities against payment."),
+    )
+    assert len(client.requests) == 1
+    assert result.ai.escalated is False
+
+
+def test_unconfigured_installation_still_refuses_cleanly() -> None:
+    service = AgentInterpretationService(
+        Settings(_env_file=None, ai_provider="openrouter", openrouter_max_retries=0),
+        None,
+    )
+    with pytest.raises(AiServiceError) as caught:
+        run(service, InterpretScenarioRequest(text="Receive securities against payment."))
+    assert caught.value.code == "AI_NOT_CONFIGURED"

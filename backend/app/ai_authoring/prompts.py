@@ -26,6 +26,13 @@ BOUNDARY = (
     "deterministic composer does that from canonical values.\n"
     "All identifiers in samples are synthetic. Never present a BIC, ISIN, account or "
     "reference as a real registered one.\n"
+    # The fencing is how the prompt is built; it is not something to tell the reader about.
+    # Explanations came back reading "the untrusted user text explicitly requests …", which
+    # is the machinery talking, addressed to the person who wrote the sentence.
+    "Every free-text field you return — explanation, notes, summaries — is read by a "
+    "tester in the product. Write plain business English. Never name the fencing markers, "
+    "never describe the request as untrusted, and never refer to evidence blocks, seeds or "
+    "schemas by their prompt names. Say \"the request\" and cite sources by their title.\n"
     "Answer only with the JSON schema you are given."
 )
 
